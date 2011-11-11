@@ -1,0 +1,8 @@
+<RCC>
+  <qresource prefix="newPrefix">
+    <file>icons/Brainico.png</file>
+    <file>icons/cajal.png</file>
+    <file>icons/escudofi.png</file>
+    <file>icons/escudoupm.png</file>
+  </qresource>
+</RCC>

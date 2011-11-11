@@ -1,0 +1,30 @@
+<RCC>
+  <qresource prefix="newPrefix">
+    <file>icons/FileOpen.png</file>
+    <file>icons/tomax.png</file>
+    <file>icons/tomin.png</file>
+    <file>icons/axes.png</file>
+    <file>icons/brain.png</file>
+    <file>icons/Brainico.png</file>
+    <file>icons/close.png</file>
+    <file>icons/config.png</file>
+    <file>icons/cut.png</file>
+    <file>icons/dilate.png</file>
+    <file>icons/Door-In.png</file>
+    <file>icons/erode.png</file>
+    <file>icons/eye.png</file>
+    <file>icons/Folder.png</file>
+    <file>icons/mesh.png</file>
+    <file>icons/noaxes.png</file>
+    <file>icons/open.png</file>
+    <file>icons/pencil.png</file>
+    <file>icons/Redo.png</file>
+    <file>icons/relabel.png</file>
+    <file>icons/Save-As.png</file>
+    <file>icons/select.png</file>
+    <file>icons/Undo.png</file>
+    <file>icons/voxel.png</file>
+    <file>icons/watershed.png</file>
+    <file>icons/zoom.png</file>
+  </qresource>
+</RCC>
