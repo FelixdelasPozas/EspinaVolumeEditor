@@ -316,10 +316,11 @@ void SliceVisualization::UpdateCrosshair(Vector3ui point)
     _POIHorizontalLine->Reset();
     _POIHorizontalLine->SetPoints(horizontalpoints);
     _POIHorizontalLine->SetLines(horizontalline);
-    _POIHorizontalLine->Update();
     _POIVerticalLine->Reset();
     _POIVerticalLine->SetPoints(verticalpoints);
     _POIVerticalLine->SetLines(verticalline);
+
+    _POIHorizontalLine->Update();
     _POIVerticalLine->Update();
 }
 

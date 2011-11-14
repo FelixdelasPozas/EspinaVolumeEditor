@@ -256,19 +256,17 @@ void EditorOperations::ItkImageToPoints(itk::SmartPointer<ImageType> image)
 
 void EditorOperations::CutSelection(unsigned short label)
 {
+    if (label == 0)
+    	return;
+
     _progress->ManualSet("Cut");
     _dataManager->OperationStart("Cut");
     
     for (unsigned int z = _min[2]; z <= _max[2]; z++)
         for (unsigned int x = _min[0]; x <= _max[0]; x++)
             for (unsigned int y = _min[1]; y <= _max[1]; y++)
-            {
-                if (label == 0)
-                    _dataManager->SetVoxelScalar(x,y,z,0);
-                else
-                    if (label == _dataManager->GetVoxelScalar(x,y,z))
-                        _dataManager->SetVoxelScalar(x,y,z,0);
-            }
+				if (label == _dataManager->GetVoxelScalar(x, y, z))
+					_dataManager->SetVoxelScalar(x, y, z, 0);
     
     _progress->ManualReset();
     _dataManager->OperationEnd();

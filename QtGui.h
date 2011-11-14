@@ -122,6 +122,7 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         
         bool updatevoxelrenderer;
         bool updateslicerenderers;
+        bool updatepointlabel;
 
         void AxialXYPick(unsigned long);
         void CoronalXYPick(unsigned long);

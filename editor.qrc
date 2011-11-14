@@ -1,5 +1,6 @@
 <RCC>
   <qresource prefix="newPrefix">
+    <file>icons/colorpicker.png</file>
     <file>icons/FileOpen.png</file>
     <file>icons/tomax.png</file>
     <file>icons/tomin.png</file>

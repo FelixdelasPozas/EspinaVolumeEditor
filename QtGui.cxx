@@ -137,6 +137,7 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
     // boolean values
     this->updatevoxelrenderer = false;
     this->updateslicerenderers = false;
+    this->updatepointlabel = false;
     
      // initialize renderers
     vtkSmartPointer<vtkInteractorStyleImage> axialinteractorstyle = vtkSmartPointer<vtkInteractorStyleImage>::New();
@@ -394,6 +395,7 @@ void EspinaVolumeEditor::EditorOpen(void)
     // do not update the viewports while loading
     this->updatevoxelrenderer = false;
     this->updateslicerenderers = false;
+    this->updatepointlabel = false;
     
     // have to check first if we have a session, and preserve preferences (have to change this some day
     // to save preferences as global, not per class instance)
@@ -550,6 +552,7 @@ void EspinaVolumeEditor::EditorOpen(void)
 
     // fill selection label combobox and draw label combobox
     FillColorLabels();
+    this->updatepointlabel = true;
     SetPointLabel();
     
     // initalize EditorOperations instance
@@ -558,6 +561,7 @@ void EspinaVolumeEditor::EditorOpen(void)
     // enable disabled widgets
     viewbutton->setEnabled(true);
     paintbutton->setEnabled(true);
+    pickerbutton->setEnabled(true);
     selectbutton->setEnabled(true);
     axialresetbutton->setEnabled(true);
     coronalresetbutton->setEnabled(true);
@@ -792,7 +796,8 @@ void EspinaVolumeEditor::MoveAxialSlider(int value)
     // slider values are in the range [1-size] but coordinates are [0-(slices-1)]
     value--;
     _POI[2] = value;
-    SetPointLabel();
+    if (updatepointlabel)
+    	SetPointLabel();
     
     _sagittalSliceVisualization->UpdateCrosshair(_POI);
     _coronalSliceVisualization->UpdateCrosshair(_POI);
@@ -820,7 +825,8 @@ void EspinaVolumeEditor::MoveCoronalSlider(int value)
     value--;
 
     _POI[1] = value;
-    SetPointLabel();
+    if (updatepointlabel)
+    	SetPointLabel();
 
     _sagittalSliceVisualization->UpdateCrosshair(_POI);
     _coronalSliceVisualization->UpdateSlice(_POI);
@@ -848,7 +854,8 @@ void EspinaVolumeEditor::MoveSagittalSlider(int value)
     value--;
     
     _POI[0] = value;
-    SetPointLabel();
+    if (updatepointlabel)
+    	SetPointLabel();
 
     _sagittalSliceVisualization->UpdateSlice(_POI);
     _coronalSliceVisualization->UpdateCrosshair(_POI);
@@ -903,6 +910,9 @@ void EspinaVolumeEditor::SetPointLabel()
 {
     // get pixel value
     _pointScalar = _dataManager->GetVoxelScalar(_POI[0],_POI[1],_POI[2]);
+
+    if (pickerbutton->isChecked())
+    	labelselector->setCurrentIndex(_pointScalar);
 
     if (0 == _pointScalar)
     {
@@ -1592,6 +1602,7 @@ void EspinaVolumeEditor::AxialXYPick(unsigned long event)
 
     updatevoxelrenderer = false;
     updateslicerenderers = false;
+    updatepointlabel = false;
     
     // updating slider positions updates POI 
     if (actualPick == pickedProp)
@@ -1613,6 +1624,7 @@ void EspinaVolumeEditor::AxialXYPick(unsigned long event)
     
     // get pixel value
     SetPointLabel();
+    updatepointlabel = true;
 
     if ((paintbutton->isChecked()) && (pickedProp == SliceVisualization::Slice) && (actualPick == SliceVisualization::Slice))
         _dataManager->SetVoxelScalar(_POI[0], _POI[1], _POI[2], _selectedLabel);
@@ -1676,6 +1688,7 @@ void EspinaVolumeEditor::CoronalXYPick(unsigned long event)
 
     updatevoxelrenderer = false;
     updateslicerenderers = false;
+    updatepointlabel = false;
     
     // updating slider positions updates POI
     if (actualPick == pickedProp)
@@ -1697,6 +1710,7 @@ void EspinaVolumeEditor::CoronalXYPick(unsigned long event)
 
     // get pixel value
     SetPointLabel();
+    updatepointlabel = true;
 
     if ((paintbutton->isChecked()) && (pickedProp == SliceVisualization::Slice) && (actualPick == SliceVisualization::Slice))
         _dataManager->SetVoxelScalar(_POI[0], _POI[1], _POI[2],_selectedLabel);
@@ -1760,6 +1774,7 @@ void EspinaVolumeEditor::SagittalXYPick(unsigned long event)
 
     updatevoxelrenderer = false;
     updateslicerenderers = false;
+    updatepointlabel = false;
     
     // updating slider positions updates POI 
     if (actualPick == pickedProp)
@@ -1781,6 +1796,7 @@ void EspinaVolumeEditor::SagittalXYPick(unsigned long event)
 
     // get pixel value
     SetPointLabel();
+    updatepointlabel = true;
 
     if ((paintbutton->isChecked()) && (pickedProp == SliceVisualization::Slice) && (actualPick == SliceVisualization::Slice))
         _dataManager->SetVoxelScalar(_POI[0], _POI[1], _POI[2],_selectedLabel);
