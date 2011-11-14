@@ -569,11 +569,13 @@ void EspinaVolumeEditor::EditorOpen(void)
     voxelresetbutton->setEnabled(true);
     rendertypebutton->setEnabled(true);
     axestypebutton->setEnabled(true);
-    erodeoperation->setEnabled(true);
-    dilateoperation->setEnabled(true);
-    openoperation->setEnabled(true);
-    closeoperation->setEnabled(true);
-    watershedoperation->setEnabled(true);
+
+    erodeoperation->setEnabled(false);
+    dilateoperation->setEnabled(false);
+    openoperation->setEnabled(false);
+    closeoperation->setEnabled(false);
+    watershedoperation->setEnabled(false);
+
     a_fileSave->setEnabled(true);
     a_fileReferenceOpen->setEnabled(true);
     axialsizebutton->setEnabled(true);
@@ -912,7 +914,10 @@ void EspinaVolumeEditor::SetPointLabel()
     _pointScalar = _dataManager->GetVoxelScalar(_POI[0],_POI[1],_POI[2]);
 
     if (pickerbutton->isChecked())
+    {
     	labelselector->setCurrentIndex(_pointScalar);
+    	viewbutton->setChecked(true);
+    }
 
     if (0 == _pointScalar)
     {
@@ -1014,6 +1019,27 @@ void EspinaVolumeEditor::LabelSelectionChanged(int value)
     }
     
     _selectedLabel = value;
+
+    // don't want filters with the background label
+    switch (_selectedLabel)
+    {
+    	case 0:
+    		erodeoperation->setEnabled(false);
+    		dilateoperation->setEnabled(false);
+    		openoperation->setEnabled(false);
+    		closeoperation->setEnabled(false);
+    		watershedoperation->setEnabled(false);
+    		break;
+    	default:
+    		erodeoperation->setEnabled(true);
+    		dilateoperation->setEnabled(true);
+    		openoperation->setEnabled(true);
+    		closeoperation->setEnabled(true);
+    		watershedoperation->setEnabled(true);
+    		break;
+    }
+
+
     _dataManager->GetLookupTable()->Modified();
     UpdateViewports(All);
 }
