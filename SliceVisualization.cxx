@@ -167,7 +167,7 @@ void SliceVisualization::GenerateCrosshair()
     _vertactor->GetProperty()->SetLineStipplePattern(0x9999);
     _vertactor->GetProperty()->SetLineStippleRepeatFactor(1);
     _vertactor->GetProperty()->SetPointSize(1);
-    _vertactor->GetProperty()->SetLineWidth(1);
+    _vertactor->GetProperty()->SetLineWidth(2);
     _vertactor->SetPickable(false);
 
     _horiactor = vtkSmartPointer<vtkActor>::New();
@@ -176,7 +176,7 @@ void SliceVisualization::GenerateCrosshair()
     _horiactor->GetProperty()->SetLineStipplePattern(0x9999);
     _horiactor->GetProperty()->SetLineStippleRepeatFactor(1);
     _horiactor->GetProperty()->SetPointSize(1);
-    _horiactor->GetProperty()->SetLineWidth(1);
+    _horiactor->GetProperty()->SetLineWidth(2);
     _horiactor->SetPickable(false);
     
     _renderer->AddActor(_vertactor);
@@ -653,6 +653,10 @@ void SliceVisualization::SetReferenceImage(vtkSmartPointer<vtkStructuredPoints> 
 	
 	_thumbRenderer->RemoveActor(_imageactor);
 	_thumbRenderer->AddActor(_blendactor);
+
+	// change color for the crosshair because reference images tend to be too white and it messes with it
+    _horiactor->GetProperty()->SetColor(0,0,0);
+    _vertactor->GetProperty()->SetColor(0,0,0);
 }
 
 unsigned int SliceVisualization::GetSegmentationOpacity()

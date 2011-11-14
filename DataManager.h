@@ -153,8 +153,8 @@ class DataManager
         // for voxel statistics, notice the NOT unsigned variable for actions, as those values can be negative.
         // using two arrays allows us to ignore the number of voxels changed when an exception ocurrs, and an
         // actions is ignored. the voxelCount must be always positive or null.
-        unsigned long long voxelCount[2048];
-        long long voxelActionCount[2048];
+        unsigned long long int voxelCount[2048];
+        long long int voxelActionCount[2048];
 };
 
 #endif // _DATAMANAGER_H_

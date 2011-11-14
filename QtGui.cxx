@@ -607,14 +607,12 @@ void EspinaVolumeEditor::EditorOpen(void)
     this->updateslicerenderers = true;
     UpdateViewports(All);
     
-    // reset parts of the GUI, needed when loading another image (another session) to
-    // reset buttons & items initial states. Same goes for selected label.
+    // reset parts of the GUI, needed when loading another image (another session) to reset buttons
+    // and items to their initial states. Same goes for selected label.
     axestypebutton->setIcon(QIcon(":newPrefix/icons/noaxes.png"));
-    labelselector->setCurrentItem(0);
+    labelselector->setCurrentIndex(0);
     _selectedLabel = 0;
     viewbutton->setChecked(true);
-    paintbutton->setChecked(false);
-    selectbutton->setChecked(false);
 
     // initially without a reference image
     _hasReferenceImage = false;
@@ -722,9 +720,8 @@ void EspinaVolumeEditor::EditorReferenceOpen(void)
 		return;
     }
     
-    // can't test the image orientation as vtkStructuredPoinst doesn't seem to have that info
-    // identical dimensions, spacing, but NOT origin because internally all images will 
-    // have a (0,0,0) origin
+    // can't test the image orientation as vtkStructuredPoinst doesn't seem to have that info.
+    // identical dimensions, spacing, but NOT origin because internally all images will have a (0,0,0) origin
     structuredPoints->SetOrigin(0,0,0);
 
     // now that we have a reference image make the background of the segmentation completely transparent
@@ -738,15 +735,13 @@ void EspinaVolumeEditor::EditorReferenceOpen(void)
     _sagittalSliceVisualization->SetReferenceImage(structuredPoints);
     UpdateViewports(Slices);
     
-    // NOTE: structuredPoints pointer is not stored so when this method ends just the
-    // slices have a reference to the data, if a new reference image is loaded THEN it's
-    // memory gets freed as there are not more references in memory.
+    // NOTE: structuredPoints pointer is not stored so when this method ends just the slices have a reference
+    // to the data, if a new reference image is loaded THEN it's memory gets freed as there are not more
+    // references to it in memory.
 	_hasReferenceImage = true;
 	
 	// reset editing state
     viewbutton->setChecked(true);
-    paintbutton->setChecked(false);
-    selectbutton->setChecked(false);
     
     _progress->ManualReset();
 }

@@ -75,7 +75,7 @@ class Metadata
         // true if the segmha file readed had a segment with "Unassigned" name, false otherwise
         bool hasUnassignedTag;
         //
-        // position in the SegmentMetadata vector of the "Unassigned" tag
+        // position in the SegmentMetadata vector of the "Unassigned" tag, only valid if hasUnassignedTag==true
         int unassignedTagPosition;
         //
         // vector containing Object metadata
