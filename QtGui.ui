@@ -1588,7 +1588,7 @@ QGroupBox::title {
          </widget>
         </item>
         <item>
-         <layout class="QVBoxLayout" name="renderbar" stretch="0,0,1,0,0">
+         <layout class="QVBoxLayout" name="renderbar" stretch="0,0,1,0,0,0">
           <property name="spacing">
            <number>1</number>
           </property>
@@ -1760,6 +1760,38 @@ QGroupBox::title {
             </property>
             <property name="autoRaise">
              <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QToolButton" name="renderdisablebutton">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>29</width>
+              <height>24</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>29</width>
+              <height>24</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>Disable render view</string>
+            </property>
+            <property name="statusTip">
+             <string>Disables the rendering view of the volume</string>
+            </property>
+            <property name="text">
+             <string>...</string>
+            </property>
+            <property name="icon">
+             <iconset resource="editor.qrc">
+              <normaloff>:/newPrefix/icons/cog_delete.png</normaloff>:/newPrefix/icons/cog_delete.png</iconset>
             </property>
            </widget>
           </item>

@@ -164,7 +164,7 @@ void SliceVisualization::GenerateCrosshair()
     _vertactor = vtkSmartPointer<vtkActor>::New();
     _vertactor->SetMapper(vertmapper);
     _vertactor->GetProperty()->SetColor(1,1,1);
-    _vertactor->GetProperty()->SetLineStipplePattern(0x9999);
+    _vertactor->GetProperty()->SetLineStipplePattern(0xF0F0);
     _vertactor->GetProperty()->SetLineStippleRepeatFactor(1);
     _vertactor->GetProperty()->SetPointSize(1);
     _vertactor->GetProperty()->SetLineWidth(2);
@@ -173,7 +173,7 @@ void SliceVisualization::GenerateCrosshair()
     _horiactor = vtkSmartPointer<vtkActor>::New();
     _horiactor->SetMapper(horimapper);
     _horiactor->GetProperty()->SetColor(1,1,1);
-    _horiactor->GetProperty()->SetLineStipplePattern(0x9999);
+    _horiactor->GetProperty()->SetLineStipplePattern(0xF0F0);
     _horiactor->GetProperty()->SetLineStippleRepeatFactor(1);
     _horiactor->GetProperty()->SetPointSize(1);
     _horiactor->GetProperty()->SetLineWidth(2);

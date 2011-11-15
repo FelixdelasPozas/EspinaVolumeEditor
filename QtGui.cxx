@@ -36,6 +36,7 @@
 #include <vtkImageCast.h>
 #include <vtkImageToStructuredPoints.h>
 #include <vtkImageImport.h>
+#include <vtkInformation.h>
 
 // project includes 
 #include "DataManager.h"
@@ -120,6 +121,8 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
     connect(coronalsizebutton, SIGNAL(clicked(bool)), this, SLOT(ViewZoom()));
     connect(rendersizebutton, SIGNAL(clicked(bool)), this, SLOT(ViewZoom()));
     
+    connect(renderdisablebutton, SIGNAL(clicked(bool)), this, SLOT(DisableRenderView()));
+
     XspinBox->setReadOnly(false);
     XspinBox->setWrapping(false);
     XspinBox->setAccelerated(true);
@@ -582,6 +585,7 @@ void EspinaVolumeEditor::EditorOpen(void)
     coronalsizebutton->setEnabled(true);
     sagittalsizebutton->setEnabled(true);
     rendersizebutton->setEnabled(true);
+    renderdisablebutton->setEnabled(true);
     
     // needed to maximize/mininize views, not really necessary but looks better
     viewgrid->setColumnMinimumWidth(0,0);
@@ -709,20 +713,24 @@ void EspinaVolumeEditor::EditorReferenceOpen(void)
 
     double spacing[3];
     structuredPoints->GetSpacing(spacing);
-    if (_orientationData->GetImageSpacing() != Vector3d(spacing[0], spacing[1], spacing[2]))
-    {
-    	_progress->ManualReset();
-		msgBox.setIcon(QMessageBox::Critical);
-
-		sprintf(text, "Reference image has different point spacing (%f,%f,%f).\nThe operation has been aborted.", spacing[0], spacing[1], spacing[2]);
-		msgBox.setText(text);
-		msgBox.exec();
-		return;
-    }
+    Vector3d segmentationspacing = _orientationData->GetImageSpacing();
+    if (segmentationspacing != Vector3d(spacing[0], spacing[1], spacing[2]))
+		structuredPoints->SetSpacing(segmentationspacing[0], segmentationspacing[1], segmentationspacing[2]);
+//    {
+//    	qApp->restoreOverrideCursor();
+//		msgBox.setIcon(QMessageBox::Warning);
+//
+//		sprintf(text, "Reference image has different point spacing (%f,%f,%f).\nSegmentation spacing is (%f,%f,%f).\nEditor will use segmentation spacing.", spacing[0], spacing[1], spacing[2],
+//				segmentationspacing[0], segmentationspacing[1], segmentationspacing[2]);
+//		msgBox.setText(text);
+//		msgBox.exec();
+//		qApp->setOverrideCursor(QCursor(Qt::WaitCursor));
+//    }
     
     // can't test the image orientation as vtkStructuredPoinst doesn't seem to have that info.
     // identical dimensions, spacing, but NOT origin because internally all images will have a (0,0,0) origin
     structuredPoints->SetOrigin(0,0,0);
+    structuredPoints->Update();
 
     // now that we have a reference image make the background of the segmentation completely transparent
     double rgba[4] = { 0.0, 0.0, 0.0, 0.0 };
@@ -1643,7 +1651,7 @@ void EspinaVolumeEditor::AxialXYPick(unsigned long event)
         }
     }
     
-    // get pixel value
+    // get pixel value or pick a label if color picker is activated (managed in SetPointLabel())
     SetPointLabel();
     updatepointlabel = true;
 
@@ -1945,9 +1953,13 @@ void EspinaVolumeEditor::ViewZoom(void)
                 rendersizebutton->show();
                 axestypebutton->show();
                 rendertypebutton->show();
+                renderdisablebutton->show();
             }
 
             button->setIcon(QIcon(":/newPrefix/icons/tomax.png"));
+
+            // we weren't updating the other view when zoomed, so we must update all views now.
+            UpdateViewports(All);
             break;
         case false:
             if (button == axialsizebutton)
@@ -2022,6 +2034,7 @@ void EspinaVolumeEditor::ViewZoom(void)
                 rendersizebutton->hide();
                 axestypebutton->hide();
                 rendertypebutton->hide();
+                renderdisablebutton->hide();
             }
 
             button->setIcon(QIcon(":/newPrefix/icons/tomin.png"));
@@ -2043,8 +2056,40 @@ void EspinaVolumeEditor::ViewZoom(void)
     
     repaint();
     zoomstatus = !zoomstatus;
-    
-    // we weren't drawing in the other view when zoomed, so we must update all views now.
-    if (zoomstatus == false)
-        UpdateViewports(All);
+}
+
+void EspinaVolumeEditor::DisableRenderView(void)
+{
+	static bool disabled = false;
+	disabled = !disabled;
+
+	switch(disabled)
+	{
+		case true:
+			renderview->setEnabled(false);
+			_voxelViewRenderer->DrawOff();
+            voxelresetbutton->setEnabled(false);
+            rendersizebutton->setEnabled(false);
+            axestypebutton->setEnabled(false);
+            rendertypebutton->setEnabled(false);
+			renderdisablebutton->setIcon(QIcon(":/newPrefix/icons/cog_add.png"));
+            renderdisablebutton->setStatusTip(tr("Enable render view"));
+            renderdisablebutton->setToolTip(tr("Enables the rendering view of the volume"));
+			break;
+		case false:
+			renderview->setEnabled(true);
+			_voxelViewRenderer->DrawOn();
+            voxelresetbutton->setEnabled(true);
+            rendersizebutton->setEnabled(true);
+            axestypebutton->setEnabled(true);
+            rendertypebutton->setEnabled(true);
+			renderdisablebutton->setIcon(QIcon(":/newPrefix/icons/cog_delete.png"));
+            renderdisablebutton->setStatusTip(tr("Disable render view"));
+            renderdisablebutton->setToolTip(tr("Disables the rendering view of the volume"));
+            UpdateViewports(Voxel);
+			break;
+		default:
+			break;
+
+	}
 }

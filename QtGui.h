@@ -117,6 +117,7 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         virtual void OperationUndo();
         virtual void OperationRedo();
         virtual void ViewZoom();
+        virtual void DisableRenderView();
     private:
         typedef enum { All, Slices, Voxel, Axial, Coronal, Sagittal } VIEWPORTSENUM;
         

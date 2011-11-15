@@ -121,7 +121,7 @@ class Coordinates
         
         // get image spacing
         const Vector3d GetImageSpacing();
-        
+
         // index to index
         const Vector3i TransformIndexToIndex(Vector3i);
         
