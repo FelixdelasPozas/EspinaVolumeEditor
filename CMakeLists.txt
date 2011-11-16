@@ -36,7 +36,7 @@ INCLUDE(${ITK_USE_FILE})
 FIND_PACKAGE(VTK REQUIRED)
 INCLUDE(${VTK_USE_FILE})
 
-#LINK_DIRECTORIES(/home/felix/Documents/Libs/parabuild/bin)
+LINK_DIRECTORIES(/home/felix/Documents/Libs/parabuild3.12/bin)
 
 #Set any libraries that your project depends on.
 SET(Libraries

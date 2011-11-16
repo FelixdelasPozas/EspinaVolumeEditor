@@ -12,6 +12,7 @@
 #include <cstdlib>
 #include <cassert>
 #include <cstddef>
+#include <cstdio>
 
 // itk includes
 #include <itkSize.h>
@@ -720,12 +721,13 @@ void EditorOperations::SaveImage(std::string filename)
     infoChanger->Update();
     _progress->Ignore(infoChanger);
     
+    std::string tempfilename = filename + std::string(".mha");
     typedef itk::ImageFileWriter<ImageType> WriterType;
     itk::MetaImageIO::Pointer io = itk::MetaImageIO::New();
-    io->SetFileName(filename.c_str());
+    io->SetFileName(tempfilename.c_str());
     itk::SmartPointer<WriterType> writer = WriterType::New();
     writer->SetImageIO(io);
-    writer->SetFileName(filename.c_str());
+    writer->SetFileName(tempfilename.c_str());
     writer->SetInput(image);
     writer->UseCompressionOn();
     _progress->Observe(writer, "Write", 0.5);
@@ -746,6 +748,27 @@ void EditorOperations::SaveImage(std::string filename)
 		_progress->Ignore(writer);
 	    _progress->ManualReset();
 		return;
+	}
+
+	if (0 != (rename(tempfilename.c_str(), filename.c_str())))
+	{
+	    char text[100];
+	    QMessageBox msgBox;
+	    msgBox.setIcon(QMessageBox::Critical);
+		sprintf(text, "An error occurred saving the segmentation file.\nThe operation has been aborted.");
+		msgBox.setText(text);
+		msgBox.setDetailedText(QString("The temporal file couldn't be renamed."));
+		msgBox.exec();
+
+		if (0 != (remove(tempfilename.c_str())))
+		{
+		    char text[100];
+		    QMessageBox msgBox;
+		    msgBox.setIcon(QMessageBox::Critical);
+			sprintf(text, "The temporal file \"%s\" couldn't be deleted.", tempfilename.c_str());
+			msgBox.setText(text);
+			msgBox.exec();
+		}
 	}
     
     _progress->Ignore(writer);

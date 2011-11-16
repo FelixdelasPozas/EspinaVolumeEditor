@@ -152,7 +152,7 @@ bool Metadata::Write(QString filename, std::map<unsigned short, unsigned short> 
 		out << "\n";
 	}
 
-	if (ObjectVector.size() < (*labelValues).size())
+	if (ObjectVector.size() < ((*labelValues).size()-1))
 	{
 		unsigned int label = ObjectVector.size()+1;
 		int position = (true == hasUnassignedTag) ? unassignedTagPosition : SegmentVector.size()+1;
@@ -183,9 +183,12 @@ bool Metadata::Write(QString filename, std::map<unsigned short, unsigned short> 
 		out << " color= " << (*segmentit).color[0] << ", " << (*segmentit).color[1] << ", " << (*segmentit).color[2] << "\n";
 	}
 
-	// BEWARE: assumes that segment values are consecutive
-	if (false == hasUnassignedTag)
+	// BEWARE: assumes that segment values are consecutive, and only adds this segment definition if there are new labels.
+	if ((false == hasUnassignedTag) && (ObjectVector.size() < ((*labelValues).size()-1)))
 		out << "Segment: name=\"Unassigned\" value=" << this->SegmentVector.size()+1 << " color= 0, 0, 255" << "\n";
+
+	std::cout << "object vector size " << ObjectVector.size() << std::endl;
+	std::cout << "label vector size " << (*labelValues).size() << std::endl;
 
 	file.close();
 	return true;

@@ -189,10 +189,10 @@ unsigned short DataManager::SetLabel(Vector3d rgb, double coloralpha) throw(itk:
                 free = false;
         
         // have to check if we are generating more labels than the space reserved in the lookuptable
-        if ((free == false) && (freevalue == (_lookupTable->GetNumberOfColors()-1)))
+        if ((free == false) && (freevalue == 2048))
         {
             std::ostringstream message;
-            message << "ERROR: DataManager(" << this << "): Reached the limit of the number of possible labels (" << static_cast<int>(_lookupTable->GetNumberOfColors()) << ")";
+            message << "ERROR: DataManager(" << this << "): Reached the limit of the number of possible labels (2048)";
             itk::ExceptionObject e_(__FILE__, __LINE__, message.str().c_str(), ITK_LOCATION);
             throw e_; // Explicit naming to work around Intel compiler bug.
             return 0;
@@ -251,7 +251,7 @@ void DataManager::CopyLookupTable(vtkSmartPointer<vtkLookupTable> copyFrom, vtkS
 	// copyTo exists and i don't want to do just a DeepCopy that could release memory, i just want to copy the colors
     double rgba[4];
     
-    copyTo->Allocate(copyFrom->GetNumberOfColors());
+    copyTo->Allocate(copyFrom->GetNumberOfAvailableColors());
     copyTo->SetNumberOfTableValues(copyFrom->GetNumberOfTableValues());
     copyTo->SetTableRange(0,copyFrom->GetNumberOfTableValues()-1);
     

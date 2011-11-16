@@ -4,10 +4,6 @@ cmake_minimum_required(VERSION 2.8)
 PROJECT(EspinaVolumeEditor)
 
 # use what QVTK built with
-SET(QT_MOC_EXECUTABLE ${VTK_QT_MOC_EXECUTABLE} CACHE FILEPATH "")
-SET(QT_UIC_EXECUTABLE ${VTK_QT_UIC_EXECUTABLE} CACHE FILEPATH "")
-SET(QT_QMAKE_EXECUTABLE ${VTK_QT_QMAKE_EXECUTABLE} CACHE FILEPATH "")
-SET(DESIRED_QT_VERSION ${VTK_DESIRED_QT_VERSION} CACHE FILEPATH "")
 FIND_PACKAGE(Qt4 REQUIRED)
 INCLUDE(${QT_USE_FILE})
 ADD_DEFINITIONS(${QT_DEFINITIONS})
@@ -40,7 +36,7 @@ INCLUDE(${ITK_USE_FILE})
 FIND_PACKAGE(VTK REQUIRED)
 INCLUDE(${VTK_USE_FILE})
 
-#LINK_DIRECTORIES(/home/felix/Documents/Libs/parabuild/bin)
+#LINK_DIRECTORIES(/home/felix/Documents/Libs/parabuild3.12/bin)
 
 #Set any libraries that your project depends on.
 SET(Libraries
@@ -54,7 +50,7 @@ SET(Libraries
   ${QT_LIBRARIES}
 )
 
-SET(CurrentFiles "SliceVisualization" "UndoRedoSystem" "EditorOperations" "ProgressAccumulator" "Coordinates" "VoxelVolumeRender" "DataManager" "AxesRender")
+SET(CurrentFiles "SliceVisualization" "UndoRedoSystem" "EditorOperations" "ProgressAccumulator" "Coordinates" "VoxelVolumeRender" "DataManager" "AxesRender" "Metadata")
 SET(CurrentEditorFiles "Editor")
 ADD_LIBRARY(library SHARED ${CurrentFiles}.cxx ${QtSrcs} ${MOCSrcs} ${QtResources_CXX})
 ADD_EXECUTABLE(Editor ${CurrentEditorFiles}.cxx)
