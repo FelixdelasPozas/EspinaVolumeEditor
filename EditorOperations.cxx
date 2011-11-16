@@ -33,6 +33,7 @@
 #include <itkCastImageFilter.h>
 #include <itkImageFileWriter.h>
 #include <itkMetaImageIO.h>
+#include <itkChangeInformationImageFilter.h>
 
 // vtk includes
 #include <vtkPolyDataMapper.h>
@@ -705,8 +706,19 @@ void EditorOperations::SaveImage(std::string filename)
     
     // must restore the image origin before writing
     Vector3d point = _orientation->GetImageOrigin();
-    double origin[3] = {point[0], point[1], point[2]};
-    image->SetOrigin(origin);
+    typedef itk::ChangeInformationImageFilter<ImageType> ChangeInfoType;
+    itk::SmartPointer<ChangeInfoType> infoChanger = ChangeInfoType::New();
+    infoChanger->SetInput(image);
+    infoChanger->ChangeOriginOn();
+    infoChanger->ReleaseDataFlagOn();
+    ImageType::PointType newOrigin;
+    newOrigin[0] = point[0];
+    newOrigin[1] = point[1];
+    newOrigin[2] = point[2];
+    infoChanger->SetOutputOrigin(newOrigin);
+    _progress->Observe(infoChanger,"Fix Image", 0.5);
+    infoChanger->Update();
+    _progress->Ignore(infoChanger);
     
     typedef itk::ImageFileWriter<ImageType> WriterType;
     itk::MetaImageIO::Pointer io = itk::MetaImageIO::New();
@@ -716,7 +728,7 @@ void EditorOperations::SaveImage(std::string filename)
     writer->SetFileName(filename.c_str());
     writer->SetInput(image);
     writer->UseCompressionOn();
-    _progress->Observe(writer, "Write", 1.0);
+    _progress->Observe(writer, "Write", 0.5);
     
 	try
 	{

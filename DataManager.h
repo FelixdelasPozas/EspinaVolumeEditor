@@ -19,6 +19,7 @@
 // itk includes
 #include <itkLabelMap.h>
 #include <itkSmartPointer.h>
+#include <itkLabelObject.h>
 
 // c++ includes
 #include <map>

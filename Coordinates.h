@@ -12,8 +12,7 @@
 #define _COORDINATES_H_
 
 // itk includes
-#include <itkLabelMap.h>
-#include <itkLabelObject.h>
+#include <itkImage.h>
 #include <itkSmartPointer.h>
 
 // c++ includes
@@ -23,8 +22,7 @@
 #include "VectorSpaceAlgebra.h"
 
 // types for labels and label maps
-typedef itk::LabelObject<unsigned short, 3 > LabelObjectType;
-typedef itk::LabelMap< LabelObjectType > LabelMapType;
+typedef itk::Image<unsigned short, 3> ImageType;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // CoordinatesTransform Class
@@ -89,7 +87,7 @@ class Coordinates
 {
     public:
         // constructor & destructor. initializes the class with labelmap orientation data
-        Coordinates(itk::SmartPointer<LabelMapType> );
+        Coordinates(itk::SmartPointer<ImageType> );
         ~Coordinates();
         
         // get the normal transform 

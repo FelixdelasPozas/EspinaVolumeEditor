@@ -138,13 +138,13 @@ void CoordinatesTransform::Print(std::ostream &stream)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Coordinates Class
 //
-Coordinates::Coordinates(itk::SmartPointer<LabelMapType> labelMap)
+Coordinates::Coordinates(itk::SmartPointer<ImageType> image)
 {
     // we need the image data for the structured points data
-    LabelMapType::SizeType size = labelMap->GetLargestPossibleRegion().GetSize();
-    LabelMapType::PointType origin = labelMap->GetOrigin();
-    LabelMapType::SpacingType spacing = labelMap->GetSpacing();
-    LabelMapType::DirectionType cosinematrix = labelMap->GetDirection();
+    ImageType::SizeType size = image->GetLargestPossibleRegion().GetSize();
+    ImageType::PointType origin = image->GetOrigin();
+    ImageType::SpacingType spacing = image->GetSpacing();
+    ImageType::DirectionType cosinematrix = image->GetDirection();
     
     // initialize class
     for (int i = 0; i < 3; i++)

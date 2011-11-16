@@ -102,7 +102,6 @@ void DataManager::SetStructuredPoints(vtkSmartPointer<vtkStructuredPoints> point
     _structuredPoints->CopyInformation(points);
     _structuredPoints->AllocateScalars();
     _structuredPoints->DeepCopy(points);
-    _structuredPoints->SetOrigin(0,0,0);
     _structuredPoints->Update();
 }
 

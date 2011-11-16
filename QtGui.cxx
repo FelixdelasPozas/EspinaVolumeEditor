@@ -22,6 +22,7 @@
 #include <itkVTKImageExport.h>
 #include <itkMetaImageIO.h>
 #include <itkCastImageFilter.h>
+#include <itkChangeInformationImageFilter.h>
         
 // vtk includes 
 #include <vtkRenderer.h>
@@ -37,6 +38,7 @@
 #include <vtkImageToStructuredPoints.h>
 #include <vtkImageImport.h>
 #include <vtkInformation.h>
+#include <vtkImageChangeInformation.h>
 
 // project includes 
 #include "DataManager.h"
@@ -342,7 +344,7 @@ void EspinaVolumeEditor::EditorOpen(void)
 	sagittalview->setEnabled(true);
 	coronalview->setEnabled(true);
 
-    char text[100];
+    char text[150];
     QMessageBox msgBox;
 
     QString filename = QFileDialog::getOpenFileName(this, tr("Open Espina Segmentation Image"), QDir::currentPath(), QObject::tr("Espina segmentation files (*.segmha)"));
@@ -376,8 +378,7 @@ void EspinaVolumeEditor::EditorOpen(void)
 		return;
 	}
 	
-	// file reading succesfull, parse additional espina data (temporal code, just parse and print)
-
+	// file reading succesfull, parse additional espina metadata
 	_fileMetadata = new Metadata;
 	if (!_fileMetadata->Read(filename))
 	{
@@ -456,23 +457,37 @@ void EspinaVolumeEditor::EditorOpen(void)
     // here we go after file read:
     // itkimage(unsigned short,3) -> itklabelmap -> itkimage-> vtkimage -> vtkstructuredpoints
 	_progress->ManualSet("Load");
+
+    // get image orientation data
+    _orientationData = new Coordinates(reader->GetOutput());
+
+    typedef itk::ChangeInformationImageFilter<ImageType> ChangeInfoType;
+    itk::SmartPointer<ChangeInfoType> infoChanger = ChangeInfoType::New();
+    infoChanger->SetInput(reader->GetOutput());
+    infoChanger->ChangeOriginOn();
+    infoChanger->ReleaseDataFlagOn();
+    ImageType::PointType newOrigin;
+    newOrigin[0] = 0.0;
+    newOrigin[1] = 0.0;
+    newOrigin[2] = 0.0;
+    infoChanger->SetOutputOrigin(newOrigin);
+    _progress->Observe(infoChanger,"Fix Image", 0.16);
+    infoChanger->Update();
+    _progress->Ignore(infoChanger);
 	
     // itkimage->itklabelmap
     typedef itk::LabelImageToLabelMapFilter<ImageType, LabelMapType> ConverterType;
     itk::SmartPointer<ConverterType> converter = ConverterType::New();
 
-    converter->SetInput(reader->GetOutput());
+    converter->SetInput(infoChanger->GetOutput());
     converter->ReleaseDataFlagOn();
-    _progress->Observe(converter,"Label Map", 0.2);
+    _progress->Observe(converter,"Label Map", 0.16);
     converter->Update();
     _progress->Ignore(converter);
     converter->GetOutput()->Optimize();
     assert(0 != converter->GetOutput()->GetNumberOfLabelObjects());
 
-    // get image orientation data
-	_orientationData = new Coordinates(converter->GetOutput());
-
-	// flatten labelmap and store scalar label values
+	// flatten labelmap, modify origin and store scalar label values
 	_dataManager->Initialize(converter->GetOutput(), _orientationData);
 
 	// itklabelmap->itkimage
@@ -483,7 +498,7 @@ void EspinaVolumeEditor::EditorOpen(void)
 	labelconverter->SetNumberOfThreads(1);
 	labelconverter->ReleaseDataFlagOn();
 
-	_progress->Observe(labelconverter,"Convert Image", 0.2);
+	_progress->Observe(labelconverter,"Convert Image", 0.16);
 	labelconverter->Update();
 	_progress->Ignore(labelconverter);
 
@@ -493,8 +508,8 @@ void EspinaVolumeEditor::EditorOpen(void)
 	vtkSmartPointer<vtkImageImport> vtkImporter = vtkSmartPointer<vtkImageImport>::New();
 	itkExporter->SetInput(labelconverter->GetOutput());
 	ConnectPipelines(itkExporter, vtkImporter);
-	_progress->Observe(vtkImporter,"Import", 0.2);
-	_progress->Observe(itkExporter,"Export", 0.2);
+	_progress->Observe(vtkImporter,"Import", 0.16);
+	_progress->Observe(itkExporter,"Export", 0.16);
 	vtkImporter->Update();
 	_progress->Ignore(itkExporter);
 	_progress->Ignore(vtkImporter);
@@ -502,7 +517,7 @@ void EspinaVolumeEditor::EditorOpen(void)
 	// get the vtkStructuredPoints out of the vtkImage
 	vtkSmartPointer<vtkImageToStructuredPoints> convert = vtkSmartPointer<vtkImageToStructuredPoints>::New();
 	convert->SetInput(vtkImporter->GetOutput());
-	_progress->Observe(convert,"Convert Points",0.2);
+	_progress->Observe(convert,"Convert Points",0.16);
 	convert->Update();
 	_progress->Ignore(convert);
 	
@@ -626,7 +641,7 @@ void EspinaVolumeEditor::EditorOpen(void)
 
 void EspinaVolumeEditor::EditorReferenceOpen(void)
 {
-	char text[100];
+	char text[300];
 	QMessageBox msgBox;
 
 	QString filename = QFileDialog::getOpenFileName(this, tr("Open Reference Image"), QDir::currentPath(), QObject::tr("image files (*.mhd *.mha);;All files (*.*)"));
@@ -655,14 +670,14 @@ void EspinaVolumeEditor::EditorReferenceOpen(void)
 
     _progress->ManualSet("Load");
     
-    // don't ask me why but espina segmentation and reference file have different
+    // don't ask me why but espina segmentation and reference image have different
     // orientation, to match both images we'll have to flip the volume in the Y and Z
     // axis, but preserving the image extent
     vtkSmartPointer<vtkImageFlip> imageflipY = vtkSmartPointer<vtkImageFlip>::New();
     imageflipY->SetInput(reader->GetOutput());
     imageflipY->SetFilteredAxis(1);
     imageflipY->PreserveImageExtentOn();
-    _progress->Observe(imageflipY,"Flip Y Axis",(1.0/3.0));
+    _progress->Observe(imageflipY,"Flip Y Axis",(1.0/4.0));
     imageflipY->Update();
     _progress->Ignore(imageflipY);
 
@@ -670,66 +685,80 @@ void EspinaVolumeEditor::EditorReferenceOpen(void)
     imageflipZ->SetInput(imageflipY->GetOutput());
     imageflipZ->SetFilteredAxis(2);
     imageflipZ->PreserveImageExtentOn();
-    _progress->Observe(imageflipZ,"Flip Z Axis",(1.0/3.0));
+    _progress->Observe(imageflipZ,"Flip Z Axis",(1.0/4.0));
     imageflipZ->Update();
     _progress->Ignore(imageflipZ);
-
-    vtkSmartPointer<vtkImageToStructuredPoints> convert = vtkSmartPointer<vtkImageToStructuredPoints>::New();
-    convert->SetInput(imageflipZ->GetOutput());
-    _progress->Observe(convert,"Convert",(1.0/3.0));
-    convert->Update();
-    _progress->Ignore(convert);
     
-    vtkSmartPointer<vtkStructuredPoints> structuredPoints = vtkSmartPointer<vtkStructuredPoints>::New();
-    structuredPoints = convert->GetStructuredPointsOutput();
-    structuredPoints->Update();
+    vtkSmartPointer<vtkImageData> image = vtkSmartPointer<vtkImageData>::New();
+    image = imageflipZ->GetOutput();
 
     // need to check that segmentation image and reference image have the same origin, size, spacing and direction
     int size[3];
-    structuredPoints->GetDimensions(size);
-    if (_orientationData->GetImageSize() != Vector3ui(size[0], size[1], size[2]))
+    image->GetDimensions(size);
+    Vector3ui segmentationsize = _orientationData->GetImageSize();
+    if (segmentationsize != Vector3ui(size[0], size[1], size[2]))
     {
     	_progress->ManualReset();
 		msgBox.setIcon(QMessageBox::Critical);
 
-		sprintf(text, "Reference image has different dimensions (%d,%d,%d).\nThe operation has been aborted.", size[0],size[1],size[2]);
+		sprintf(text, "Reference and segmentation images have different dimensions.\nReference size is [%d,%d,%d].\nSegmentation size is [%d,%d,%d].\nThe operation has been aborted.",
+				size[0],size[1],size[2], segmentationsize[0], segmentationsize[1], segmentationsize[2]);
 		msgBox.setText(text);
 		msgBox.exec();
 		return;
     }
 
     double origin[3];
-    structuredPoints->GetOrigin(origin);
-    if (_orientationData->GetImageOrigin() != Vector3d(origin[0], origin[1], origin[2])) 
+    image->GetOrigin(origin);
+    Vector3d segmentationorigin = _orientationData->GetImageOrigin();
+    if (segmentationorigin != Vector3d(origin[0], origin[1], origin[2]))
     {
-    	_progress->ManualReset();
-		msgBox.setIcon(QMessageBox::Critical);
+    	qApp->restoreOverrideCursor();
+		msgBox.setIcon(QMessageBox::Warning);
 
-		sprintf(text, "Reference image has different origin of coordinates (%f,%f,%f).\nThe operation has been aborted.", origin[0], origin[1], origin[2]);
+		sprintf(text, "Reference and segmentation images have different origin of coordinates.\nReference origin is [%f,%f,%f].\nSegmentation origin is [%f,%f,%f].\nEditor will use segmentation origin.",
+				origin[0], origin[1], origin[2], segmentationorigin[0], segmentationorigin[1], segmentationorigin[2]);
 		msgBox.setText(text);
 		msgBox.exec();
-		return;
+		qApp->setOverrideCursor(QCursor(Qt::WaitCursor));
     }
 
     double spacing[3];
-    structuredPoints->GetSpacing(spacing);
+    image->GetSpacing(spacing);
     Vector3d segmentationspacing = _orientationData->GetImageSpacing();
     if (segmentationspacing != Vector3d(spacing[0], spacing[1], spacing[2]))
-		structuredPoints->SetSpacing(segmentationspacing[0], segmentationspacing[1], segmentationspacing[2]);
-//    {
-//    	qApp->restoreOverrideCursor();
-//		msgBox.setIcon(QMessageBox::Warning);
-//
-//		sprintf(text, "Reference image has different point spacing (%f,%f,%f).\nSegmentation spacing is (%f,%f,%f).\nEditor will use segmentation spacing.", spacing[0], spacing[1], spacing[2],
-//				segmentationspacing[0], segmentationspacing[1], segmentationspacing[2]);
-//		msgBox.setText(text);
-//		msgBox.exec();
-//		qApp->setOverrideCursor(QCursor(Qt::WaitCursor));
-//    }
+    {
+    	qApp->restoreOverrideCursor();
+		msgBox.setIcon(QMessageBox::Warning);
+
+		sprintf(text, "Reference and segmentation images have different point spacing.\nReference spacing is [%f,%f,%f].\nSegmentation spacing is [%f,%f,%f].\nEditor will use segmentation spacing for both.",
+				spacing[0], spacing[1], spacing[2], segmentationspacing[0], segmentationspacing[1], segmentationspacing[2]);
+		msgBox.setText(text);
+		msgBox.exec();
+		qApp->setOverrideCursor(QCursor(Qt::WaitCursor));
+	}
+
+	vtkSmartPointer<vtkImageChangeInformation> changer = vtkSmartPointer<vtkImageChangeInformation>::New();
+	changer->SetInput(image);
+
+    if (segmentationspacing != Vector3d(spacing[0], spacing[1], spacing[2]))
+    	changer->SetOutputSpacing(segmentationspacing[0], segmentationspacing[1], segmentationspacing[2]);
+
+    changer->SetOutputOrigin(0.0,0.0,0.0);
+    changer->ReleaseDataFlagOn();
+
+  	_progress->Observe(changer, "Fix Image", (1.0/4.0));
+   	changer->Update();
+   	_progress->Ignore(changer);
+
+    vtkSmartPointer<vtkImageToStructuredPoints> convert = vtkSmartPointer<vtkImageToStructuredPoints>::New();
+    convert->SetInput(changer->GetOutput());
+    _progress->Observe(convert,"Convert",(1.0/4.0));
+    convert->Update();
+    _progress->Ignore(convert);
     
-    // can't test the image orientation as vtkStructuredPoinst doesn't seem to have that info.
-    // identical dimensions, spacing, but NOT origin because internally all images will have a (0,0,0) origin
-    structuredPoints->SetOrigin(0,0,0);
+    vtkSmartPointer<vtkStructuredPoints> structuredPoints = vtkSmartPointer<vtkStructuredPoints>::New();
+    structuredPoints = convert->GetStructuredPointsOutput();
     structuredPoints->Update();
 
     // now that we have a reference image make the background of the segmentation completely transparent
