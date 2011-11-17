@@ -303,12 +303,7 @@ bool EditorOperations::RelabelSelection(QWidget *parent, unsigned short label, v
         
         color = colorpicker.GetColor();
 
-        double coloralpha = 0.4;
-        
-        if (label == 0)
-            coloralpha = 1;
-
-        newlabel = _dataManager->SetLabel(color, coloralpha);
+        newlabel = _dataManager->SetLabel(color);
         newcolor = true;
     }
 
@@ -596,15 +591,7 @@ void EditorOperations::WatershedSelection(unsigned short label)
 
             if (match == false)
             {
-                try
-                {
-                    newlabel = _dataManager->SetLabel(color, coloralpha);
-                } catch (itk::ExceptionObject & excp)
-                {
-                    EditorError(excp);
-                    return;
-                }
-                
+                newlabel = _dataManager->SetLabel(color);
                 found = true;
             }
         }

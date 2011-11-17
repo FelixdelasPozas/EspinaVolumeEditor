@@ -87,7 +87,7 @@ class DataManager
         
         // creates a new label and assigns a new scalar to that label, starting from an initial
         // optional value. modifies color table and returns new label position (not scalar)
-        unsigned short SetLabel(Vector3d, double);
+        unsigned short SetLabel(Vector3d);
         
         // switch tables
         void ExchangeLookupTables(vtkSmartPointer<vtkLookupTable>);

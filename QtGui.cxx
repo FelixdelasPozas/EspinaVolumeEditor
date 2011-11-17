@@ -1014,44 +1014,34 @@ void EspinaVolumeEditor::FillColorLabels()
 
 void EspinaVolumeEditor::LabelSelectionChanged(int value)
 {
+	static unsigned short selectedValue = 0;
     double rgba[4];
     
     if (!labelselector->isEnabled())
         return;
     
-    // if new value is 0, then alpha channel in all colors is 1
-    if (value == 0)
-        for (int i = 1; i < _dataManager->GetLookupTable()->GetNumberOfTableValues(); i++)
-        {
-            _dataManager->GetLookupTable()->GetTableValue(i, rgba);
-            _dataManager->GetLookupTable()->SetTableValue(i, rgba[0], rgba[1], rgba[2], 1);
-            _volumeRender->UpdateColorTable(i, 1);
-        }
-    else
+    // set previous value to an alpha of 0.4
+    // BEWARE: we could have change lookuptables and previous value could be invalid at the moment.
+    if ((selectedValue != 0) && (selectedValue < _dataManager->GetLookupTable()->GetNumberOfTableValues()))
     {
-        for (int i = 1; i < _dataManager->GetLookupTable()->GetNumberOfTableValues(); i++)
-        {
-            if (value == i)
-            {
-                _dataManager->GetLookupTable()->GetTableValue(i, rgba);
-                _dataManager->GetLookupTable()->SetTableValue(i, rgba[0], rgba[1], rgba[2], 1);
-                _volumeRender->UpdateColorTable(i, 1);
-            } 
-            else
-                {
-                    _dataManager->GetLookupTable()->GetTableValue(i, rgba);
-                    _dataManager->GetLookupTable()->SetTableValue(i, rgba[0], rgba[1], rgba[2], 0.4);
-                    
-                    // opacity of volume render is 1/4 of color table values if value != 1 
-                    // because opacity of slice viewports is higher on purpose for better
-                    // visibility and if value != 1 means that user has one lable selected
-                    // that is not the background label (needed for volume<->mesh switch)
-                    _volumeRender->UpdateColorTable(i, 0.1);
-                }
-        }
+    	_dataManager->GetLookupTable()->GetTableValue(selectedValue, rgba);
+    	_dataManager->GetLookupTable()->SetTableValue(selectedValue, rgba[0], rgba[1], rgba[2], 0.4);
+    	// opacity of volume render is 1/4 of color table values if value != 1
+    	// because opacity of slice viewports is higher on purpose for better
+    	// visibility
+    	_volumeRender->UpdateColorTable(selectedValue, 0.1);
     }
     
+    selectedValue = value;
     _selectedLabel = value;
+
+    // if actual value != 0 (background) highlight it with an alpha of 1
+    if(selectedValue != 0)
+    {
+    	_dataManager->GetLookupTable()->GetTableValue(selectedValue, rgba);
+    	_dataManager->GetLookupTable()->SetTableValue(selectedValue, rgba[0], rgba[1], rgba[2], 1);
+    	_volumeRender->UpdateColorTable(selectedValue, 1);
+    }
 
     // don't want filters with the background label
     switch (_selectedLabel)
@@ -1071,7 +1061,6 @@ void EspinaVolumeEditor::LabelSelectionChanged(int value)
     		watershedoperation->setEnabled(true);
     		break;
     }
-
 
     _dataManager->GetLookupTable()->Modified();
     UpdateViewports(All);

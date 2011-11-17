@@ -167,7 +167,7 @@ vtkSmartPointer<vtkLookupTable> DataManager::GetLookupTable()
 }
 
 // we use itk::ExceptionObject
-unsigned short DataManager::SetLabel(Vector3d rgb, double coloralpha)
+unsigned short DataManager::SetLabel(Vector3d rgb)
 {
 	// labelvalues usually goes 0-n, that's n+1 values = _labelValues.size();
     unsigned short newlabel = _labelValues.size();
@@ -199,7 +199,7 @@ unsigned short DataManager::SetLabel(Vector3d rgb, double coloralpha)
     _actionsBuffer->StoreLookupTable(temptable);
 
     _lookupTable->SetNumberOfTableValues(newlabel+1);
-    _lookupTable->SetTableValue(newlabel, rgb[0], rgb[1], rgb[2], coloralpha);
+    _lookupTable->SetTableValue(newlabel, rgb[0], rgb[1], rgb[2], 0.4);
     _lookupTable->SetTableRange(0,newlabel);
     _lookupTable->Modified();
     
@@ -227,7 +227,7 @@ void DataManager::GenerateLookupTable()
     for (unsigned int index = 0; index != labels; index++)
     {
         temporal_table->GetTableValue(index, rgba);
-        _lookupTable->SetTableValue(index+1,rgba);
+        _lookupTable->SetTableValue(index+1,rgba[0], rgba[1], rgba[2], 0.4);
     }
     temporal_table->Delete();
 }
