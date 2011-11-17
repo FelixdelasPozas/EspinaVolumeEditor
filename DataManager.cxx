@@ -30,9 +30,6 @@ DataManager::DataManager()
     _orientationData = NULL;
     _firstFreeValue = 1;
     
-    // initalize label statistics
-    StatisticsReset();
-    
     // create our undo/redo buffers (default capacity 150 megabytes)
     // undo/redo buffers aren't allocated at init, only when needed
     _actionsBuffer = new UndoRedoSystem(this);
@@ -45,10 +42,11 @@ void DataManager::Initialize(itk::SmartPointer<LabelMapType> labelMap, Coordinat
     // initalize label statistics and label values
     _labelValues.clear();
     _labelValues.insert(std::pair<unsigned short, unsigned short>(0,0));
-    StatisticsReset();
 
+    // clear statistics
+    _voxelCount.clear();
     Vector3ui transformedsize = _orientationData->GetTransformedSize();
-    voxelCount[0] = static_cast<unsigned long long>(transformedsize[0])*static_cast<unsigned long long>(transformedsize[1])*static_cast<unsigned long long>(transformedsize[2]);
+    _voxelCount.insert(std::pair<unsigned short, unsigned long long int>(0,static_cast<unsigned long long>(transformedsize[0])*static_cast<unsigned long long>(transformedsize[1])*static_cast<unsigned long long>(transformedsize[2])));
     
     // get voxel count for each label for statistics and "flatten" the labelmap (make all labels consecutive starting from 1)
     LabelMapType::LabelObjectContainerType::const_iterator iter;
@@ -69,8 +67,8 @@ void DataManager::Initialize(itk::SmartPointer<LabelMapType> labelMap, Coordinat
 
         _labelValues.insert(std::pair<unsigned short, unsigned short>(i,scalar));
         labelChanger->SetChange(scalar,i);
-        voxelCount[i] += labelObject->Size();
-        voxelCount[0] -= voxelCount[i];
+        _voxelCount.insert(std::pair<unsigned short, unsigned long long int>(i, labelObject->Size()));
+        _voxelCount[0] -= _voxelCount[i];
     }
 
     // apply all the changes made to labels
@@ -138,8 +136,8 @@ void DataManager::SetVoxelScalar(unsigned int x, unsigned int y, unsigned int z,
     if (scalar == *pixel)
         return;
 
-    voxelActionCount[GetLabelForScalar(*pixel)]--;
-    voxelActionCount[GetLabelForScalar(scalar)]++;
+    _voxelActionCount[GetLabelForScalar(*pixel)]--;
+    _voxelActionCount[GetLabelForScalar(scalar)]++;
     
     _actionsBuffer->AddPoint(Vector3ui(x,y,z), *pixel);
     *pixel = scalar;
@@ -169,7 +167,7 @@ vtkSmartPointer<vtkLookupTable> DataManager::GetLookupTable()
 }
 
 // we use itk::ExceptionObject
-unsigned short DataManager::SetLabel(Vector3d rgb, double coloralpha) throw(itk::ExceptionObject)
+unsigned short DataManager::SetLabel(Vector3d rgb, double coloralpha)
 {
 	// labelvalues usually goes 0-n, that's n+1 values = _labelValues.size();
     unsigned short newlabel = _labelValues.size();
@@ -188,23 +186,12 @@ unsigned short DataManager::SetLabel(Vector3d rgb, double coloralpha) throw(itk:
             if ((*it).second == freevalue)
                 free = false;
         
-        // have to check if we are generating more labels than the space reserved in the lookuptable
-        if ((free == false) && (freevalue == 2048))
-        {
-            std::ostringstream message;
-            message << "ERROR: DataManager(" << this << "): Reached the limit of the number of possible labels (2048)";
-            itk::ExceptionObject e_(__FILE__, __LINE__, message.str().c_str(), ITK_LOCATION);
-            throw e_; // Explicit naming to work around Intel compiler bug.
-            return 0;
-        }
-        
         if (free == false)
             freevalue++;
     }
     
-    voxelCount[newlabel] = 0;
-    
     _labelValues.insert(std::pair<unsigned short, unsigned short>(newlabel,freevalue));
+    _voxelCount.insert(std::pair<unsigned short, unsigned long long int>(newlabel, 0));
     _actionsBuffer->StoreLabelValue(std::pair<unsigned short, unsigned short>(newlabel,freevalue));
 
     vtkSmartPointer<vtkLookupTable> temptable = vtkSmartPointer<vtkLookupTable>::New();
@@ -227,8 +214,7 @@ void DataManager::GenerateLookupTable()
     unsigned int labels = _labelMap->GetNumberOfLabelObjects();
     assert(0 != labels);
     
-    // initially we will define 2048 colors
-    _lookupTable->Allocate(2048);
+    _lookupTable->Allocate();
     _lookupTable->SetNumberOfTableValues(labels+1);
     _lookupTable->SetTableRange(0,labels+1);
     _lookupTable->SetTableValue(0,rgba);
@@ -251,7 +237,7 @@ void DataManager::CopyLookupTable(vtkSmartPointer<vtkLookupTable> copyFrom, vtkS
 	// copyTo exists and i don't want to do just a DeepCopy that could release memory, i just want to copy the colors
     double rgba[4];
     
-    copyTo->Allocate(copyFrom->GetNumberOfAvailableColors());
+    copyTo->Allocate();
     copyTo->SetNumberOfTableValues(copyFrom->GetNumberOfTableValues());
     copyTo->SetTableRange(0,copyFrom->GetNumberOfTableValues()-1);
     
@@ -275,7 +261,7 @@ void DataManager::ExchangeLookupTables(vtkSmartPointer<vtkLookupTable> table)
 
 void DataManager::OperationStart(std::string actionName)
 {
-    StatisticsActionReset();
+    _voxelActionCount.clear();
     _actionsBuffer->SignalBeginAction(actionName);
 }
 
@@ -317,14 +303,14 @@ bool DataManager::IsRedoBufferEmpty()
 
 void DataManager::DoUndoOperation()
 {
-    StatisticsActionReset();
+   	_voxelActionCount.clear();
     _actionsBuffer->DoAction(UndoRedoSystem::UNDO);
     StatisticsActionJoin();
 }
 
 void DataManager::DoRedoOperation()
 {
-    StatisticsActionReset();
+	_voxelActionCount.clear();
     _actionsBuffer->DoAction(UndoRedoSystem::REDO);
     StatisticsActionJoin();
 }
@@ -384,27 +370,16 @@ double* DataManager::GetRGBAColorForScalar(unsigned short scalar)
     return NULL;
 }
 
-void DataManager::StatisticsActionReset(void)
-{
-    for (unsigned int i = 0; i < 2048; i++)
-        voxelActionCount[i] = 0;
-}
-
 void DataManager::StatisticsActionJoin(void)
 {
-    for (unsigned int i = 0; i < 2048; i++)
-        voxelCount[i] += voxelActionCount[i];
-}
-
-void DataManager::StatisticsReset(void)
-{
-    for (unsigned int i = 0; i < 2048; i++)
-        voxelCount[i] = voxelActionCount[i] = 0;
+    std::map<unsigned short, unsigned long long int>::iterator it;
+    for (it = _voxelActionCount.begin(); it != _voxelActionCount.end(); it++)
+    	_voxelCount[(*it).first] += (*it).second;
 }
 
 unsigned long long int DataManager::GetNumberOfVoxelsForLabel(unsigned short label)
 {
-    return voxelCount[label];
+    return _voxelCount[label];
 }
 
 unsigned short DataManager::GetScalarForLabel(unsigned short colorNum)

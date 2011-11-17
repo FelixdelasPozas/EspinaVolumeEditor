@@ -1430,12 +1430,10 @@ void EspinaVolumeEditor::AxialInteraction(vtkObject* object, unsigned long event
             break;
         case vtkCommand::LeftButtonPressEvent:
             leftButtonStillDown = true;
-            style->OnLeftButtonDown();
             AxialXYPick(event);
             break;
         case vtkCommand::LeftButtonReleaseEvent:
             leftButtonStillDown = false;
-            style->OnLeftButtonUp();
             AxialXYPick(event);
             break;
         case vtkCommand::MiddleButtonPressEvent:
@@ -1501,12 +1499,10 @@ void EspinaVolumeEditor::CoronalInteraction(vtkObject* object, unsigned long eve
             break;
         case vtkCommand::LeftButtonPressEvent:
             leftButtonStillDown = true;
-            style->OnLeftButtonDown();
             CoronalXYPick(event);
             break;
         case vtkCommand::LeftButtonReleaseEvent:
             leftButtonStillDown = false;
-            style->OnLeftButtonUp();
             CoronalXYPick(event);
             break;
         case vtkCommand::MiddleButtonPressEvent:
@@ -1572,12 +1568,10 @@ void EspinaVolumeEditor::SagittalInteraction(vtkObject* object, unsigned long ev
             break;
         case vtkCommand::LeftButtonPressEvent:
             leftButtonStillDown = true;
-            style->OnLeftButtonDown();
             SagittalXYPick(event);
             break;
         case vtkCommand::LeftButtonReleaseEvent:
             leftButtonStillDown = false;
-            style->OnLeftButtonUp();
             SagittalXYPick(event);
             break;
         case vtkCommand::MiddleButtonPressEvent:

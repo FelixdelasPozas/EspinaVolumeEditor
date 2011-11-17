@@ -308,16 +308,7 @@ bool EditorOperations::RelabelSelection(QWidget *parent, unsigned short label, v
         if (label == 0)
             coloralpha = 1;
 
-        try
-        {
-            newlabel = _dataManager->SetLabel(color, coloralpha);
-        } catch (itk::ExceptionObject & excp)
-        {
-            _progress->ManualReset();
-            EditorError(excp);
-            return false;
-        }
-
+        newlabel = _dataManager->SetLabel(color, coloralpha);
         newcolor = true;
     }
 

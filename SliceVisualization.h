@@ -139,6 +139,8 @@ class SliceVisualization
         vtkSmartPointer<vtkImageActor>  _blendactor;
         vtkSmartPointer<vtkActor>       _horiactor;
         vtkSmartPointer<vtkActor>       _vertactor;
+        vtkSmartPointer<vtkActor>		_squareActor;
+        vtkSmartPointer<vtkActor> 		_sliceActor;
         //
         // source for imageactors
         vtkSmartPointer<vtkImageMapToColors> _segmentationcolors;

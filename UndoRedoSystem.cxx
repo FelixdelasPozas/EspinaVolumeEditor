@@ -58,7 +58,7 @@ void UndoRedoSystem::ClearBuffer(UndoRedoBuffer buffer)
                 capacity += (*it).actionTableValues.size() * _sizeValue;
                 capacity += (*it).actionString.capacity();
                 if (NULL != (*it).actionLookupTable)
-                    capacity += 4*(((*it).actionLookupTable)->GetNumberOfAvailableColors())*sizeof(unsigned char);
+                    capacity += 4*(((*it).actionLookupTable)->GetNumberOfTableValues())*sizeof(unsigned char);
                 capacity += _sizeAction;
             }
             _undoBuffer.clear();
@@ -70,7 +70,7 @@ void UndoRedoSystem::ClearBuffer(UndoRedoBuffer buffer)
                 capacity += (*it).actionTableValues.size() * _sizeValue;
                 capacity += (*it).actionString.capacity();
                 if (NULL != (*it).actionLookupTable)
-                    capacity += 4*(((*it).actionLookupTable)->GetNumberOfAvailableColors())*sizeof(unsigned char);
+                    capacity += 4*(((*it).actionLookupTable)->GetNumberOfTableValues())*sizeof(unsigned char);
                 capacity += _sizeAction;
             }
             _redoBuffer.clear();
@@ -110,7 +110,7 @@ void UndoRedoSystem::SignalBeginAction(std::string actionstring)
         _bufferUsed -= (*_undoBuffer.begin()).actionTableValues.size() * _sizeValue;
         _bufferUsed -= (*_undoBuffer.begin()).actionString.capacity();
         if (NULL != (*_undoBuffer.begin()).actionLookupTable)
-            _bufferUsed -= 4*(((*_undoBuffer.begin()).actionLookupTable)->GetNumberOfAvailableColors())*sizeof(unsigned char);
+            _bufferUsed -= 4*(((*_undoBuffer.begin()).actionLookupTable)->GetNumberOfTableValues())*sizeof(unsigned char);
         _bufferUsed -= _sizeAction;
         
         _undoBuffer.erase(_undoBuffer.begin());
@@ -159,7 +159,7 @@ void UndoRedoSystem::AddPoint(Vector3ui point, unsigned short label)
             _bufferUsed -= (*_action).actionTableValues.size() * _sizeValue;
             _bufferUsed -= (*_action).actionString.capacity();
             if (NULL != (*_action).actionLookupTable)
-                _bufferUsed -= 4*(((*_action).actionLookupTable)->GetNumberOfAvailableColors())*sizeof(unsigned char);
+                _bufferUsed -= 4*(((*_action).actionLookupTable)->GetNumberOfTableValues())*sizeof(unsigned char);
             _bufferUsed -= _sizeAction;
             
             delete _action;
@@ -171,7 +171,7 @@ void UndoRedoSystem::AddPoint(Vector3ui point, unsigned short label)
             _bufferUsed -= (*_undoBuffer.begin()).actionTableValues.size() * _sizeValue;
             _bufferUsed -= (*_undoBuffer.begin()).actionString.capacity();
             if (NULL != (*_undoBuffer.begin()).actionLookupTable)
-                _bufferUsed -= 4*(((*_undoBuffer.begin()).actionLookupTable)->GetNumberOfAvailableColors())*sizeof(unsigned char);
+                _bufferUsed -= 4*(((*_undoBuffer.begin()).actionLookupTable)->GetNumberOfTableValues())*sizeof(unsigned char);
             _bufferUsed -= _sizeAction;
             
             _undoBuffer.erase(_undoBuffer.begin());
@@ -211,7 +211,7 @@ void UndoRedoSystem::ChangeSize(unsigned long int size)
         _bufferUsed -= (*_redoBuffer.begin()).actionTableValues.size() * _sizeValue;
         _bufferUsed -= (*_redoBuffer.begin()).actionString.capacity();
         if (NULL != (*_redoBuffer.begin()).actionLookupTable)
-            _bufferUsed -= 4*(((*_redoBuffer.begin()).actionLookupTable)->GetNumberOfAvailableColors())*sizeof(unsigned char);
+            _bufferUsed -= 4*(((*_redoBuffer.begin()).actionLookupTable)->GetNumberOfTableValues())*sizeof(unsigned char);
         _bufferUsed -= _sizeAction;
 
         _redoBuffer.erase(_redoBuffer.begin());
@@ -224,7 +224,7 @@ void UndoRedoSystem::ChangeSize(unsigned long int size)
         _bufferUsed -= (*_undoBuffer.begin()).actionTableValues.size() * _sizeValue;
         _bufferUsed -= (*_undoBuffer.begin()).actionString.capacity();
         if (NULL != (*_undoBuffer.begin()).actionLookupTable)
-            _bufferUsed -= 4*(((*_undoBuffer.begin()).actionLookupTable)->GetNumberOfAvailableColors())*sizeof(unsigned char);
+            _bufferUsed -= 4*(((*_undoBuffer.begin()).actionLookupTable)->GetNumberOfTableValues())*sizeof(unsigned char);
         _bufferUsed -= _sizeAction;
 
         _undoBuffer.erase(_undoBuffer.begin());
@@ -331,7 +331,7 @@ void UndoRedoSystem::StoreLookupTable(vtkSmartPointer<vtkLookupTable> lookupTabl
     {
         (*_action).actionLookupTable = lookupTable;
 
-        _bufferUsed += 4*(((*_action).actionLookupTable)->GetNumberOfAvailableColors())*sizeof(unsigned char);
+        _bufferUsed += 4*(((*_action).actionLookupTable)->GetNumberOfTableValues())*sizeof(unsigned char);
         
         // we need to know if we are at the limit of our buffer
         while (_bufferUsed > _bufferSize)
@@ -346,7 +346,7 @@ void UndoRedoSystem::StoreLookupTable(vtkSmartPointer<vtkLookupTable> lookupTabl
                 _bufferUsed -= (*_action).actionBuffer.size() * _sizePoint;
                 _bufferUsed -= (*_action).actionTableValues.size() * _sizeValue;
                 _bufferUsed -= (*_action).actionString.capacity();
-                _bufferUsed -= 4*(((*_action).actionLookupTable)->GetNumberOfAvailableColors())*sizeof(unsigned char);
+                _bufferUsed -= 4*(((*_action).actionLookupTable)->GetNumberOfTableValues())*sizeof(unsigned char);
                 _bufferUsed -= _sizeAction;
                 
                 delete _action;
@@ -358,7 +358,7 @@ void UndoRedoSystem::StoreLookupTable(vtkSmartPointer<vtkLookupTable> lookupTabl
                 _bufferUsed -= (*_undoBuffer.begin()).actionTableValues.size() * _sizeValue;
                 _bufferUsed -= (*_undoBuffer.begin()).actionString.capacity();
                 if (NULL != (*_undoBuffer.begin()).actionLookupTable)
-                    _bufferUsed -= 4*(((*_undoBuffer.begin()).actionLookupTable)->GetNumberOfAvailableColors())*sizeof(unsigned char);
+                    _bufferUsed -= 4*(((*_undoBuffer.begin()).actionLookupTable)->GetNumberOfTableValues())*sizeof(unsigned char);
                 _bufferUsed -= _sizeAction;
                 
                 _undoBuffer.erase(_undoBuffer.begin());
@@ -408,7 +408,7 @@ void UndoRedoSystem::SignalCancelAction()
     _bufferUsed -= (*_action).actionTableValues.size() * _sizeValue;
     _bufferUsed -= (*_action).actionString.capacity();
     if (NULL != (*_action).actionLookupTable)
-        _bufferUsed -= 4*(((*_action).actionLookupTable)->GetNumberOfAvailableColors())*sizeof(unsigned char);
+        _bufferUsed -= 4*(((*_action).actionLookupTable)->GetNumberOfTableValues())*sizeof(unsigned char);
     _bufferUsed -= _sizeAction;
 
     // undo changes if there are some, bypassing the undo system as we don't want to store this

@@ -518,14 +518,14 @@ void SliceVisualization::GenerateThumbnail()
     vtkSmartPointer <vtkPolyDataMapper> slicemapper = vtkSmartPointer<vtkPolyDataMapper>::New();
     slicemapper->SetInput(sliceborder);
 
-    vtkSmartPointer < vtkActor > sliceactor = vtkSmartPointer<vtkActor>::New();
-    sliceactor->SetMapper(slicemapper);
-    sliceactor->GetProperty()->SetColor(1,1,1);
-    sliceactor->GetProperty()->SetPointSize(0);
-    sliceactor->GetProperty()->SetLineWidth(2);
-    sliceactor->SetPickable(false);
+    _sliceActor = vtkSmartPointer<vtkActor>::New();
+    _sliceActor->SetMapper(slicemapper);
+    _sliceActor->GetProperty()->SetColor(1,1,1);
+    _sliceActor->GetProperty()->SetPointSize(0);
+    _sliceActor->GetProperty()->SetLineWidth(2);
+    _sliceActor->SetPickable(false);
 
-    _thumbRenderer->AddActor(sliceactor);
+    _thumbRenderer->AddActor(_sliceActor);
     
     // Create a polydata to store the selection box 
     _square = vtkSmartPointer<vtkPolyData>::New();
@@ -533,14 +533,14 @@ void SliceVisualization::GenerateThumbnail()
     vtkSmartPointer <vtkPolyDataMapper> mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
     mapper->SetInput(_square);
 
-    vtkSmartPointer < vtkActor > actor = vtkSmartPointer<vtkActor>::New();
-    actor->SetMapper(mapper);
-    actor->GetProperty()->SetColor(1,1,1);
-    actor->GetProperty()->SetPointSize(1);
-    actor->GetProperty()->SetLineWidth(2);
-    actor->SetPickable(false);
+    _squareActor = vtkSmartPointer<vtkActor>::New();
+    _squareActor->SetMapper(mapper);
+    _squareActor->GetProperty()->SetColor(1,1,1);
+    _squareActor->GetProperty()->SetPointSize(1);
+    _squareActor->GetProperty()->SetLineWidth(2);
+    _squareActor->SetPickable(false);
     
-    _thumbRenderer->AddActor(actor);
+    _thumbRenderer->AddActor(_squareActor);
 }
 
 void SliceVisualization::ZoomEvent()
@@ -640,6 +640,7 @@ void SliceVisualization::SetReferenceImage(vtkSmartPointer<vtkStructuredPoints> 
 	_blendimages->SetBlendModeToNormal();
 	_blendimages->Update();
 	
+
 	_blendactor = vtkSmartPointer<vtkImageActor>::New();
 	_blendactor->SetInput(_blendimages->GetOutput());
 	_blendactor->PickableOn();
@@ -657,6 +658,8 @@ void SliceVisualization::SetReferenceImage(vtkSmartPointer<vtkStructuredPoints> 
 	// change color for the crosshair because reference images tend to be too white and it messes with it
     _horiactor->GetProperty()->SetColor(0,0,0);
     _vertactor->GetProperty()->SetColor(0,0,0);
+    _squareActor->GetProperty()->SetColor(0,0,0);
+    _sliceActor->GetProperty()->SetColor(0,0,0);
 }
 
 unsigned int SliceVisualization::GetSegmentationOpacity()

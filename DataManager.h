@@ -87,7 +87,7 @@ class DataManager
         
         // creates a new label and assigns a new scalar to that label, starting from an initial
         // optional value. modifies color table and returns new label position (not scalar)
-        unsigned short SetLabel(Vector3d, double) throw(itk::ExceptionObject);
+        unsigned short SetLabel(Vector3d, double);
         
         // switch tables
         void ExchangeLookupTables(vtkSmartPointer<vtkLookupTable>);
@@ -134,7 +134,6 @@ class DataManager
         // voxel statistics functions, trivial but implemented as functions because it appears frecuently
         void StatisticsActionReset(void);
         void StatisticsActionJoin(void);
-        void StatisticsReset(void);
         
         // needed data attributes
         itk::SmartPointer<LabelMapType>         _labelMap;
@@ -154,8 +153,8 @@ class DataManager
         // for voxel statistics, notice the NOT unsigned variable for actions, as those values can be negative.
         // using two arrays allows us to ignore the number of voxels changed when an exception ocurrs, and an
         // actions is ignored. the voxelCount must be always positive or null.
-        unsigned long long int voxelCount[2048];
-        long long int voxelActionCount[2048];
+        std::map<unsigned short, unsigned long long int>  _voxelCount;
+        std::map<unsigned short, unsigned long long int>  _voxelActionCount;
 };
 
 #endif // _DATAMANAGER_H_
