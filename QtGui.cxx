@@ -93,7 +93,7 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
     connect(sagittalslider, SIGNAL(sliderReleased()), this, SLOT(SliceSliderReleased()));
     connect(sagittalslider, SIGNAL(sliderPressed()), this, SLOT(SliceSliderPressed()));
     
-    connect(labelselector, SIGNAL(currentIndexChanged(int)), this, SLOT(LabelSelectionChanged(int)));
+    connect(labelselector, SIGNAL(currentRowChanged(int)), this, SLOT(LabelSelectionChanged(int)));
     
     connect(XspinBox, SIGNAL(valueChanged(int)), this, SLOT(ChangeXspinBox(int)));
     connect(YspinBox, SIGNAL(valueChanged(int)), this, SLOT(ChangeYspinBox(int)));
@@ -629,7 +629,7 @@ void EspinaVolumeEditor::EditorOpen(void)
     // reset parts of the GUI, needed when loading another image (another session) to reset buttons
     // and items to their initial states. Same goes for selected label.
     axestypebutton->setIcon(QIcon(":newPrefix/icons/noaxes.png"));
-    labelselector->setCurrentIndex(0);
+    labelselector->setCurrentRow(0);
     _selectedLabel = 0;
     viewbutton->setChecked(true);
 
@@ -947,7 +947,7 @@ void EspinaVolumeEditor::SetPointLabel()
 
     if (pickerbutton->isChecked())
     {
-    	labelselector->setCurrentIndex(_pointScalar);
+    	labelselector->setCurrentRow(_pointScalar);
     	viewbutton->setChecked(true);
     }
 
@@ -991,8 +991,10 @@ void EspinaVolumeEditor::FillColorLabels()
     QPixmap icon(16,16);
     QColor color;
 
+    if (labelselector->count() != 0)
+    	labelselector->clear();
+
     unsigned int num_colors = _dataManager->GetLookupTable()->GetNumberOfTableValues();
-    labelselector->setMaxCount(num_colors);
     labelselector->insertItem(0, "Background");
     
     // color 0 is black, so we will start from 1
@@ -1002,12 +1004,11 @@ void EspinaVolumeEditor::FillColorLabels()
         color.setRgbF(rgba[0], rgba[1], rgba[2], 1);
         icon.fill(color);
         sprintf(text, "Label %d", i);
-        labelselector->insertItem(i,QIcon(icon),text);
+        QListWidgetItem *item = new QListWidgetItem(QIcon(icon), QString(text));
+        labelselector->addItem(item);
     }
 
-    labelselector->setEditable(false);
-    labelselector->setMaxVisibleItems(10);
-    labelselector->setCurrentIndex(_selectedLabel);
+    labelselector->setCurrentRow(_selectedLabel);
     labelselector->setEnabled(true);
 }
 
