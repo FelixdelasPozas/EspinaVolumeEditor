@@ -24,6 +24,7 @@
 #include <vtkVolumeRayCastCompositeFunction.h>
 #include <vtkVolume.h>
 #include <vtkVolumeProperty.h>
+#include <vtkSmartVolumeMapper.h>
 
 // project includes
 #include "VoxelVolumeRender.h"
@@ -46,7 +47,7 @@ VoxelVolumeRender::VoxelVolumeRender(
 }
 
 VoxelVolumeRender::~VoxelVolumeRender()
-{
+{vtkSmartVolumeMapper
     // using smartpointers
     
     // delete actors from renderers before leaving;
@@ -141,14 +142,9 @@ void VoxelVolumeRender::ComputeRayCastVolume()
 {
     double rgba[4];
     
-    // model mapper
-    vtkSmartPointer<vtkVolumeRayCastMapper> volumemapper = vtkSmartPointer<vtkVolumeRayCastMapper>::New();
-    volumemapper->SetInput(_structuredPoints);
-    volumemapper->IntermixIntersectingGeometryOn();
-    
-    // standard composite function
-    vtkSmartPointer<vtkVolumeRayCastCompositeFunction> volumefunction = vtkSmartPointer<vtkVolumeRayCastCompositeFunction>::New();
-    volumemapper->SetVolumeRayCastFunction(volumefunction);
+    // GPU mapper
+    vtkSmartPointer<vtkSmartVolumeMapper> GPUmapper = vtkSmartPointer<vtkSmartVolumeMapper>::New();
+    GPUmapper->SetInput(_structuredPoints);
 
     // assign label colors
     vtkSmartPointer<vtkColorTransferFunction> colorfunction = vtkSmartPointer<vtkColorTransferFunction>::New();
@@ -184,7 +180,7 @@ void VoxelVolumeRender::ComputeRayCastVolume()
     
     // create volume and add to render
     _volume = vtkSmartPointer<vtkVolume>::New();
-    _volume->SetMapper(volumemapper);
+    _volume->SetMapper(GPUmapper);
     _volume->SetProperty(volumeproperty);
     
     _renderer->AddVolume(_volume);
