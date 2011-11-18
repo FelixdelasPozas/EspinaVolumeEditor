@@ -36,6 +36,9 @@ class Metadata
 
         // write metadata to a segmha file
         bool Write(QString, std::map<unsigned short, unsigned short>*);
+
+        // returns the segment name of the object
+        std::string GetObjectSegmentName(unsigned short);
     private:
         // private members
         //

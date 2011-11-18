@@ -75,8 +75,6 @@ void DataManager::Initialize(itk::SmartPointer<LabelMapType> labelMap, Coordinat
     labelChanger->Update();
     _labelMap = LabelMapType::New();
     _labelMap = labelChanger->GetOutput();
-    float origin[3] = { 0.0, 0.0, 0.0 };
-    _labelMap->SetOrigin(origin);
     _labelMap->Optimize();
     _labelMap->Update();
 

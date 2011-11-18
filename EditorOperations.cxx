@@ -35,6 +35,8 @@
 #include <itkImageFileWriter.h>
 #include <itkMetaImageIO.h>
 #include <itkChangeInformationImageFilter.h>
+#include <itkChangeLabelLabelMapFilter.h>
+#include <itkLabelMapToLabelImageFilter.h>
 
 // vtk includes
 #include <vtkPolyDataMapper.h>
@@ -564,11 +566,6 @@ void EditorOperations::WatershedSelection(unsigned short label)
     // for the randomized label colors
     srand(time(NULL));
     
-    double coloralpha = 0.4;
-    
-    if (label == 0)
-        coloralpha = 1.0;
-    
     for(iter = labelObjectContainer.begin(); iter != labelObjectContainer.end(); iter++)
     {
         unsigned short newlabel = 0;
@@ -595,8 +592,6 @@ void EditorOperations::WatershedSelection(unsigned short label)
                 found = true;
             }
         }
-        
-        assert(newlabel != 0);
         
         LabelObjectType * labelObject = iter->second;
         LabelObjectType::LineContainerType::const_iterator liter;
@@ -695,10 +690,49 @@ void EditorOperations::SaveImage(std::string filename)
     newOrigin[1] = point[1];
     newOrigin[2] = point[2];
     infoChanger->SetOutputOrigin(newOrigin);
-    _progress->Observe(infoChanger,"Fix Image", 0.5);
+    _progress->Observe(infoChanger,"Fix Image", 0.2);
     infoChanger->Update();
     _progress->Ignore(infoChanger);
     
+    // convert to labelmap and restore original scalars for labels
+	typedef itk::LabelImageToLabelMapFilter<ImageType, LabelMapType> ConverterType;
+	itk::SmartPointer<ConverterType> converter = ConverterType::New();
+
+	converter->SetInput(infoChanger->GetOutput());
+	converter->ReleaseDataFlagOn();
+	_progress->Observe(converter, "Label Map", 0.2);
+	converter->Update();
+	_progress->Ignore(converter);
+	converter->GetOutput()->Optimize();
+	assert(0 != converter->GetOutput()->GetNumberOfLabelObjects());
+
+    typedef itk::ChangeLabelLabelMapFilter<LabelMapType> ChangeType;
+    itk::SmartPointer<ChangeType> labelChanger = ChangeType::New();
+    labelChanger->SetInput(converter->GetOutput());
+    if (labelChanger->CanRunInPlace() == true)
+    	labelChanger->SetInPlace(true);
+
+    std::map<unsigned short int, unsigned short int>::iterator it;
+    for (it = _dataManager->GetLabelValueTable()->begin(); it != _dataManager->GetLabelValueTable()->end(); it++)
+    	labelChanger->SetChange(it->first,it->second);
+
+    _progress->Observe(labelChanger, "Fix Labels", 0.2);
+    labelChanger->Update();
+    _progress->Ignore(labelChanger);
+
+	// itklabelmap->itkimage
+	typedef itk::LabelMapToLabelImageFilter<LabelMapType, ImageType> LabelMapToImageFilterType;
+	itk::SmartPointer<LabelMapToImageFilterType> labelconverter = LabelMapToImageFilterType::New();
+
+	labelconverter->SetInput(labelChanger->GetOutput());
+	labelconverter->SetNumberOfThreads(1);
+	labelconverter->ReleaseDataFlagOn();
+
+	_progress->Observe(labelconverter, "Convert Image", 0.2);
+	labelconverter->Update();
+	_progress->Ignore(labelconverter);
+
+    // save as an mha and rename
     std::string tempfilename = filename + std::string(".mha");
     typedef itk::ImageFileWriter<ImageType> WriterType;
     itk::MetaImageIO::Pointer io = itk::MetaImageIO::New();
@@ -706,9 +740,9 @@ void EditorOperations::SaveImage(std::string filename)
     itk::SmartPointer<WriterType> writer = WriterType::New();
     writer->SetImageIO(io);
     writer->SetFileName(tempfilename.c_str());
-    writer->SetInput(image);
+    writer->SetInput(labelconverter->GetOutput());
     writer->UseCompressionOn();
-    _progress->Observe(writer, "Write", 0.5);
+    _progress->Observe(writer, "Write", 0.2);
     
 	try
 	{

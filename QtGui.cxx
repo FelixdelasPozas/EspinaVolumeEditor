@@ -965,7 +965,7 @@ void EspinaVolumeEditor::SetPointLabel()
     
     // we need to use double vales to build icon as some colours are too close
     // and could get identical if we use the values converted to int.
-    QPixmap icon(16,16);
+    QPixmap icon(32,16);
     QColor color;
     color.setRgbF(rgba[0], rgba[1], rgba[2], 1);
     icon.fill(color);
@@ -986,11 +986,6 @@ void EspinaVolumeEditor::FillColorLabels()
     // we need to disable it to avoid sending signals while updating
     labelselector->setEnabled(false);
     
-    double rgba[4];
-    char text[10];
-    QPixmap icon(16,16);
-    QColor color;
-
     if (labelselector->count() != 0)
     	labelselector->clear();
 
@@ -1000,10 +995,15 @@ void EspinaVolumeEditor::FillColorLabels()
     // color 0 is black, so we will start from 1
     for (unsigned int i = 1; i < num_colors; i++)
     {
-        _dataManager->GetLookupTable()->GetTableValue(i, rgba);
+    	char text[50];
+        double rgba[4];
+        QPixmap icon(16,16);
+        QColor color;
+
+    	_dataManager->GetLookupTable()->GetTableValue(i, rgba);
         color.setRgbF(rgba[0], rgba[1], rgba[2], 1);
         icon.fill(color);
-        sprintf(text, "Label %d", i);
+        sprintf(text, "%-12s %d", (_fileMetadata->GetObjectSegmentName(i)).c_str(), i);
         QListWidgetItem *item = new QListWidgetItem(QIcon(icon), QString(text));
         labelselector->addItem(item);
     }

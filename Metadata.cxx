@@ -43,7 +43,7 @@ bool Metadata::Read(QString filename)
 	QRegExp labels("^Segment\\s*:\\s*name\\s*=\\s*\"(\\w+[\\w|\\s]*)\"\\s*value\\s*=\\s*(\\d+)\\s*color\\s*=\\s*(\\d+)\\s*,\\s*(\\d+)\\s*,\\s*(\\d+)");
 
 	// unassigned tag position
-	unsigned int position = 0;
+	unsigned int position = 1;
 
 	while (!file.atEnd())
 	{
@@ -225,3 +225,13 @@ void Metadata::SetUnassignedTagPosition(unsigned int position)
 	hasUnassignedTag = true;
 	unassignedTagPosition = position;
 }
+
+std::string Metadata::GetObjectSegmentName(unsigned short objectNum)
+{
+	if (objectNum > this->ObjectVector.size())
+		return std::string("Unassigned");
+
+	// vector index goes 0->(n-1)
+	return std::string(this->SegmentVector[this->ObjectVector[objectNum-1].segment-1].name);
+}
+

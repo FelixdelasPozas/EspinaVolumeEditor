@@ -411,8 +411,8 @@ void SliceVisualization::SetSelection(std::vector< Vector3ui > points)
         
         _actor = vtkSmartPointer<vtkActor>::New();
         _actor->SetMapper(mapper);
-        _actor->GetProperty()->SetOpacity(0.2);
-        _actor->GetProperty()->SetColor(200,200,255);
+        _actor->GetProperty()->SetOpacity(0.4);
+        _actor->GetProperty()->SetColor(150,150,150);
         
         _renderer->AddActor(_actor);
     }
