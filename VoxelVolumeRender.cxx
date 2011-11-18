@@ -47,7 +47,7 @@ VoxelVolumeRender::VoxelVolumeRender(
 }
 
 VoxelVolumeRender::~VoxelVolumeRender()
-{vtkSmartVolumeMapper
+{
     // using smartpointers
     
     // delete actors from renderers before leaving;
@@ -145,6 +145,9 @@ void VoxelVolumeRender::ComputeRayCastVolume()
     // GPU mapper
     vtkSmartPointer<vtkSmartVolumeMapper> GPUmapper = vtkSmartPointer<vtkSmartVolumeMapper>::New();
     GPUmapper->SetInput(_structuredPoints);
+    GPUmapper->SetScalarModeToUsePointData();
+    GPUmapper->SetBlendModeToComposite();
+    GPUmapper->SetInterpolationModeToNearestNeighbor();
 
     // assign label colors
     vtkSmartPointer<vtkColorTransferFunction> colorfunction = vtkSmartPointer<vtkColorTransferFunction>::New();
@@ -153,6 +156,7 @@ void VoxelVolumeRender::ComputeRayCastVolume()
         _lookupTable->GetTableValue(i, rgba);
         colorfunction->AddRGBPoint(i,rgba[0], rgba[1], rgba[2]);
     }
+    colorfunction->Modified();
 
     // we need to set the label 0 to transparent in the volume opacity property
     _opacityfunction = vtkSmartPointer<vtkPiecewiseFunction>::New();
