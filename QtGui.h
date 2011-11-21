@@ -16,7 +16,7 @@
 // itk includes
 #include <itkImage.h>
 #include <itkLabelMap.h>
-#include <itkLabelObject.h>
+#include <itkShapeLabelObject.h>
 #include <itkSmartPointer.h>
 
 // vtk includes 
@@ -43,7 +43,7 @@
 #include "Metadata.h"
 
 // defines and typedefs
-typedef itk::LabelObject < unsigned short,3 >  LabelObjectType;
+typedef itk::ShapeLabelObject < unsigned short,3 >  LabelObjectType;
 typedef itk::LabelMap    < LabelObjectType >  LabelMapType;
 
 using namespace std;

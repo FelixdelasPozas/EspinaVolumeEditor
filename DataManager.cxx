@@ -14,6 +14,7 @@
 // itk includes
 #include <itkExceptionObject.h>
 #include <itkChangeLabelLabelMapFilter.h>
+#include <itkShapeLabelMapFilter.h>
 
 // project includes
 #include "DataManager.h"
@@ -39,40 +40,54 @@ void DataManager::Initialize(itk::SmartPointer<LabelMapType> labelMap, Coordinat
 {
     _orientationData = OrientationData;
     
-    // initalize label statistics and label values
+    // initalize label values
     _labelValues.clear();
     _labelValues.insert(std::pair<unsigned short, unsigned short>(0,0));
 
-    // clear statistics
-    _voxelCount.clear();
+    // clear voxel statistics and set data from the background label
     Vector3ui transformedsize = _orientationData->GetTransformedSize();
+    _voxelCount.clear();
     _voxelCount.insert(std::pair<unsigned short, unsigned long long int>(0,static_cast<unsigned long long>(transformedsize[0])*static_cast<unsigned long long>(transformedsize[1])*static_cast<unsigned long long>(transformedsize[2])));
-    
+
+
+    // evaluate shapelabelobjects to get the centroid of the object
+    itk::SmartPointer<itk::ShapeLabelMapFilter<LabelMapType> > evaluator = itk::ShapeLabelMapFilter<LabelMapType>::New();
+    evaluator->SetInput(labelMap);
+    evaluator->ComputePerimeterOff();
+    evaluator->ComputeFeretDiameterOff();
+    evaluator->SetInPlace(true);
+    evaluator->Update();
+
     // get voxel count for each label for statistics and "flatten" the labelmap (make all labels consecutive starting from 1)
     LabelMapType::LabelObjectContainerType::const_iterator iter;
-    const LabelMapType::LabelObjectContainerType & labelObjectContainer = labelMap->GetLabelObjectContainer();
+    const LabelMapType::LabelObjectContainerType & labelObjectContainer = evaluator->GetOutput()->GetLabelObjectContainer();
 
     typedef itk::ChangeLabelLabelMapFilter<LabelMapType> ChangeType;
     itk::SmartPointer<ChangeType> labelChanger = ChangeType::New();
-    labelChanger->SetInput(labelMap);
-    if (labelChanger->CanRunInPlace() == true)
-    	labelChanger->SetInPlace(true);
+    labelChanger->SetInput(evaluator->GetOutput());
+  	labelChanger->SetInPlace(true);
 
     // we can't init different type variables in the for loop init, i must be init here
     unsigned short i = 1;
+    itk::Point<double, 3> centroid;
+    Vector3d spacing = _orientationData->GetImageSpacing();
+
     for(iter = labelObjectContainer.begin(); iter != labelObjectContainer.end(); iter++, i++)
     {
         const unsigned short scalar = iter->first;
         LabelObjectType * labelObject = iter->second;
+        centroid = labelObject->GetCentroid();
 
         _labelValues.insert(std::pair<unsigned short, unsigned short>(i,scalar));
-        labelChanger->SetChange(scalar,i);
         _voxelCount.insert(std::pair<unsigned short, unsigned long long int>(i, labelObject->Size()));
         _voxelCount[0] -= _voxelCount[i];
+        _objectCentroid.insert(std::pair<unsigned short, Vector3d>(i, Vector3d(centroid[0]/spacing[0],centroid[1]/spacing[1],centroid[2]/spacing[2])));
+        labelChanger->SetChange(scalar,i);
     }
 
     // apply all the changes made to labels
     labelChanger->Update();
+
     _labelMap = LabelMapType::New();
     _labelMap = labelChanger->GetOutput();
     _labelMap->Optimize();
@@ -136,6 +151,8 @@ void DataManager::SetVoxelScalar(unsigned int x, unsigned int y, unsigned int z,
 
     _voxelActionCount[GetLabelForScalar(*pixel)]--;
     _voxelActionCount[GetLabelForScalar(scalar)]++;
+    _temporalCentroid[GetLabelForScalar(*pixel)] -= Vector3ll(x,y,z);
+    _temporalCentroid[GetLabelForScalar(scalar)] += Vector3ll(x,y,z);
     
     _actionsBuffer->AddPoint(Vector3ui(x,y,z), *pixel);
     *pixel = scalar;
@@ -164,7 +181,6 @@ vtkSmartPointer<vtkLookupTable> DataManager::GetLookupTable()
     return _lookupTable;
 }
 
-// we use itk::ExceptionObject
 unsigned short DataManager::SetLabel(Vector3d rgb)
 {
 	// labelvalues usually goes 0-n, that's n+1 values = _labelValues.size();
@@ -190,10 +206,11 @@ unsigned short DataManager::SetLabel(Vector3d rgb)
     
     _labelValues.insert(std::pair<unsigned short, unsigned short>(newlabel,freevalue));
     _voxelCount.insert(std::pair<unsigned short, unsigned long long int>(newlabel, 0));
+    _objectCentroid.insert(std::pair<unsigned short, Vector3d>(newlabel,Vector3d(0,0,0)));
     _actionsBuffer->StoreLabelValue(std::pair<unsigned short, unsigned short>(newlabel,freevalue));
 
     vtkSmartPointer<vtkLookupTable> temptable = vtkSmartPointer<vtkLookupTable>::New();
-    CopyLookupTable(_lookupTable, temptable);
+    temptable->DeepCopy(_lookupTable);
     _actionsBuffer->StoreLookupTable(temptable);
 
     _lookupTable->SetNumberOfTableValues(newlabel+1);
@@ -230,29 +247,32 @@ void DataManager::GenerateLookupTable()
     temporal_table->Delete();
 }
 
-void DataManager::CopyLookupTable(vtkSmartPointer<vtkLookupTable> copyFrom, vtkSmartPointer<vtkLookupTable> copyTo)
-{
-	// copyTo exists and i don't want to do just a DeepCopy that could release memory, i just want to copy the colors
-    double rgba[4];
-    
-    copyTo->Allocate();
-    copyTo->SetNumberOfTableValues(copyFrom->GetNumberOfTableValues());
-    copyTo->SetTableRange(0,copyFrom->GetNumberOfTableValues()-1);
-    
-    for (int index = 0; index != copyFrom->GetNumberOfTableValues(); index++)
-    {
-        copyFrom->GetTableValue(index, rgba);
-        copyTo->SetTableValue(index,rgba);
-    }
-}
+//void DataManager::CopyLookupTable(vtkSmartPointer<vtkLookupTable> copyFrom, vtkSmartPointer<vtkLookupTable> copyTo)
+//{
+//	// copyTo exists and i don't want to do just a DeepCopy that could release memory, i just want to copy the colors
+//    double rgba[4];
+//
+//    copyTo->Allocate();
+//    copyTo->SetNumberOfTableValues(copyFrom->GetNumberOfTableValues());
+//    copyTo->SetTableRange(0,copyFrom->GetNumberOfTableValues()-1);
+//
+//    for (int index = 0; index != copyFrom->GetNumberOfTableValues(); index++)
+//    {
+//        copyFrom->GetTableValue(index, rgba);
+//        copyTo->SetTableValue(index,rgba);
+//    }
+//}
 
 void DataManager::ExchangeLookupTables(vtkSmartPointer<vtkLookupTable> table)
 {
     vtkSmartPointer<vtkLookupTable> temptable = vtkSmartPointer<vtkLookupTable>::New();
     
-    CopyLookupTable(_lookupTable, temptable);
-    CopyLookupTable(table, _lookupTable);
-    CopyLookupTable(temptable, table);
+    temptable->DeepCopy(_lookupTable);
+    _lookupTable->DeepCopy(table);
+    table->DeepCopy(temptable);
+//    CopyLookupTable(_lookupTable, temptable);
+//    CopyLookupTable(table, _lookupTable);
+//    CopyLookupTable(temptable, table);
     
     _lookupTable->Modified();
 }
@@ -260,6 +280,7 @@ void DataManager::ExchangeLookupTables(vtkSmartPointer<vtkLookupTable> table)
 void DataManager::OperationStart(std::string actionName)
 {
     _voxelActionCount.clear();
+    _temporalCentroid.clear();
     _actionsBuffer->SignalBeginAction(actionName);
 }
 
@@ -302,6 +323,7 @@ bool DataManager::IsRedoBufferEmpty()
 void DataManager::DoUndoOperation()
 {
    	_voxelActionCount.clear();
+   	_temporalCentroid.clear();
     _actionsBuffer->DoAction(UndoRedoSystem::UNDO);
     StatisticsActionJoin();
 }
@@ -309,6 +331,7 @@ void DataManager::DoUndoOperation()
 void DataManager::DoRedoOperation()
 {
 	_voxelActionCount.clear();
+	_temporalCentroid.clear();
     _actionsBuffer->DoAction(UndoRedoSystem::REDO);
     StatisticsActionJoin();
 }
@@ -370,9 +393,22 @@ double* DataManager::GetRGBAColorForScalar(unsigned short scalar)
 
 void DataManager::StatisticsActionJoin(void)
 {
-    std::map<unsigned short, unsigned long long int>::iterator it;
+    std::map<unsigned short, long long int>::iterator it;
+
     for (it = _voxelActionCount.begin(); it != _voxelActionCount.end(); it++)
+    {
     	_voxelCount[(*it).first] += (*it).second;
+
+    	if (0 == _voxelCount[(*it).first])
+    		_objectCentroid[(*it).first] = Vector3d(0,0,0);
+    	else
+    	{
+			double x = static_cast<double>(_temporalCentroid[(*it).first][0]) / static_cast<double>((*it).second);
+			double y = static_cast<double>(_temporalCentroid[(*it).first][1]) / static_cast<double>((*it).second);
+			double z = static_cast<double>(_temporalCentroid[(*it).first][2]) / static_cast<double>((*it).second);
+			_objectCentroid[(*it).first] += Vector3d(x,y,z);
+    	}
+    }
 }
 
 unsigned long long int DataManager::GetNumberOfVoxelsForLabel(unsigned short label)
@@ -396,4 +432,9 @@ unsigned short DataManager::GetLabelForScalar(unsigned short scalar)
             return (*it).first;
 
 	return 0;
+}
+
+Vector3d DataManager::GetCentroidForObject(unsigned short int label)
+{
+	return _objectCentroid[label];
 }

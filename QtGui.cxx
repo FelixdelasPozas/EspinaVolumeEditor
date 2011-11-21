@@ -23,6 +23,7 @@
 #include <itkMetaImageIO.h>
 #include <itkCastImageFilter.h>
 #include <itkChangeInformationImageFilter.h>
+#include <itkLabelGeometryImageFilter.h>
         
 // vtk includes 
 #include <vtkRenderer.h>
@@ -362,6 +363,7 @@ void EspinaVolumeEditor::EditorOpen(void)
     itk::SmartPointer<ReaderType> reader = ReaderType::New();
     reader->SetImageIO(io);
     reader->SetFileName(filename.toStdString().c_str());
+    reader->ReleaseDataFlagOn();
 
 	try
 	{
@@ -464,6 +466,7 @@ void EspinaVolumeEditor::EditorOpen(void)
     typedef itk::ChangeInformationImageFilter<ImageType> ChangeInfoType;
     itk::SmartPointer<ChangeInfoType> infoChanger = ChangeInfoType::New();
     infoChanger->SetInput(reader->GetOutput());
+    infoChanger->ReleaseDataFlagOn();
     infoChanger->ChangeOriginOn();
     infoChanger->ReleaseDataFlagOn();
     ImageType::PointType newOrigin;
@@ -471,7 +474,7 @@ void EspinaVolumeEditor::EditorOpen(void)
     newOrigin[1] = 0.0;
     newOrigin[2] = 0.0;
     infoChanger->SetOutputOrigin(newOrigin);
-    _progress->Observe(infoChanger,"Fix Image", 0.16);
+    _progress->Observe(infoChanger,"Fix Image", 0.14);
     infoChanger->Update();
     _progress->Ignore(infoChanger);
 	
@@ -481,7 +484,7 @@ void EspinaVolumeEditor::EditorOpen(void)
 
     converter->SetInput(infoChanger->GetOutput());
     converter->ReleaseDataFlagOn();
-    _progress->Observe(converter,"Label Map", 0.16);
+    _progress->Observe(converter,"Label Map", 0.14);
     converter->Update();
     _progress->Ignore(converter);
     converter->GetOutput()->Optimize();
@@ -498,7 +501,7 @@ void EspinaVolumeEditor::EditorOpen(void)
 	labelconverter->SetNumberOfThreads(1);
 	labelconverter->ReleaseDataFlagOn();
 
-	_progress->Observe(labelconverter,"Convert Image", 0.16);
+	_progress->Observe(labelconverter,"Convert Image", 0.14);
 	labelconverter->Update();
 	_progress->Ignore(labelconverter);
 
@@ -508,8 +511,8 @@ void EspinaVolumeEditor::EditorOpen(void)
 	vtkSmartPointer<vtkImageImport> vtkImporter = vtkSmartPointer<vtkImageImport>::New();
 	itkExporter->SetInput(labelconverter->GetOutput());
 	ConnectPipelines(itkExporter, vtkImporter);
-	_progress->Observe(vtkImporter,"Import", 0.16);
-	_progress->Observe(itkExporter,"Export", 0.16);
+	_progress->Observe(vtkImporter,"Import", 0.14);
+	_progress->Observe(itkExporter,"Export", 0.14);
 	vtkImporter->Update();
 	_progress->Ignore(itkExporter);
 	_progress->Ignore(vtkImporter);
@@ -517,7 +520,8 @@ void EspinaVolumeEditor::EditorOpen(void)
 	// get the vtkStructuredPoints out of the vtkImage
 	vtkSmartPointer<vtkImageToStructuredPoints> convert = vtkSmartPointer<vtkImageToStructuredPoints>::New();
 	convert->SetInput(vtkImporter->GetOutput());
-	_progress->Observe(convert,"Convert Points",0.16);
+	convert->ReleaseDataFlagOn();
+	_progress->Observe(convert,"Convert Points",0.14);
 	convert->Update();
 	_progress->Ignore(convert);
 	
@@ -942,14 +946,12 @@ void EspinaVolumeEditor::ChangeZspinBox(int value)
 
 void EspinaVolumeEditor::SetPointLabel()
 {
-    // get pixel value
+	// get pixel value
     _pointScalar = _dataManager->GetVoxelScalar(_POI[0],_POI[1],_POI[2]);
 
+    // the labelselector change event deselects pickerbutton and selects view button
     if (pickerbutton->isChecked())
-    {
     	labelselector->setCurrentRow(_pointScalar);
-    	viewbutton->setChecked(true);
-    }
 
     if (0 == _pointScalar)
     {
@@ -1017,10 +1019,9 @@ void EspinaVolumeEditor::LabelSelectionChanged(int value)
 	static unsigned short selectedValue = 0;
     double rgba[4];
     
-    if (!labelselector->isEnabled())
+    if (!labelselector->isEnabled() || (value == -1))
         return;
     
-    // set previous value to an alpha of 0.4
     // BEWARE: we could have change lookuptables and previous value could be invalid at the moment.
     if ((selectedValue != 0) && (selectedValue < _dataManager->GetLookupTable()->GetNumberOfTableValues()))
     {
@@ -1043,6 +1044,8 @@ void EspinaVolumeEditor::LabelSelectionChanged(int value)
     	_volumeRender->UpdateColorTable(selectedValue, 1);
     }
 
+    _dataManager->GetLookupTable()->Modified();
+
     // don't want filters with the background label
     switch (_selectedLabel)
     {
@@ -1062,7 +1065,39 @@ void EspinaVolumeEditor::LabelSelectionChanged(int value)
     		break;
     }
 
-    _dataManager->GetLookupTable()->Modified();
+    // if the user selected the label by hand I don't want to change the POI, just highlight the label
+    // in the point he/she just picked
+    if (pickerbutton->isChecked())
+    {
+    	viewbutton->setChecked(true);
+    	return;
+    }
+
+    Vector3d newPOI = _dataManager->GetCentroidForObject(value);
+
+    updateslicerenderers = false;
+    updatevoxelrenderer = false;
+    updatepointlabel = false;
+
+    // POI values start in 0, spinboxes start in 1
+    _POI[0] = static_cast<unsigned int>(newPOI[0]);
+    _POI[1] = static_cast<unsigned int>(newPOI[1]);
+    _POI[2] = static_cast<unsigned int>(newPOI[2]);
+    ZspinBox->setValue(_POI[2]+1);
+    YspinBox->setValue(_POI[1]+1);
+    XspinBox->setValue(_POI[0]+1);
+
+    _sagittalSliceVisualization->Update(_POI);
+    _coronalSliceVisualization->Update(_POI);
+    _axialSliceVisualization->Update(_POI);
+    _axesRender->Update(_POI);
+
+    SetPointLabel();
+
+    updatepointlabel = true;
+    updateslicerenderers = true;
+    updatevoxelrenderer = true;
+
     UpdateViewports(All);
 }
 

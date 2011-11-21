@@ -225,6 +225,24 @@ template<class T> inline T operator*(const Vector3<T> &a, const Vector3<T> &b) t
     return sum;
 }
 
+// operator+= (binary)
+template<class T> inline Vector3<T> operator+=(Vector3<T> &a, const Vector3<T> &b) throw ()
+{
+    for (int i = 0; i < 3; i++)
+        a[i] = a[i] + b[i];
+
+    return a;
+}
+
+// operator-= (binary)
+template<class T> inline Vector3<T> operator-=(Vector3<T> &a, const Vector3<T> &b) throw ()
+{
+    for (int i = 0; i < 3; i++)
+        a[i] = a[i] - b[i];
+
+    return a;
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Matrix class
 //
@@ -607,6 +625,9 @@ typedef Vector3<unsigned int> Vector3ui;
 typedef Vector3<int> Vector3i;
 typedef Vector3<float> Vector3f;
 typedef Vector3<double> Vector3d;
+typedef Vector3<unsigned long int> Vector3ul;
+typedef Vector3<unsigned long long int> Vector3ull;
+typedef Vector3<long long int> Vector3ll;
 
 typedef Matrix3<unsigned int> Matrix3ui;
 typedef Matrix3<int> Matrix3i;

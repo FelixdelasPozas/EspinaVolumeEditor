@@ -61,7 +61,7 @@
 #include <QObject>
 
 // defines & typedefs
-typedef itk::LabelObject< unsigned short, 3 > LabelObjectType;
+typedef itk::ShapeLabelObject< unsigned short, 3 > LabelObjectType;
 typedef itk::LabelMap< LabelObjectType > LabelMapType;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -19,7 +19,7 @@
 // itk includes
 #include <itkLabelMap.h>
 #include <itkSmartPointer.h>
-#include <itkLabelObject.h>
+#include <itkShapeLabelObject.h>
 
 // c++ includes
 #include <map>
@@ -27,9 +27,10 @@
 // project includes
 #include "Coordinates.h"
 #include "UndoRedoSystem.h"
+#include "VectorSpaceAlgebra.h"
 
 // defines & typedefs
-typedef itk::LabelObject< unsigned short, 3 > LabelObjectType;
+typedef itk::ShapeLabelObject< unsigned short, 3 > LabelObjectType;
 typedef itk::LabelMap< LabelObjectType > LabelMapType;
 
 // UndoRedoSystem forward declaration
@@ -72,6 +73,9 @@ class DataManager
         // get table of scalar<->label values
         std::map<unsigned short, unsigned short>* GetLabelValueTable();
         
+        // get centroid of object with specified label
+        Vector3d GetCentroidForObject(unsigned short int);
+
         // get scalar for voxel(x,y,z)
         unsigned short GetVoxelScalar(unsigned int, unsigned int, unsigned int);
         
@@ -136,25 +140,28 @@ class DataManager
         void StatisticsActionJoin(void);
         
         // needed data attributes
-        itk::SmartPointer<LabelMapType>         _labelMap;
-        vtkSmartPointer<vtkStructuredPoints>    _structuredPoints;
-        vtkSmartPointer<vtkLookupTable>         _lookupTable;
-        Coordinates                            *_orientationData;
+        itk::SmartPointer<LabelMapType>         	_labelMap;
+        vtkSmartPointer<vtkStructuredPoints>    	_structuredPoints;
+        vtkSmartPointer<vtkLookupTable>         	_lookupTable;
+        Coordinates                            	   *_orientationData;
         
         // map image values<->internal values
-        std::map<unsigned short, unsigned short>  _labelValues;
+        std::map<unsigned short, unsigned short>  	_labelValues;
         
+        // map labels <-> centroids
+        std::map<unsigned short, Vector3d>     		_objectCentroid;
         // undo/redo system
-        UndoRedoSystem                         *_actionsBuffer;
+        UndoRedoSystem                         	   *_actionsBuffer;
         
         // first free value for new labels
-        unsigned short                          _firstFreeValue;
+        unsigned short                          	_firstFreeValue;
         
         // for voxel statistics, notice the NOT unsigned variable for actions, as those values can be negative.
         // using two arrays allows us to ignore the number of voxels changed when an exception ocurrs, and an
         // actions is ignored. the voxelCount must be always positive or null.
         std::map<unsigned short, unsigned long long int>  _voxelCount;
-        std::map<unsigned short, unsigned long long int>  _voxelActionCount;
+        std::map<unsigned short, long long int>  		  _voxelActionCount;
+        std::map<unsigned short, Vector3ll>			  	  _temporalCentroid;
 };
 
 #endif // _DATAMANAGER_H_
