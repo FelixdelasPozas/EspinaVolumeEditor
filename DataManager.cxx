@@ -151,12 +151,15 @@ void DataManager::SetVoxelScalar(unsigned int x, unsigned int y, unsigned int z,
 
     _voxelActionCount[GetLabelForScalar(*pixel)]--;
     _voxelActionCount[GetLabelForScalar(scalar)]++;
-    _temporalCentroid[GetLabelForScalar(*pixel)] -= Vector3ll(x,y,z);
-    _temporalCentroid[GetLabelForScalar(scalar)] += Vector3ll(x,y,z);
+    _temporalCentroid[GetLabelForScalar(*pixel)][0] -= x;
+    _temporalCentroid[GetLabelForScalar(*pixel)][1] -= y;
+    _temporalCentroid[GetLabelForScalar(*pixel)][2] -= z;
+    _temporalCentroid[GetLabelForScalar(scalar)][0] += x;
+    _temporalCentroid[GetLabelForScalar(scalar)][1] += y;
+    _temporalCentroid[GetLabelForScalar(scalar)][2] += z;
     
     _actionsBuffer->AddPoint(Vector3ui(x,y,z), *pixel);
     *pixel = scalar;
-    _structuredPoints->Modified();
 }
 
 void DataManager::SetVoxelScalarRaw(unsigned int x, unsigned int y, unsigned int z, unsigned short scalar)
@@ -247,32 +250,13 @@ void DataManager::GenerateLookupTable()
     temporal_table->Delete();
 }
 
-//void DataManager::CopyLookupTable(vtkSmartPointer<vtkLookupTable> copyFrom, vtkSmartPointer<vtkLookupTable> copyTo)
-//{
-//	// copyTo exists and i don't want to do just a DeepCopy that could release memory, i just want to copy the colors
-//    double rgba[4];
-//
-//    copyTo->Allocate();
-//    copyTo->SetNumberOfTableValues(copyFrom->GetNumberOfTableValues());
-//    copyTo->SetTableRange(0,copyFrom->GetNumberOfTableValues()-1);
-//
-//    for (int index = 0; index != copyFrom->GetNumberOfTableValues(); index++)
-//    {
-//        copyFrom->GetTableValue(index, rgba);
-//        copyTo->SetTableValue(index,rgba);
-//    }
-//}
-
-void DataManager::ExchangeLookupTables(vtkSmartPointer<vtkLookupTable> table)
+void DataManager::SwitchLookupTables(vtkSmartPointer<vtkLookupTable> table)
 {
     vtkSmartPointer<vtkLookupTable> temptable = vtkSmartPointer<vtkLookupTable>::New();
     
     temptable->DeepCopy(_lookupTable);
     _lookupTable->DeepCopy(table);
     table->DeepCopy(temptable);
-//    CopyLookupTable(_lookupTable, temptable);
-//    CopyLookupTable(table, _lookupTable);
-//    CopyLookupTable(temptable, table);
     
     _lookupTable->Modified();
 }
@@ -286,6 +270,7 @@ void DataManager::OperationStart(std::string actionName)
 
 void DataManager::OperationEnd()
 {
+    _structuredPoints->Modified();
     _actionsBuffer->SignalEndAction();
     StatisticsActionJoin();
 }
@@ -403,6 +388,7 @@ void DataManager::StatisticsActionJoin(void)
     		_objectCentroid[(*it).first] = Vector3d(0,0,0);
     	else
     	{
+    		// TODO bounding boxes
 			double x = static_cast<double>(_temporalCentroid[(*it).first][0]) / static_cast<double>((*it).second);
 			double y = static_cast<double>(_temporalCentroid[(*it).first][1]) / static_cast<double>((*it).second);
 			double z = static_cast<double>(_temporalCentroid[(*it).first][2]) / static_cast<double>((*it).second);

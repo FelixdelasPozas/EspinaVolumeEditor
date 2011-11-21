@@ -296,7 +296,7 @@ void UndoRedoSystem::DoAction(UndoRedoBuffer actionBuffer)
             _redoBuffer.push_back(*_action);
             _undoBuffer.pop_back();
             if (NULL != _redoBuffer.back().actionLookupTable)
-                _dataManager->ExchangeLookupTables(_redoBuffer.back().actionLookupTable);
+                _dataManager->SwitchLookupTables(_redoBuffer.back().actionLookupTable);
             
             for(it = _redoBuffer.back().actionTableValues.begin(); it != _redoBuffer.back().actionTableValues.end(); it++)
                 (*_dataManager->GetLabelValueTable()).erase((*it).first);
@@ -306,7 +306,7 @@ void UndoRedoSystem::DoAction(UndoRedoBuffer actionBuffer)
             _undoBuffer.push_back(*_action);
             _redoBuffer.pop_back();
             if (NULL != _undoBuffer.back().actionLookupTable)
-                _dataManager->ExchangeLookupTables(_undoBuffer.back().actionLookupTable);
+                _dataManager->SwitchLookupTables(_undoBuffer.back().actionLookupTable);
             
             for(it = _undoBuffer.back().actionTableValues.begin(); it != _undoBuffer.back().actionTableValues.end(); it++)
                 (*_dataManager->GetLabelValueTable()).insert((*it));

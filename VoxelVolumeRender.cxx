@@ -19,9 +19,7 @@
 #include <vtkStructuredPoints.h>
 #include <vtkRenderer.h>
 #include <vtkSmartPointer.h>
-#include <vtkVolumeRayCastMapper.h>
 #include <vtkColorTransferFunction.h>
-#include <vtkVolumeRayCastCompositeFunction.h>
 #include <vtkVolume.h>
 #include <vtkVolumeProperty.h>
 #include <vtkSmartVolumeMapper.h>
@@ -145,35 +143,34 @@ void VoxelVolumeRender::ComputeRayCastVolume()
     // GPU mapper
     vtkSmartPointer<vtkSmartVolumeMapper> GPUmapper = vtkSmartPointer<vtkSmartVolumeMapper>::New();
     GPUmapper->SetInput(_structuredPoints);
-    GPUmapper->SetScalarModeToUsePointData();
     GPUmapper->SetBlendModeToComposite();
     GPUmapper->SetInterpolationModeToNearestNeighbor();
 
-    // assign label colors
+    // assign label colors, we need to set the label 0 to transparent in the volume opacity property
     vtkSmartPointer<vtkColorTransferFunction> colorfunction = vtkSmartPointer<vtkColorTransferFunction>::New();
-    for (unsigned short int i = 0; i != _lookupTable->GetNumberOfTableValues(); i++)
+    colorfunction->SetColorSpaceToRGB();
+    colorfunction->AddRGBPoint(0,0,0,0);
+
+    _opacityfunction = vtkSmartPointer<vtkPiecewiseFunction>::New();
+    _opacityfunction->AddPoint(0, 0.0);
+
+    for (int i = 1; i != _lookupTable->GetNumberOfTableValues(); i++)
     {
         _lookupTable->GetTableValue(i, rgba);
         colorfunction->AddRGBPoint(i,rgba[0], rgba[1], rgba[2]);
-    }
-    colorfunction->Modified();
 
-    // we need to set the label 0 to transparent in the volume opacity property
-    _opacityfunction = vtkSmartPointer<vtkPiecewiseFunction>::New();
-    _opacityfunction->AddPoint(0, 0.0);
-    for (int i=0; i != _lookupTable->GetNumberOfTableValues()-1; i++)
-    {
-        _lookupTable->GetTableValue(i+1, rgba);
-        
         // opacity is 1/4 of color table values if value != 1 to indicate that
         // the user has one label selected that is not the background label 
-        // (needed for volume<->mesh switch)
+        // (needed for volume <-> mesh switch)
         if (rgba[3] != 1)
-            _opacityfunction->AddPoint(i+1, rgba[3]/4);
+            _opacityfunction->AddPoint(i, rgba[3]/4);
         else
-            _opacityfunction->AddPoint(i+1, rgba[3]);
+            _opacityfunction->AddPoint(i, rgba[3]);
+
     }
-    
+    colorfunction->Modified();
+    _opacityfunction->Modified();
+
     // volume property
     vtkSmartPointer<vtkVolumeProperty> volumeproperty = vtkSmartPointer<vtkVolumeProperty>::New();
     volumeproperty->SetColor(colorfunction);

@@ -94,7 +94,7 @@ class DataManager
         unsigned short SetLabel(Vector3d);
         
         // switch tables
-        void ExchangeLookupTables(vtkSmartPointer<vtkLookupTable>);
+        void SwitchLookupTables(vtkSmartPointer<vtkLookupTable>);
         
         // get a smartpointer from the lookuptable
         vtkSmartPointer<vtkLookupTable> GetLookupTable();

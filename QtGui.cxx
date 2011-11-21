@@ -1016,32 +1016,32 @@ void EspinaVolumeEditor::FillColorLabels()
 
 void EspinaVolumeEditor::LabelSelectionChanged(int value)
 {
-	static unsigned short selectedValue = 0;
+	static unsigned short previousValue = 0;
     double rgba[4];
-    
+
     if (!labelselector->isEnabled() || (value == -1))
         return;
     
     // BEWARE: we could have change lookuptables and previous value could be invalid at the moment.
-    if ((selectedValue != 0) && (selectedValue < _dataManager->GetLookupTable()->GetNumberOfTableValues()))
+    if ((previousValue > 0) && (previousValue < _dataManager->GetLookupTable()->GetNumberOfTableValues()))
     {
-    	_dataManager->GetLookupTable()->GetTableValue(selectedValue, rgba);
-    	_dataManager->GetLookupTable()->SetTableValue(selectedValue, rgba[0], rgba[1], rgba[2], 0.4);
+    	_dataManager->GetLookupTable()->GetTableValue(previousValue, rgba);
+    	_dataManager->GetLookupTable()->SetTableValue(previousValue, rgba[0], rgba[1], rgba[2], 0.4);
     	// opacity of volume render is 1/4 of color table values if value != 1
     	// because opacity of slice viewports is higher on purpose for better
     	// visibility
-    	_volumeRender->UpdateColorTable(selectedValue, 0.1);
+    	_volumeRender->UpdateColorTable(previousValue, 0.1);
     }
     
-    selectedValue = value;
+    previousValue = value;
     _selectedLabel = value;
 
     // if actual value != 0 (background) highlight it with an alpha of 1
-    if(selectedValue != 0)
+    if(value != 0)
     {
-    	_dataManager->GetLookupTable()->GetTableValue(selectedValue, rgba);
-    	_dataManager->GetLookupTable()->SetTableValue(selectedValue, rgba[0], rgba[1], rgba[2], 1);
-    	_volumeRender->UpdateColorTable(selectedValue, 1);
+    	_dataManager->GetLookupTable()->GetTableValue(value, rgba);
+    	_dataManager->GetLookupTable()->SetTableValue(value, rgba[0], rgba[1], rgba[2], 1);
+    	_volumeRender->UpdateColorTable(value, 1);
     }
 
     _dataManager->GetLookupTable()->Modified();
@@ -1055,6 +1055,10 @@ void EspinaVolumeEditor::LabelSelectionChanged(int value)
     		openoperation->setEnabled(false);
     		closeoperation->setEnabled(false);
     		watershedoperation->setEnabled(false);
+    	    if (pickerbutton->isChecked())
+    	    	viewbutton->setChecked(true);
+    	    UpdateViewports(All);
+    		return;
     		break;
     	default:
     		erodeoperation->setEnabled(true);
@@ -1240,7 +1244,6 @@ void EspinaVolumeEditor::EditorRelabel()
     {
         // not faster but easier
         delete _volumeRender;
-        
         FillColorLabels();
         
         _volumeRender = new VoxelVolumeRender(_dataManager->GetStructuredPoints(), _dataManager->GetLookupTable(), _voxelViewRenderer, _volumeRenderType, _progress);
