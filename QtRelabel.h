@@ -18,6 +18,9 @@
 #include <vtkSmartPointer.h>
 #include <vtkLookupTable.h>
 
+// project includes
+#include "Metadata.h"
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // QtRelabel class
 //
@@ -30,7 +33,7 @@ class QtRelabel: public QDialog, private Ui_Relabel
         ~QtRelabel();
 
         // set initial options
-        void SetInitialOptions(unsigned short, vtkSmartPointer<vtkLookupTable>);
+        void SetInitialOptions(unsigned short, vtkSmartPointer<vtkLookupTable>, Metadata*);
 
         // get the label selected in combobox
         unsigned short GetSelectedLabel();

@@ -6,21 +6,9 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>320</width>
-    <height>152</height>
+    <width>340</width>
+    <height>404</height>
    </rect>
-  </property>
-  <property name="minimumSize">
-   <size>
-    <width>320</width>
-    <height>152</height>
-   </size>
-  </property>
-  <property name="maximumSize">
-   <size>
-    <width>320</width>
-    <height>152</height>
-   </size>
   </property>
   <property name="windowTitle">
    <string>Relabel</string>
@@ -97,16 +85,33 @@ QGroupBox::title {
        </layout>
       </item>
       <item>
-       <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0,1">
+       <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0,0">
         <item>
-         <widget class="QLabel" name="label_2">
-          <property name="text">
-           <string>Relabel to:</string>
-          </property>
-         </widget>
+         <layout class="QVBoxLayout" name="verticalLayout_3">
+          <item>
+           <widget class="QLabel" name="label_2">
+            <property name="text">
+             <string>Relabel to:</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="verticalSpacer">
+            <property name="orientation">
+             <enum>Qt::Vertical</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>20</width>
+              <height>40</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
         </item>
         <item>
-         <widget class="QComboBox" name="newlabelbox"/>
+         <widget class="QListWidget" name="newlabelbox"/>
         </item>
        </layout>
       </item>

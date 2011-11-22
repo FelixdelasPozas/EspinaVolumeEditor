@@ -8,6 +8,10 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Qt includes
+#include <QListWidget>
+#include <QListWidgetItem>
+
+// project includes
 #include "QtRelabel.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -27,7 +31,7 @@ QtRelabel::~QtRelabel()
     // empty
 }
 
-void QtRelabel::SetInitialOptions(unsigned short label,vtkSmartPointer<vtkLookupTable> colors)
+void QtRelabel::SetInitialOptions(unsigned short label,vtkSmartPointer<vtkLookupTable> colors, Metadata* data)
 {
     double rgba[4];
     char text[20];
@@ -37,17 +41,15 @@ void QtRelabel::SetInitialOptions(unsigned short label,vtkSmartPointer<vtkLookup
     _selectedLabel = label;
     _maxcolors = colors->GetNumberOfTableValues();
 
-    // generate combobox items
-    newlabelbox->setMaxCount(_maxcolors);
-    
+    // generate items
     if (label != 0)
     {
         newlabelbox->insertItem(0, "Background");
-
+        std::string name = data->GetObjectSegmentName(label);
         colors->GetTableValue(label, rgba);
         color.setRgbF(rgba[0], rgba[1], rgba[2], 1);
         icon.fill(color);
-        sprintf(text, "Label %d voxels", static_cast<int>(label));
+        sprintf(text, "%s %d voxels",name.c_str(), static_cast<int>(label));
         colorlabel->setPixmap(icon);
         selectionlabel->setText(QString(text));
     }
@@ -66,15 +68,15 @@ void QtRelabel::SetInitialOptions(unsigned short label,vtkSmartPointer<vtkLookup
         colors->GetTableValue(i, rgba);
         color.setRgbF(rgba[0], rgba[1], rgba[2], 1);
         icon.fill(color);
-        sprintf(text, "Label %d", i);
-        newlabelbox->insertItem(j,QIcon(icon),text);
+        std::string name = data->GetObjectSegmentName(i);
+        sprintf(text, "%s %d", name.c_str(), i);
+        QListWidgetItem *item = new QListWidgetItem(QIcon(icon), QString(text));
+        newlabelbox->addItem(item);
     }
-    newlabelbox->insertItem(j+1,"New label");
+    newlabelbox->addItem("New label");
 
     // configure widgets
-    newlabelbox->setEditable(false);
-    newlabelbox->setMaxVisibleItems(10);
-    newlabelbox->setCurrentIndex(0);
+    newlabelbox->setCurrentRow(_maxcolors-1);
     
     connect(acceptbutton, SIGNAL(accepted()), this, SLOT(AcceptedData()));
 }
@@ -91,12 +93,12 @@ unsigned short QtRelabel::GetSelectedLabel()
 
 void QtRelabel::AcceptedData()
 {
-    int label = newlabelbox->currentIndex();
+    int label = newlabelbox->currentRow();
     
     if (label < _selectedLabel)
-        _selectedLabel = newlabelbox->currentIndex();
+        _selectedLabel = newlabelbox->currentRow();
     else
-        _selectedLabel = newlabelbox->currentIndex() + 1;
+        _selectedLabel = newlabelbox->currentRow() + 1;
     
     if (_selectedLabel == _maxcolors)
         _newlabel = true;

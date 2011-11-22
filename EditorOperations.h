@@ -25,6 +25,7 @@
 #include "Coordinates.h"
 #include "ProgressAccumulator.h"
 #include "DataManager.h"
+#include "Metadata.h"
 
 // qt includes
 #include <QtGui>
@@ -61,7 +62,7 @@ class EditorOperations
         void CutSelection(unsigned short);
         
         // changes label of selected voxels to a different one
-        bool RelabelSelection(QWidget *parent, unsigned short, vtkSmartPointer<vtkLookupTable>);
+        bool RelabelSelection(QWidget *parent, unsigned short, vtkSmartPointer<vtkLookupTable>, Metadata*);
 
         // save volume as an GIPL image on disk
         void SaveImage(std::string);

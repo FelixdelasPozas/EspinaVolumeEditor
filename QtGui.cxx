@@ -1240,7 +1240,7 @@ void EspinaVolumeEditor::EditorCut()
 
 void EspinaVolumeEditor::EditorRelabel()
 {
-    if (_editorOperations->RelabelSelection(this, _selectedLabel, _dataManager->GetLookupTable()))
+    if (_editorOperations->RelabelSelection(this, _selectedLabel, _dataManager->GetLookupTable(), _fileMetadata))
     {
         // not faster but easier
         delete _volumeRender;

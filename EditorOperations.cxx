@@ -276,13 +276,13 @@ void EditorOperations::CutSelection(unsigned short label)
     _dataManager->OperationEnd();
 }
 
-bool EditorOperations::RelabelSelection(QWidget *parent, unsigned short label, vtkSmartPointer<vtkLookupTable> colors)
+bool EditorOperations::RelabelSelection(QWidget *parent, unsigned short label, vtkSmartPointer<vtkLookupTable> colors, Metadata *data)
 {
     Vector3d color;
     bool newcolor = false;
     
     QtRelabel configdialog(parent);
-    configdialog.SetInitialOptions(label, colors);
+    configdialog.SetInitialOptions(label, colors, data);
     configdialog.exec();
     
     if (!configdialog.ModifiedData())
