@@ -243,6 +243,14 @@ template<class T> inline Vector3<T> operator-=(Vector3<T> &a, const Vector3<T> &
     return a;
 }
 
+// operator*= (vector*scalar)
+template<class T> inline Vector3<T> operator*=(const Vector3<T> a, const T c) throw ()
+{
+    for (int i = 0; i < 3; i++)
+        a[i] = a[i] * c;
+}
+
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Matrix class
 //
