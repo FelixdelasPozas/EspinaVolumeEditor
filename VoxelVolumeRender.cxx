@@ -23,6 +23,8 @@
 #include <vtkVolume.h>
 #include <vtkVolumeProperty.h>
 #include <vtkSmartVolumeMapper.h>
+#include <vtkVolumeRayCastCompositeFunction.h>
+#include <vtkVolumeRayCastMapper.h>
 
 // project includes
 #include "VoxelVolumeRender.h"
@@ -55,19 +57,26 @@ VoxelVolumeRender::~VoxelVolumeRender()
 // note: some filters make use of SetGlobalWarningDisplay(false) because if we delete
 //       one object completely on the editor those filters will print an error during
 //       pipeline update that I don't want to see. i already know that there is not
-//       data to decimate or smooth if there is no voxel! it's not an error in fact.
+//       data to decimate or smooth if there is no voxel! as a matter of fact, it's
+//       not even an error.
 void VoxelVolumeRender::ComputeMeshes()
 {
     double rgba[4];
-    
     double weight = 1/((_lookupTable->GetNumberOfTableValues()-1)*3.0);
+    vtkSmartPointer<vtkDiscreteMarchingCubes> marcher;
+    vtkSmartPointer<vtkDecimatePro> decimator;
+    vtkSmartPointer<vtkWindowedSincPolyDataFilter> smoother;
+    vtkSmartPointer<vtkPolyDataNormals> normals;
+    vtkSmartPointer<vtkPolyDataMapper> isoMapper;
+    vtkSmartPointer<vtkActor> actor;
     
     for(int label=1, i = 0; i != _lookupTable->GetNumberOfTableValues()-1; i++, label++)
     {
         // generate iso surface
-        vtkSmartPointer<vtkDiscreteMarchingCubes> marcher = vtkSmartPointer<vtkDiscreteMarchingCubes>::New();
+        marcher = vtkSmartPointer<vtkDiscreteMarchingCubes>::New();
         _progress->Observe(marcher, "March", weight);
         marcher->SetInput(_structuredPoints);
+        marcher->ReleaseDataFlagOn();
         marcher->SetNumberOfContours(1);
         marcher->GenerateValues(1,label,label);
         marcher->ComputeScalarsOff();
@@ -77,9 +86,10 @@ void VoxelVolumeRender::ComputeMeshes()
         _progress->Ignore(marcher);
         
         // decimate surface
-        vtkSmartPointer<vtkDecimatePro> decimator = vtkSmartPointer<vtkDecimatePro>::New();
+        decimator = vtkSmartPointer<vtkDecimatePro>::New();
         _progress->Observe(decimator, "Decimate", weight);
         decimator->SetInputConnection(marcher->GetOutputPort());
+        decimator->ReleaseDataFlagOn();
         decimator->SetGlobalWarningDisplay(false);
         decimator->SetTargetReduction(0.95);
         decimator->PreserveTopologyOn();
@@ -89,8 +99,9 @@ void VoxelVolumeRender::ComputeMeshes()
         _progress->Ignore(decimator);
         
         // surface smoothing
-        vtkSmartPointer<vtkWindowedSincPolyDataFilter> smoother = vtkSmartPointer<vtkWindowedSincPolyDataFilter>::New();
+        smoother = vtkSmartPointer<vtkWindowedSincPolyDataFilter>::New();
         smoother->SetInputConnection(decimator->GetOutputPort());
+        smoother->ReleaseDataFlagOn();
         smoother->SetGlobalWarningDisplay(false);
         smoother->BoundarySmoothingOn();
         smoother->FeatureEdgeSmoothingOn();
@@ -99,21 +110,23 @@ void VoxelVolumeRender::ComputeMeshes()
         smoother->SetEdgeAngle(90);
         
         // compute normals for a better looking render
-        vtkSmartPointer<vtkPolyDataNormals> normals = vtkSmartPointer<vtkPolyDataNormals>::New();
+        normals = vtkSmartPointer<vtkPolyDataNormals>::New();
         normals->SetInputConnection(smoother->GetOutputPort());
+        normals->ReleaseDataFlagOn();
         normals->SetFeatureAngle(120);
 
         // model mapper
-        vtkSmartPointer<vtkPolyDataMapper> isoMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+        isoMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
         _progress->Observe(isoMapper, "Map", weight);
         isoMapper->SetInputConnection(normals->GetOutputPort());
+        isoMapper->ReleaseDataFlagOn();
         isoMapper->ImmediateModeRenderingOff();
         isoMapper->ScalarVisibilityOff();
         isoMapper->Update();
         _progress->Ignore(isoMapper);
 
         // create the actor a assign a color to it
-        vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
+        actor = vtkSmartPointer<vtkActor>::New();
         actor->SetMapper(isoMapper);
         _lookupTable->GetTableValue(label, rgba);
         actor->GetProperty()->SetColor(rgba[0], rgba[1], rgba[2]);
@@ -139,37 +152,95 @@ void VoxelVolumeRender::ComputeMeshes()
 void VoxelVolumeRender::ComputeRayCastVolume()
 {
     double rgba[4];
-    
-    // GPU mapper
-    vtkSmartPointer<vtkSmartVolumeMapper> GPUmapper = vtkSmartPointer<vtkSmartVolumeMapper>::New();
-    GPUmapper->SetInput(_structuredPoints);
-    GPUmapper->SetBlendModeToComposite();
-    GPUmapper->SetInterpolationModeToNearestNeighbor();
 
-    // assign label colors, we need to set the label 0 to transparent in the volume opacity property
+    // model mapper
+    vtkSmartPointer<vtkVolumeRayCastMapper> volumemapper = vtkSmartPointer<vtkVolumeRayCastMapper>::New();
+    volumemapper->SetInput(_structuredPoints);
+    volumemapper->IntermixIntersectingGeometryOn();
+
+    // standard composite function
+    vtkSmartPointer<vtkVolumeRayCastCompositeFunction> volumefunction = vtkSmartPointer<vtkVolumeRayCastCompositeFunction>::New();
+    volumemapper->SetVolumeRayCastFunction(volumefunction);
+
+    // assign label colors
     vtkSmartPointer<vtkColorTransferFunction> colorfunction = vtkSmartPointer<vtkColorTransferFunction>::New();
-    colorfunction->SetColorSpaceToRGB();
-    colorfunction->AddRGBPoint(0,0,0,0);
-
-    _opacityfunction = vtkSmartPointer<vtkPiecewiseFunction>::New();
-    _opacityfunction->AddPoint(0, 0.0);
-
-    for (int i = 1; i != _lookupTable->GetNumberOfTableValues(); i++)
+    for (unsigned short int i = 0; i != _lookupTable->GetNumberOfTableValues(); i++)
     {
         _lookupTable->GetTableValue(i, rgba);
         colorfunction->AddRGBPoint(i,rgba[0], rgba[1], rgba[2]);
+    }
+
+    // we need to set the label 0 to transparent in the volume opacity property
+    _opacityfunction = vtkSmartPointer<vtkPiecewiseFunction>::New();
+    _opacityfunction->AddPoint(0, 0.0);
+    for (int i=0; i != _lookupTable->GetNumberOfTableValues()-1; i++)
+    {
+        _lookupTable->GetTableValue(i+1, rgba);
+
+        // opacity is 1/4 of color table values if value != 1 to indicate that
+        // the user has one label selected that is not the background label
+        // (needed for volume<->mesh switch)
+        if (rgba[3] != 1)
+            _opacityfunction->AddPoint(i+1, rgba[3]/4);
+        else
+            _opacityfunction->AddPoint(i+1, rgba[3]);
+    }
+
+    // volume property
+    vtkSmartPointer<vtkVolumeProperty> volumeproperty = vtkSmartPointer<vtkVolumeProperty>::New();
+    volumeproperty->SetColor(colorfunction);
+    volumeproperty->SetScalarOpacity(_opacityfunction);
+    volumeproperty->SetSpecular(0.2);
+    volumeproperty->ShadeOn();
+    volumeproperty->SetInterpolationTypeToNearest();
+
+    // create volume and add to render
+    _volume = vtkSmartPointer<vtkVolume>::New();
+    _volume->SetMapper(volumemapper);
+    _volume->SetProperty(volumeproperty);
+
+    _renderer->AddVolume(_volume);
+}
+
+// this is "disabled" by default, as it renders well and fast but still has errors updating
+// volume colors
+void VoxelVolumeRender::ComputeGPURender()
+{
+    double rgba[4];
+
+    // GPU mapper
+    vtkSmartPointer<vtkSmartVolumeMapper> GPUmapper = vtkSmartPointer<vtkSmartVolumeMapper>::New();
+    GPUmapper->SetInput(_structuredPoints);
+    GPUmapper->SetRequestedRenderMode(vtkSmartVolumeMapper::GPURenderMode);
+    GPUmapper->SetInterpolationModeToNearestNeighbor();
+
+    // assign label colors
+    vtkSmartPointer<vtkColorTransferFunction> colorfunction = vtkSmartPointer<vtkColorTransferFunction>::New();
+    colorfunction->AllowDuplicateScalarsOff();
+    for (unsigned short int i = 0; i != _lookupTable->GetNumberOfTableValues(); i++)
+    {
+        _lookupTable->GetTableValue(i, rgba);
+        colorfunction->AddRGBPoint(i,rgba[0], rgba[1], rgba[2]);
+    }
+    colorfunction->Build();
+
+    // we need to set the label 0 to transparent in the volume opacity function
+    _opacityfunction = vtkSmartPointer<vtkPiecewiseFunction>::New();
+    _opacityfunction->AllowDuplicateScalarsOff();
+    _opacityfunction->SetMaximumNumberOfPieces(-1);
+    _opacityfunction->AddPoint(0, 0.0);
+    for (int i=1; i != _lookupTable->GetNumberOfTableValues(); i++)
+    {
+        _lookupTable->GetTableValue(i, rgba);
 
         // opacity is 1/4 of color table values if value != 1 to indicate that
         // the user has one label selected that is not the background label 
-        // (needed for volume <-> mesh switch)
+        // (needed for volume<->mesh switch)
         if (rgba[3] != 1)
             _opacityfunction->AddPoint(i, rgba[3]/4);
         else
             _opacityfunction->AddPoint(i, rgba[3]);
-
     }
-    colorfunction->Modified();
-    _opacityfunction->Modified();
 
     // volume property
     vtkSmartPointer<vtkVolumeProperty> volumeproperty = vtkSmartPointer<vtkVolumeProperty>::New();
@@ -193,6 +264,7 @@ void VoxelVolumeRender::Compute()
     {
         case RayCast:
             ComputeRayCastVolume();
+//        	ComputeGPURender();
             break;
         case Meshes:
             ComputeMeshes();

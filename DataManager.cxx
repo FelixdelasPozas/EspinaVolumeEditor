@@ -154,16 +154,17 @@ void DataManager::SetVoxelScalar(unsigned int x, unsigned int y, unsigned int z,
     
     // calculate centroid variation for both objects
     Vector3d centroid = _objectCentroid[(*pixel)];
-    _temporalCentroid[GetLabelForScalar(*pixel)][0] -= static_cast<int>(x) - static_cast<int>(centroid[0]);
-    _temporalCentroid[GetLabelForScalar(*pixel)][1] -= static_cast<int>(y) - static_cast<int>(centroid[1]);
-    _temporalCentroid[GetLabelForScalar(*pixel)][2] -= static_cast<int>(z) - static_cast<int>(centroid[2]);
+    _temporalCentroid[GetLabelForScalar(*pixel)][0] -= x;
+    _temporalCentroid[GetLabelForScalar(*pixel)][1] -= y;
+    _temporalCentroid[GetLabelForScalar(*pixel)][2] -= z;
     centroid = _objectCentroid[scalar];
-    _temporalCentroid[GetLabelForScalar(scalar)][0] += static_cast<int>(x) - static_cast<int>(centroid[0]);
-    _temporalCentroid[GetLabelForScalar(scalar)][1] += static_cast<int>(y) - static_cast<int>(centroid[1]);
-    _temporalCentroid[GetLabelForScalar(scalar)][2] += static_cast<int>(z) - static_cast<int>(centroid[2]);
+    _temporalCentroid[GetLabelForScalar(scalar)][0] += x;
+    _temporalCentroid[GetLabelForScalar(scalar)][1] += y;
+    _temporalCentroid[GetLabelForScalar(scalar)][2] += z;
 
     _actionsBuffer->AddPoint(Vector3ui(x,y,z), *pixel);
     *pixel = scalar;
+    _structuredPoints->Modified();
 }
 
 void DataManager::SetVoxelScalarRaw(unsigned int x, unsigned int y, unsigned int z, unsigned short scalar)
@@ -224,7 +225,7 @@ unsigned short DataManager::SetLabel(Vector3d rgb)
     _lookupTable->SetTableValue(newlabel, rgb[0], rgb[1], rgb[2], 0.4);
     _lookupTable->SetTableRange(0,newlabel);
     _lookupTable->Modified();
-    
+
     return newlabel;
 }
 
@@ -274,7 +275,6 @@ void DataManager::OperationStart(std::string actionName)
 
 void DataManager::OperationEnd()
 {
-    _structuredPoints->Modified();
     _actionsBuffer->SignalEndAction();
     StatisticsActionJoin();
 }
@@ -392,12 +392,24 @@ void DataManager::StatisticsActionJoin(void)
         		_objectCentroid[(*it).first] = Vector3d(0,0,0);
         	else
         	{
-        		double denominator = _voxelCount[(*it).first] + (*it).second;
-        		double x = (_temporalCentroid[(*it).first][0] + (_objectCentroid[(*it).first][0] * _voxelCount[(*it).first])) / denominator;
-        		double y = (_temporalCentroid[(*it).first][1] + (_objectCentroid[(*it).first][1] * _voxelCount[(*it).first])) / denominator;
-        		double z = (_temporalCentroid[(*it).first][2] + (_objectCentroid[(*it).first][2] * _voxelCount[(*it).first])) / denominator;
+        		double x = (_temporalCentroid[(*it).first][0] / static_cast<double>((*it).second));
+        		double y = (_temporalCentroid[(*it).first][1] / static_cast<double>((*it).second));
+        		double z = (_temporalCentroid[(*it).first][2] / static_cast<double>((*it).second));
 
-    			_objectCentroid[(*it).first] = Vector3d(x,y,z);
+        		Vector3d centroid = _objectCentroid[(*it).first];
+        		unsigned long long int objectVoxels = GetNumberOfVoxelsForLabel((*it).first);
+
+        		// if the object has a centroid
+         		if ((Vector3d(0.0,0.0,0.0) != centroid) && (0 != objectVoxels))
+        		{
+        			double coef_1 = objectVoxels / static_cast<double>(objectVoxels +(*it).second);
+        			double coef_2 = (*it).second / static_cast<double>(objectVoxels +(*it).second);
+
+					x = (centroid[0] * coef_1) + (x * coef_2);
+					y = (centroid[1] * coef_1) + (y * coef_2);
+					z = (centroid[2] * coef_1) + (z * coef_2);
+        		}
+        		_objectCentroid[(*it).first] = Vector3d(x,y,z);
         	}
     	}
     	_voxelCount[(*it).first] += (*it).second;

@@ -1022,7 +1022,7 @@ void EspinaVolumeEditor::LabelSelectionChanged(int value)
     if (!labelselector->isEnabled() || (value == -1))
         return;
     
-    // BEWARE: we could have change lookuptables and previous value could be invalid at the moment.
+    // BEWARE: we could have change lookuptables and previous value could refer a label that no longer exists
     if ((previousValue > 0) && (previousValue < _dataManager->GetLookupTable()->GetNumberOfTableValues()))
     {
     	_dataManager->GetLookupTable()->GetTableValue(previousValue, rgba);
@@ -1077,6 +1077,10 @@ void EspinaVolumeEditor::LabelSelectionChanged(int value)
     	return;
     }
 
+    // if the selected label has no voxels it has no centroid
+    if (0LL == _dataManager->GetNumberOfVoxelsForLabel(value))
+    	return;
+
     Vector3d newPOI = _dataManager->GetCentroidForObject(value);
 
     updateslicerenderers = false;
@@ -1097,6 +1101,10 @@ void EspinaVolumeEditor::LabelSelectionChanged(int value)
     _axesRender->Update(_POI);
 
     SetPointLabel();
+
+    // change voxel renderer to move around new POI
+    Vector3d spacing = _orientationData->GetImageSpacing();
+    _voxelViewRenderer->GetActiveCamera()->SetFocalPoint(_POI[0]*spacing[0],_POI[1]*spacing[1],_POI[2]*spacing[2]);
 
     updatepointlabel = true;
     updateslicerenderers = true;
@@ -1662,7 +1670,7 @@ void EspinaVolumeEditor::AxialXYPick(unsigned long event)
         updatevoxelrenderer = true;
         updateslicerenderers = true;
         _axesRender->Update(_POI);
-        UpdateViewports(Voxel);
+        UpdateViewports(All);
 
         if ((paintbutton->isChecked()) && (pickedProp == SliceVisualization::Slice) && (actualPick == SliceVisualization::Slice))
         {
@@ -1706,10 +1714,10 @@ void EspinaVolumeEditor::AxialXYPick(unsigned long event)
     SetPointLabel();
     updatepointlabel = true;
 
-    if ((paintbutton->isChecked()) && (pickedProp == SliceVisualization::Slice) && (actualPick == SliceVisualization::Slice))
+    if ((pickedProp == SliceVisualization::Slice) && (actualPick == SliceVisualization::Slice) && (paintbutton->isChecked()))
         _dataManager->SetVoxelScalar(_POI[0], _POI[1], _POI[2], _selectedLabel);
     
-    if ((selectbutton->isChecked()) && (pickedProp == SliceVisualization::Slice) && (actualPick == SliceVisualization::Slice))
+    if ((pickedProp == SliceVisualization::Slice) && (actualPick == SliceVisualization::Slice) && (selectbutton->isChecked()))
     {
         cutbutton->setEnabled(true);
         relabelbutton->setEnabled(true);

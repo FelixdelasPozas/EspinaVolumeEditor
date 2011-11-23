@@ -62,6 +62,9 @@ class VoxelVolumeRender
         // compute volume using meshes (slower because require more filters)
         void ComputeMeshes();
         
+        // compute volume using meshes (slower because require more filters)
+        void ComputeGPURender();
+
         // attributes
         vtkSmartPointer<vtkStructuredPoints> _structuredPoints;
         vtkSmartPointer<vtkLookupTable>      _lookupTable;
