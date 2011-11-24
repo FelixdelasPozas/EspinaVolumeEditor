@@ -218,15 +218,40 @@ unsigned short DataManager::SetLabel(Vector3d rgb)
     _actionsBuffer->StoreLabelValue(std::pair<unsigned short, unsigned short>(newlabel,freevalue));
 
     vtkSmartPointer<vtkLookupTable> temptable = vtkSmartPointer<vtkLookupTable>::New();
-    temptable->DeepCopy(_lookupTable);
+    CopyLookupTable(_lookupTable, temptable);
     _actionsBuffer->StoreLookupTable(temptable);
 
+    // this is a convolute way of doing things, but SetNumberOfTableValues() seems to
+    // corrup the table (due to reallocation?) and all values must be copied again.
     _lookupTable->SetNumberOfTableValues(newlabel+1);
+    double rgba[4];
+    for (int index = 0; index != temptable->GetNumberOfTableValues(); index++)
+    {
+        temptable->GetTableValue(index, rgba);
+        _lookupTable->SetTableValue(index,rgba);
+    }
     _lookupTable->SetTableValue(newlabel, rgb[0], rgb[1], rgb[2], 0.4);
     _lookupTable->SetTableRange(0,newlabel);
     _lookupTable->Modified();
 
     return newlabel;
+}
+
+void DataManager::CopyLookupTable(vtkSmartPointer<vtkLookupTable> copyFrom, vtkSmartPointer<vtkLookupTable> copyTo)
+{
+	// copyTo exists and i don't want to do just a DeepCopy that could release memory, i just want to copy the colors
+    double rgba[4];
+
+    copyTo->Allocate();
+    copyTo->SetNumberOfTableValues(copyFrom->GetNumberOfTableValues());
+
+    for (int index = 0; index != copyFrom->GetNumberOfTableValues(); index++)
+    {
+        copyFrom->GetTableValue(index, rgba);
+        copyTo->SetTableValue(index,rgba);
+    }
+
+    copyTo->SetTableRange(0,copyFrom->GetNumberOfTableValues()-1);
 }
 
 void DataManager::GenerateLookupTable()
@@ -259,9 +284,9 @@ void DataManager::SwitchLookupTables(vtkSmartPointer<vtkLookupTable> table)
 {
     vtkSmartPointer<vtkLookupTable> temptable = vtkSmartPointer<vtkLookupTable>::New();
     
-    temptable->DeepCopy(_lookupTable);
-    _lookupTable->DeepCopy(table);
-    table->DeepCopy(temptable);
+    CopyLookupTable(_lookupTable, temptable);
+    CopyLookupTable(table, _lookupTable);
+    CopyLookupTable(temptable, table);
     
     _lookupTable->Modified();
 }
