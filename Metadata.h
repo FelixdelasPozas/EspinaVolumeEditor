@@ -53,17 +53,23 @@ class Metadata
 
         // private structures definitions
         //
+        // BEWARE: bool used;
+        // it's a workaround for previous espina versions, some objects are defined but have no voxels and because of
+        // that the vector ObjectMetadata must be compacted after reading it, as the editor uses the labels secuentially
         struct ObjectMetadata
         {
 			unsigned int label;
 			unsigned int segment;
 			unsigned int selected;
+			bool used;
+			ObjectMetadata(): label(0), segment(0), selected(1), used(false) {};
         };
 
         struct CountingBrickMetadata
         {
         	Vector3ui inclusive;
         	Vector3ui exclusive;
+        	CountingBrickMetadata(): inclusive(Vector3ui(0,0,0)), exclusive(Vector3ui(0,0,0)) {};
         };
 
         struct SegmentMetadata
@@ -71,6 +77,7 @@ class Metadata
         	std::string name;
         	unsigned int value;
         	Vector3ui color;
+        	SegmentMetadata(): name("Unassigned"), value(0), color(Vector3ui(0,0,255)) {};
         };
 
         // class attributes

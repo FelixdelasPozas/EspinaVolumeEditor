@@ -53,8 +53,8 @@ class QtRelabel: public QDialog, private Ui_Relabel
         bool _newlabel;
         
         // label selected in the combobox
-        int _selectedLabel;
-        int _maxcolors;
+        unsigned short _selectedLabel;
+        unsigned int _maxcolors;
 };
 
 #endif // _QTRELABEL_H_

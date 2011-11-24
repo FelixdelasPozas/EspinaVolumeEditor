@@ -1019,10 +1019,11 @@ void EspinaVolumeEditor::LabelSelectionChanged(int value)
 	static unsigned short previousValue = 0;
     double rgba[4];
 
-    if (!labelselector->isEnabled() || (value == -1))
+    if (!labelselector->isEnabled() || (value == -1) || (previousValue == value))
         return;
     
-    // BEWARE: we could have change lookuptables and previous value could refer a label that no longer exists
+    // first dim the previously selected label, if any
+    // BEWARE: we could have changed the lookuptable and previous value could refer a label that no longer exists
     if ((previousValue > 0) && (previousValue < _dataManager->GetLookupTable()->GetNumberOfTableValues()))
     {
     	_dataManager->GetLookupTable()->GetTableValue(previousValue, rgba);
@@ -1043,7 +1044,6 @@ void EspinaVolumeEditor::LabelSelectionChanged(int value)
     	_dataManager->GetLookupTable()->SetTableValue(value, rgba[0], rgba[1], rgba[2], 1);
     	_volumeRender->UpdateColorTable(value, 1);
     }
-
     _dataManager->GetLookupTable()->Modified();
 
     // don't want filters with the background label
@@ -1074,6 +1074,7 @@ void EspinaVolumeEditor::LabelSelectionChanged(int value)
     if (pickerbutton->isChecked())
     {
     	viewbutton->setChecked(true);
+    	UpdateViewports(All);
     	return;
     }
 

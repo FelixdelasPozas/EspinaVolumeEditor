@@ -149,18 +149,18 @@ void DataManager::SetVoxelScalar(unsigned int x, unsigned int y, unsigned int z,
     if (scalar == *pixel)
         return;
 
-    _voxelActionCount[GetLabelForScalar(*pixel)]--;
-    _voxelActionCount[GetLabelForScalar(scalar)]++;
+    _voxelActionCount[*pixel]--;
+    _voxelActionCount[scalar]++;
     
     // calculate centroid variation for both objects
     Vector3d centroid = _objectCentroid[(*pixel)];
-    _temporalCentroid[GetLabelForScalar(*pixel)][0] -= x;
-    _temporalCentroid[GetLabelForScalar(*pixel)][1] -= y;
-    _temporalCentroid[GetLabelForScalar(*pixel)][2] -= z;
+    _temporalCentroid[*pixel][0] -= x;
+    _temporalCentroid[*pixel][1] -= y;
+    _temporalCentroid[*pixel][2] -= z;
     centroid = _objectCentroid[scalar];
-    _temporalCentroid[GetLabelForScalar(scalar)][0] += x;
-    _temporalCentroid[GetLabelForScalar(scalar)][1] += y;
-    _temporalCentroid[GetLabelForScalar(scalar)][2] += z;
+    _temporalCentroid[scalar][0] += x;
+    _temporalCentroid[scalar][1] += y;
+    _temporalCentroid[scalar][2] += z;
 
     _actionsBuffer->AddPoint(Vector3ui(x,y,z), *pixel);
     *pixel = scalar;
@@ -221,7 +221,7 @@ unsigned short DataManager::SetLabel(Vector3d rgb)
     CopyLookupTable(_lookupTable, temptable);
     _actionsBuffer->StoreLookupTable(temptable);
 
-    // this is a convolute way of doing things, but SetNumberOfTableValues() seems to
+    // this is a convoluted way of doing things, but SetNumberOfTableValues() seems to
     // corrup the table (due to reallocation?) and all values must be copied again.
     _lookupTable->SetNumberOfTableValues(newlabel+1);
     double rgba[4];

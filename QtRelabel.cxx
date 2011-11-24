@@ -34,10 +34,10 @@ QtRelabel::~QtRelabel()
 void QtRelabel::SetInitialOptions(unsigned short label,vtkSmartPointer<vtkLookupTable> colors, Metadata* data)
 {
     double rgba[4];
-    char text[20];
+    char text[100];
     QPixmap icon(16,16);
     QColor color;
-    
+
     _selectedLabel = label;
     _maxcolors = colors->GetNumberOfTableValues();
 
@@ -55,10 +55,10 @@ void QtRelabel::SetInitialOptions(unsigned short label,vtkSmartPointer<vtkLookup
     }
     else
         selectionlabel->setText("Background voxels");
-    
+
     // color 0 is black, so we will start from 1
     int j = 0;
-    for (int i = 1; i < _maxcolors; i++)
+    for (unsigned int i = 1; i < _maxcolors; i++)
     {
         if (i == static_cast<unsigned int>(label))
             continue;
