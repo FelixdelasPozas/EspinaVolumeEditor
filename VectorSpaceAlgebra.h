@@ -151,8 +151,6 @@ template<class T> std::ostream& operator<<(std::ostream &stream, const Vector3<T
     for (int i = 0; i < 3; i++)
         stream << a[i] << ((i == 2) ? "]" : ",");
 
-    stream << std::endl;
-
     return stream;
 }
 

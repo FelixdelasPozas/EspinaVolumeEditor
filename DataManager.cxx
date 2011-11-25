@@ -15,6 +15,7 @@
 #include <itkExceptionObject.h>
 #include <itkChangeLabelLabelMapFilter.h>
 #include <itkShapeLabelMapFilter.h>
+#include <itkImageRegion.h>
 
 // project includes
 #include "DataManager.h"
@@ -68,6 +69,8 @@ void DataManager::Initialize(itk::SmartPointer<LabelMapType> labelMap, Coordinat
   	labelChanger->SetInPlace(true);
 
     // we can't init different type variables in the for loop init, i must be init here
+  	typedef itk::ImageRegion<3> ImageRegionType;
+  	ImageRegionType region;
     unsigned short i = 1;
     itk::Point<double, 3> centroid;
     Vector3d spacing = _orientationData->GetImageSpacing();
@@ -77,6 +80,11 @@ void DataManager::Initialize(itk::SmartPointer<LabelMapType> labelMap, Coordinat
         const unsigned short scalar = iter->first;
         LabelObjectType * labelObject = iter->second;
         centroid = labelObject->GetCentroid();
+        region = labelObject->GetRegion();
+
+        itk::Index<3> regionOrigin = region.GetIndex();
+        itk::Size<3> regionSize = region.GetSize();
+        SetObjectBoundingBox(i, regionOrigin, regionSize);
 
         _labelValues.insert(std::pair<unsigned short, unsigned short>(i,scalar));
         _voxelCount.insert(std::pair<unsigned short, unsigned long long int>(i, labelObject->Size()));
@@ -469,4 +477,24 @@ unsigned short DataManager::GetLabelForScalar(unsigned short scalar)
 Vector3d DataManager::GetCentroidForObject(unsigned short int label)
 {
 	return _objectCentroid[label];
+}
+
+void DataManager::SetObjectBoundingBox(unsigned short label, itk::Index<3> origin, itk::Size<3> size)
+{
+	struct BoundingBox *box = new struct BoundingBox;
+
+	box->origin = origin;
+	box->size = size;
+
+	_objectBox.insert(std::pair<unsigned short, struct BoundingBox *>(label, box));
+}
+
+itk::Index<3> DataManager::GetBoundingBoxOrigin(unsigned short label)
+{
+	return _objectBox[label]->origin;
+}
+
+itk::Size<3> DataManager::GetBoundingBoxSize(unsigned short label)
+{
+	return _objectBox[label]->size;
 }

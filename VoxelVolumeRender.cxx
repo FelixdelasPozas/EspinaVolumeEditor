@@ -263,8 +263,8 @@ void VoxelVolumeRender::Compute()
     switch(_renderType)
     {
         case RayCast:
-            ComputeRayCastVolume();
-//        	ComputeGPURender();
+//            ComputeRayCastVolume();
+        	ComputeGPURender();
             break;
         case Meshes:
             ComputeMeshes();

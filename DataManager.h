@@ -129,6 +129,14 @@ class DataManager
         
         // voxel statistics per label
         unsigned long long int GetNumberOfVoxelsForLabel(unsigned short);
+
+        // set the bounding box for the object
+        void SetObjectBoundingBox(unsigned short, itk::Index<3>, itk::Size<3>);
+
+        // get the bounding box index and size for the object
+        itk::Index<3> GetBoundingBoxOrigin(unsigned short);
+        itk::Size<3> GetBoundingBoxSize(unsigned short);
+
     private:
         // resets lookuptable to initial state based on original labelmap, used during init too
         void GenerateLookupTable();
@@ -163,6 +171,16 @@ class DataManager
         std::map<unsigned short, unsigned long long int>  _voxelCount;
         std::map<unsigned short, long long int>  		  _voxelActionCount;
         std::map<unsigned short, Vector3ll>			  	  _temporalCentroid;
+
+        // object bounding box
+        // for bounding box operations
+        struct BoundingBox
+        {
+        		itk::Index<3> origin;
+        		itk::Size<3> size;
+        };
+
+        std::map<unsigned short, struct BoundingBox *> _objectBox;
 };
 
 #endif // _DATAMANAGER_H_
