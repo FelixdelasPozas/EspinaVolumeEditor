@@ -28,6 +28,7 @@
 #include "Coordinates.h"
 #include "UndoRedoSystem.h"
 #include "VectorSpaceAlgebra.h"
+#include "Metadata.h"
 
 // defines & typedefs
 typedef itk::ShapeLabelObject< unsigned short, 3 > LabelObjectType;
@@ -47,7 +48,7 @@ class DataManager
         ~DataManager(void);
 
         // class init
-        void Initialize(itk::SmartPointer<LabelMapType>, Coordinates *);
+        void Initialize(itk::SmartPointer<LabelMapType>, Coordinates *, Metadata *);
 
         // set image StructuredPoints
     	void SetStructuredPoints(vtkSmartPointer<vtkStructuredPoints>);

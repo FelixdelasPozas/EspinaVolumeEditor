@@ -485,11 +485,17 @@ QGroupBox::title {
            <property name="statusTip">
             <string>Select object label or background to edit</string>
            </property>
+           <property name="styleSheet">
+            <string notr="true">QListView:item:selected { color: white; background-color: black; }</string>
+           </property>
            <property name="editTriggers">
             <set>QAbstractItemView::NoEditTriggers</set>
            </property>
            <property name="selectionBehavior">
             <enum>QAbstractItemView::SelectItems</enum>
+           </property>
+           <property name="currentRow">
+            <number>-1</number>
            </property>
           </widget>
          </item>

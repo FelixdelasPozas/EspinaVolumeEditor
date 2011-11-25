@@ -235,3 +235,32 @@ std::string Metadata::GetObjectSegmentName(unsigned short objectNum)
 	return std::string(this->SegmentVector[this->ObjectVector[objectNum-1].segment-1].name);
 }
 
+bool Metadata::MarkObjectAsUsed(unsigned short label)
+{
+	std::vector<struct ObjectMetadata>::iterator it;
+	for (it = ObjectVector.begin(); it != ObjectVector.end(); it++)
+		if ((*it).label == label)
+		{
+			(*it).used = true;
+			return true;
+		}
+
+	return false;
+}
+
+void Metadata::CompactObjects(void)
+{
+	std::vector<struct ObjectMetadata>::iterator it;
+
+	for (it = ObjectVector.begin(); it != ObjectVector.end(); it++)
+		if ((*it).used == false)
+		{
+			UnusedObjects.push_back((*it).label);
+			ObjectVector.erase(it);
+		}
+}
+
+std::vector<unsigned int> Metadata::GetUnusedObjectsLabels(void)
+{
+		return UnusedObjects;
+}

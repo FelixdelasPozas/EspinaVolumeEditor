@@ -371,6 +371,7 @@ void EspinaVolumeEditor::EditorOpen(void)
 	} 
 	catch (itk::ExceptionObject & excp)
 	{
+		_progress->ManualReset();
 		msgBox.setIcon(QMessageBox::Critical);
 
 		sprintf(text, "An error occurred loading the segmentation file.\nThe operation has been aborted.");
@@ -384,6 +385,7 @@ void EspinaVolumeEditor::EditorOpen(void)
 	_fileMetadata = new Metadata;
 	if (!_fileMetadata->Read(filename))
 	{
+		_progress->ManualReset();
 		msgBox.setIcon(QMessageBox::Critical);
 
 		sprintf(text, "An error occurred parsing the espina segmentation data from file \"%s\".\nThe operation has been aborted.", filename.toStdString().c_str());
@@ -491,7 +493,33 @@ void EspinaVolumeEditor::EditorOpen(void)
     assert(0 != converter->GetOutput()->GetNumberOfLabelObjects());
 
 	// flatten labelmap, modify origin and store scalar label values
-	_dataManager->Initialize(converter->GetOutput(), _orientationData);
+	_dataManager->Initialize(converter->GetOutput(), _orientationData, _fileMetadata);
+
+	// check if there are unused objects
+	_fileMetadata->CompactObjects();
+
+	std::vector<unsigned int> unusedLabels = _fileMetadata->GetUnusedObjectsLabels();
+	if (0 != unusedLabels.size())
+	{
+		std::stringstream out;
+		msgBox.setIcon(QMessageBox::Warning);
+
+		qApp->restoreOverrideCursor();
+		sprintf(text, "An error occurred loading the segmentation file.\nThe operation has been aborted.");
+		std::string text = std::string("The segmentation contains unused objects (with no voxels assigned).\nThose objects will be discarded.\n");
+		msgBox.setText(text.c_str());
+		std::string details = std::string("Unused: object ");
+		for (unsigned int i = 0; i < unusedLabels.size(); i++)
+		{
+			out << unusedLabels.at(i);
+			details += out.str();
+			if ((i+1) < unusedLabels.size())
+				details += std::string(", object ");
+		}
+		msgBox.setDetailedText(details.c_str());
+		msgBox.exec();
+		qApp->setOverrideCursor(QCursor(Qt::WaitCursor));
+	}
 
 	// itklabelmap->itkimage
 	typedef itk::LabelMapToLabelImageFilter<LabelMapType, ImageType> LabelMapToImageFilterType;
@@ -1106,6 +1134,21 @@ void EspinaVolumeEditor::LabelSelectionChanged(int value)
     // change voxel renderer to move around new POI
     Vector3d spacing = _orientationData->GetImageSpacing();
     _voxelViewRenderer->GetActiveCamera()->SetFocalPoint(_POI[0]*spacing[0],_POI[1]*spacing[1],_POI[2]*spacing[2]);
+
+    // change slice view to the new label
+    double coords[3];
+    _axialViewRenderer->GetActiveCamera()->GetPosition(coords);
+    _axialViewRenderer->GetActiveCamera()->SetPosition(_POI[0]*spacing[0],_POI[1]*spacing[1],coords[2]);
+    _axialViewRenderer->GetActiveCamera()->SetFocalPoint(_POI[0]*spacing[0],_POI[1]*spacing[1],0.0);
+    _axialSliceVisualization->ZoomEvent();
+    _coronalViewRenderer->GetActiveCamera()->GetPosition(coords);
+    _coronalViewRenderer->GetActiveCamera()->SetPosition(_POI[0]*spacing[0],_POI[2]*spacing[2],coords[2]);
+    _coronalViewRenderer->GetActiveCamera()->SetFocalPoint(_POI[0]*spacing[0],_POI[2]*spacing[2],0.0);
+    _coronalSliceVisualization->ZoomEvent();
+    _sagittalViewRenderer->GetActiveCamera()->GetPosition(coords);
+    _sagittalViewRenderer->GetActiveCamera()->SetPosition(_POI[1]*spacing[1],_POI[2]*spacing[2],coords[2]);
+    _sagittalViewRenderer->GetActiveCamera()->SetFocalPoint(_POI[1]*spacing[1],_POI[2]*spacing[2],0.0);
+    _sagittalSliceVisualization->ZoomEvent();
 
     updatepointlabel = true;
     updateslicerenderers = true;

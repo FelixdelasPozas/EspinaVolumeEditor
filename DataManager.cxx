@@ -36,7 +36,7 @@ DataManager::DataManager()
     _actionsBuffer = new UndoRedoSystem(this);
 }
 
-void DataManager::Initialize(itk::SmartPointer<LabelMapType> labelMap, Coordinates *OrientationData)
+void DataManager::Initialize(itk::SmartPointer<LabelMapType> labelMap, Coordinates *OrientationData, Metadata* data)
 {
     _orientationData = OrientationData;
     
@@ -82,6 +82,8 @@ void DataManager::Initialize(itk::SmartPointer<LabelMapType> labelMap, Coordinat
         _voxelCount.insert(std::pair<unsigned short, unsigned long long int>(i, labelObject->Size()));
         _voxelCount[0] -= _voxelCount[i];
         _objectCentroid.insert(std::pair<unsigned short, Vector3d>(i, Vector3d(centroid[0]/spacing[0],centroid[1]/spacing[1],centroid[2]/spacing[2])));
+
+        data->MarkObjectAsUsed(scalar);
         labelChanger->SetChange(scalar,i);
     }
 

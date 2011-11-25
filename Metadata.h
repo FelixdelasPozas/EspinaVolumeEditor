@@ -39,30 +39,28 @@ class Metadata
 
         // returns the segment name of the object
         std::string GetObjectSegmentName(unsigned short);
-    private:
-        // private members
-        //
-        // adds an object definition
-        void AddObject(unsigned int, unsigned int, unsigned int);
-        // adds a counting brick definition
-        void AddBrick(Vector3ui, Vector3ui);
-        // adds a segment definition
-        void AddSegment(std::string, unsigned int, Vector3ui);
-        // stores the position of the "Unassigned Tag", if any (depends on hasUnassignedTag boolean value)
-        void SetUnassignedTagPosition(unsigned int);
 
+        // compact object vector deleting unused objects and storing them into UnusedObjects vector
+        void CompactObjects(void);
+
+        // mark object as used in the segmentation, that is, not empty
+        bool MarkObjectAsUsed(unsigned short);
+
+        // Get vector containing unused objects, CompactObjects() must be called first to populate the vector
+        std::vector<unsigned int> GetUnusedObjectsLabels(void);
+    private:
         // private structures definitions
         //
         // BEWARE: bool used;
         // it's a workaround for previous espina versions, some objects are defined but have no voxels and because of
-        // that the vector ObjectMetadata must be compacted after reading it, as the editor uses the labels secuentially
+        // that the vector ObjectMetadata must be compacted after reading it
         struct ObjectMetadata
         {
 			unsigned int label;
 			unsigned int segment;
 			unsigned int selected;
 			bool used;
-			ObjectMetadata(): label(0), segment(0), selected(1), used(false) {};
+			ObjectMetadata(): label(0), segment(0), selected(0), used(false) {};
         };
 
         struct CountingBrickMetadata
@@ -80,6 +78,17 @@ class Metadata
         	SegmentMetadata(): name("Unassigned"), value(0), color(Vector3ui(0,0,255)) {};
         };
 
+        // private members
+        //
+        // adds an object definition
+        void AddObject(unsigned int, unsigned int, unsigned int);
+        // adds a counting brick definition
+        void AddBrick(Vector3ui, Vector3ui);
+        // adds a segment definition
+        void AddSegment(std::string, unsigned int, Vector3ui);
+        // stores the position of the "Unassigned Tag", if any (depends on hasUnassignedTag boolean value)
+        void SetUnassignedTagPosition(unsigned int);
+
         // class attributes
         //
         // true if the segmha file readed had a segment with "Unassigned" name, false otherwise
@@ -96,6 +105,9 @@ class Metadata
         //
         // vector containing Segment metadata
         std::vector<struct SegmentMetadata> SegmentVector;
+        //
+        // vector containing unused objects
+        std::vector<unsigned int> UnusedObjects;
 };
 
 #endif // _METADATA_H_
