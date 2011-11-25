@@ -8,6 +8,9 @@
 // Notes: 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+// c++ includes
+#include <sstream>
+
 // vtk includes
 #include <vtkImageReslice.h>
 #include <vtkDataSetMapper.h>
@@ -83,8 +86,8 @@ void SliceVisualization::Initialize(
     // create text legend
     _text = vtkSmartPointer<vtkTextActor>::New();
     
-    sprintf(_textbuffer, "None");
-    _text->SetInput(_textbuffer);
+    _textbuffer = std::string("None");
+    _text->SetInput(_textbuffer.c_str());
     _text->SetTextScaleMode(vtkTextActor::TEXT_SCALE_MODE_NONE);
 
     vtkSmartPointer<vtkCoordinate> textcoord = _text->GetPositionCoordinate();
@@ -199,6 +202,8 @@ void SliceVisualization::Update(Vector3ui point)
 void SliceVisualization::UpdateSlice(Vector3ui point)
 {
     double slice_point;
+    std::stringstream out;
+    _textbuffer = std::string("Slice ");
     
     // change slice by changing reslice axes
     switch(_orientation)
@@ -209,7 +214,7 @@ void SliceVisualization::UpdateSlice(Vector3ui point)
             slice_point = point[0] * _spacing[0];
             _axesMatrix->SetElement(0, 3, slice_point);
             _point[0] = point[0];
-            sprintf(_textbuffer, "Slice %d of %d", point[0]+1, _size[0]);
+            out << point[0]+1 << " of " << _size[0];
             if (_actor != NULL)
             {
                 // we also have a selection
@@ -225,7 +230,7 @@ void SliceVisualization::UpdateSlice(Vector3ui point)
             slice_point = point[1] * _spacing[1];
             _axesMatrix->SetElement(1, 3, slice_point);
             _point[1] = point[1];
-            sprintf(_textbuffer, "Slice %d of %d", point[1]+1, _size[1]);
+            out << point[1]+1 << " of " << _size[1];
             if (_actor != NULL)
             {
                 // we also have a selection
@@ -241,7 +246,7 @@ void SliceVisualization::UpdateSlice(Vector3ui point)
             slice_point = point[2] * _spacing[2];
             _axesMatrix->SetElement(2, 3, slice_point);
             _point[2] = point[2];
-            sprintf(_textbuffer, "Slice %d of %d", point[2]+1, _size[2]);
+            out << point[2]+1 << " of " << _size[2];
             if (_actor != NULL)
             {
                 // we also have a selection
@@ -255,7 +260,8 @@ void SliceVisualization::UpdateSlice(Vector3ui point)
             break;
     }
     
-    _text->SetInput(_textbuffer);
+    _textbuffer += out.str();
+    _text->SetInput(_textbuffer.c_str());
     _text->Modified();
 
 }

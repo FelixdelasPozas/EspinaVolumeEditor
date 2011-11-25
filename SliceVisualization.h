@@ -122,7 +122,7 @@ class SliceVisualization
         vtkSmartPointer<vtkRenderer>    _renderer;
         //
         // text legend
-        char _textbuffer[20];
+        std::string _textbuffer;
         vtkSmartPointer<vtkTextActor>   _text;
         //
         // selection actors & planesource

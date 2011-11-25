@@ -345,7 +345,6 @@ void EspinaVolumeEditor::EditorOpen(void)
 	sagittalview->setEnabled(true);
 	coronalview->setEnabled(true);
 
-    char text[150];
     QMessageBox msgBox;
 
     QString filename = QFileDialog::getOpenFileName(this, tr("Open Espina Segmentation Image"), QDir::currentPath(), QObject::tr("Espina segmentation files (*.segmha)"));
@@ -374,8 +373,8 @@ void EspinaVolumeEditor::EditorOpen(void)
 		_progress->ManualReset();
 		msgBox.setIcon(QMessageBox::Critical);
 
-		sprintf(text, "An error occurred loading the segmentation file.\nThe operation has been aborted.");
-		msgBox.setText(text);
+		std::string text = std::string("An error occurred loading the segmentation file.\nThe operation has been aborted.");
+		msgBox.setText(text.c_str());
 		msgBox.setDetailedText(excp.what());
 		msgBox.exec();
 		return;
@@ -388,8 +387,10 @@ void EspinaVolumeEditor::EditorOpen(void)
 		_progress->ManualReset();
 		msgBox.setIcon(QMessageBox::Critical);
 
-		sprintf(text, "An error occurred parsing the espina segmentation data from file \"%s\".\nThe operation has been aborted.", filename.toStdString().c_str());
-		msgBox.setText(text);
+		std::string text = std::string("An error occurred parsing the espina segmentation data from file \"");
+		text += filename.toStdString();
+		text += std::string("\".\nThe operation has been aborted.");
+		msgBox.setText(text.c_str());
 		msgBox.exec();
 		return;
 	}
@@ -505,10 +506,9 @@ void EspinaVolumeEditor::EditorOpen(void)
 		msgBox.setIcon(QMessageBox::Warning);
 
 		qApp->restoreOverrideCursor();
-		sprintf(text, "An error occurred loading the segmentation file.\nThe operation has been aborted.");
 		std::string text = std::string("The segmentation contains unused objects (with no voxels assigned).\nThose objects will be discarded.\n");
 		msgBox.setText(text.c_str());
-		std::string details = std::string("Unused: object ");
+		std::string details = std::string("Unused labels: object ");
 		for (unsigned int i = 0; i < unusedLabels.size(); i++)
 		{
 			out << unusedLabels.at(i);
@@ -673,7 +673,6 @@ void EspinaVolumeEditor::EditorOpen(void)
 
 void EspinaVolumeEditor::EditorReferenceOpen(void)
 {
-	char text[300];
 	QMessageBox msgBox;
 
 	QString filename = QFileDialog::getOpenFileName(this, tr("Open Reference Image"), QDir::currentPath(), QObject::tr("image files (*.mhd *.mha);;All files (*.*)"));
@@ -694,8 +693,8 @@ void EspinaVolumeEditor::EditorReferenceOpen(void)
 	{
 		msgBox.setIcon(QMessageBox::Critical);
 
-		sprintf(text, "An error occurred loading the segmentation reference file.\nThe operation has been aborted.");
-		msgBox.setText(text);
+		std::string text = std::string("An error occurred loading the segmentation reference file.\nThe operation has been aborted.");
+		msgBox.setText(text.c_str());
 		msgBox.exec();
 		return;
 	}
@@ -731,11 +730,15 @@ void EspinaVolumeEditor::EditorReferenceOpen(void)
     if (segmentationsize != Vector3ui(size[0], size[1], size[2]))
     {
     	_progress->ManualReset();
+    	std::stringstream out;
 		msgBox.setIcon(QMessageBox::Critical);
 
-		sprintf(text, "Reference and segmentation images have different dimensions.\nReference size is [%d,%d,%d].\nSegmentation size is [%d,%d,%d].\nThe operation has been aborted.",
-				size[0],size[1],size[2], segmentationsize[0], segmentationsize[1], segmentationsize[2]);
-		msgBox.setText(text);
+		std::string text = std::string("Reference and segmentation images have different dimensions.\nReference size is [");
+		out << size[0] << std::string(",") << size[1] << std::string(",") << size[2] << std::string("].\nSegmentation size is [");
+		out << segmentationsize[0] << std::string(",") << segmentationsize[1] << std::string(",") << segmentationsize[2];
+		out << std::string("].\nThe operation has been aborted.");
+		text += out.str();
+		msgBox.setText(text.c_str());
 		msgBox.exec();
 		return;
     }
@@ -746,11 +749,14 @@ void EspinaVolumeEditor::EditorReferenceOpen(void)
     if (segmentationorigin != Vector3d(origin[0], origin[1], origin[2]))
     {
     	qApp->restoreOverrideCursor();
+    	std::stringstream out;
 		msgBox.setIcon(QMessageBox::Warning);
 
-		sprintf(text, "Reference and segmentation images have different origin of coordinates.\nReference origin is [%f,%f,%f].\nSegmentation origin is [%f,%f,%f].\nEditor will use segmentation origin.",
-				origin[0], origin[1], origin[2], segmentationorigin[0], segmentationorigin[1], segmentationorigin[2]);
-		msgBox.setText(text);
+		std::string text = std::string("Reference and segmentation images have different origin of coordinates.\nReference origin is [");
+		out << origin[0] << "," << origin[1] << "," << origin[2] << "]\nSegmentation origin is [" << segmentationorigin[0] << ",";
+		out << segmentationorigin[1] << "," << segmentationorigin[2] << "].\nEditor will use segmentation origin.";
+		text += out.str();
+		msgBox.setText(text.c_str());
 		msgBox.exec();
 		qApp->setOverrideCursor(QCursor(Qt::WaitCursor));
     }
@@ -761,11 +767,14 @@ void EspinaVolumeEditor::EditorReferenceOpen(void)
     if (segmentationspacing != Vector3d(spacing[0], spacing[1], spacing[2]))
     {
     	qApp->restoreOverrideCursor();
+    	std::stringstream out;
 		msgBox.setIcon(QMessageBox::Warning);
 
-		sprintf(text, "Reference and segmentation images have different point spacing.\nReference spacing is [%f,%f,%f].\nSegmentation spacing is [%f,%f,%f].\nEditor will use segmentation spacing for both.",
-				spacing[0], spacing[1], spacing[2], segmentationspacing[0], segmentationspacing[1], segmentationspacing[2]);
-		msgBox.setText(text);
+		std::string text = std::string("Reference and segmentation images have different point spacing.\nReference spacing is [");
+		out << spacing[0] << "," << spacing[1] << "," << spacing[2] << "].\nSegmentation spacing is [" << segmentationspacing[0] << ",";
+		out << segmentationspacing[1] << "," << segmentationspacing[2] << "]\nEditor will use segmentation spacing for both.";
+		text += out.str();
+		msgBox.setText(text.c_str());
 		msgBox.exec();
 		qApp->setOverrideCursor(QCursor(Qt::WaitCursor));
 	}
@@ -1001,14 +1010,14 @@ void EspinaVolumeEditor::SetPointLabel()
     icon.fill(color);
 
     unsigned short labelindex = _dataManager->GetScalarForLabel(_pointScalar);
-    char text[10];
-    sprintf(text, " %d", labelindex);
-
-    pointlabelnumber->setText(text);
+    std::stringstream out1;
+    out1 << labelindex;
+    pointlabelnumber->setText(out1.str().c_str());
     pointlabelcolor->setPixmap(icon);
 
-    sprintf(text, " %d", _pointScalar);
-    valuelabel->setText(text);
+    std::stringstream out2;
+    out2 << _pointScalar;
+    valuelabel->setText(out2.str().c_str());
 }
 
 void EspinaVolumeEditor::FillColorLabels()
@@ -1025,7 +1034,6 @@ void EspinaVolumeEditor::FillColorLabels()
     // color 0 is black, so we will start from 1
     for (unsigned int i = 1; i < num_colors; i++)
     {
-    	char text[50];
         double rgba[4];
         QPixmap icon(16,16);
         QColor color;
@@ -1033,8 +1041,9 @@ void EspinaVolumeEditor::FillColorLabels()
     	_dataManager->GetLookupTable()->GetTableValue(i, rgba);
         color.setRgbF(rgba[0], rgba[1], rgba[2], 1);
         icon.fill(color);
-        sprintf(text, "%-12s %d", (_fileMetadata->GetObjectSegmentName(i)).c_str(), i);
-        QListWidgetItem *item = new QListWidgetItem(QIcon(icon), QString(text));
+        std::stringstream out;
+        out << i << " - " << _fileMetadata->GetObjectSegmentName(i);
+        QListWidgetItem *item = new QListWidgetItem(QIcon(icon), QString(out.str().c_str()));
         labelselector->addItem(item);
     }
 
@@ -1413,39 +1422,37 @@ void EspinaVolumeEditor::WatershedVolume()
 
 void EspinaVolumeEditor::UpdateUndoRedoMenu()
 {
-    char text[40];
-    
+	std::string text;
+
     if (_dataManager->IsUndoBufferEmpty())
     {
-        sprintf(text, "Undo");
+        text = std::string("Undo");
         a_undo->setEnabled(false);
     }
     else
     {
-        sprintf(text, "Undo %s", _dataManager->GetUndoActionString().c_str());
+    	text = std::string("Undo ") + _dataManager->GetUndoActionString();
         a_undo->setEnabled(true);
     }
-    a_undo->setText(text);
+    a_undo->setText(text.c_str());
 
     if (_dataManager->IsRedoBufferEmpty())
     {
-        sprintf(text, "Redo");
+    	text = std::string("Redo");
         a_redo->setEnabled(false);
     }
     else
     {
-        sprintf(text, "Redo %s", _dataManager->GetRedoActionString().c_str());
+    	text = std::string("Redo ") + _dataManager->GetRedoActionString();
         a_redo->setEnabled(true);
     }
-    a_redo->setText(text);
+    a_redo->setText(text.c_str());
 }
 
 void EspinaVolumeEditor::OperationUndo()
 {
-    char text[40];
-    
-    sprintf(text, "Undo %s", _dataManager->GetUndoActionString().c_str());
-    _progress->ManualSet(std::string(text));
+    std::string text = std::string("Undo ") + _dataManager->GetUndoActionString();
+    _progress->ManualSet(text);
 
     _dataManager->DoUndoOperation();
     
@@ -1463,10 +1470,8 @@ void EspinaVolumeEditor::OperationUndo()
 
 void EspinaVolumeEditor::OperationRedo()
 {
-    char text[40];
-    
-    sprintf(text, "Redo %s", _dataManager->GetRedoActionString().c_str());
-    _progress->ManualSet(std::string(text));
+	std::string text = std::string("Redo ") + _dataManager->GetRedoActionString();
+    _progress->ManualSet(text);
     
     _dataManager->DoRedoOperation();
     

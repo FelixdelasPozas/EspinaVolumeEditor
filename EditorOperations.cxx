@@ -643,15 +643,15 @@ void EditorOperations::CleanImage(itk::SmartPointer<ImageType> image, unsigned s
 
 void EditorOperations::EditorError(itk::ExceptionObject &excp)
 {
-    char text[100];
-    
     _progress->Reset();
     
     QMessageBox msgBox;
     msgBox.setIcon(QMessageBox::Critical);
     
-    sprintf(text, "An error occurred.\nThe %s operation has been aborted.", _dataManager->GetActualActionString().c_str());
-    msgBox.setText(text);
+    std::string text = std::string("An error occurred.\nThe ");
+    text += _dataManager->GetActualActionString();
+    text += std::string(" operation has been aborted.");
+    msgBox.setText(text.c_str());
     msgBox.setDetailedText(excp.what());
     msgBox.exec();
     
@@ -750,11 +750,10 @@ void EditorOperations::SaveImage(std::string filename)
 	} 
 	catch (itk::ExceptionObject &excp)
 	{
-	    char text[100];
 	    QMessageBox msgBox;
 	    msgBox.setIcon(QMessageBox::Critical);
-		sprintf(text, "An error occurred saving the segmentation file.\nThe operation has been aborted.");
-		msgBox.setText(text);
+		std::string text = std::string("An error occurred saving the segmentation file.\nThe operation has been aborted.");
+		msgBox.setText(text.c_str());
 		msgBox.setDetailedText(excp.what());
 		msgBox.exec();
 		_progress->Ignore(writer);
@@ -764,21 +763,21 @@ void EditorOperations::SaveImage(std::string filename)
 
 	if (0 != (rename(tempfilename.c_str(), filename.c_str())))
 	{
-	    char text[100];
 	    QMessageBox msgBox;
 	    msgBox.setIcon(QMessageBox::Critical);
-		sprintf(text, "An error occurred saving the segmentation file.\nThe operation has been aborted.");
-		msgBox.setText(text);
+		std::string text = std::string("An error occurred saving the segmentation file.\nThe operation has been aborted.");
+		msgBox.setText(text.c_str());
 		msgBox.setDetailedText(QString("The temporal file couldn't be renamed."));
 		msgBox.exec();
 
 		if (0 != (remove(tempfilename.c_str())))
 		{
-		    char text[100];
 		    QMessageBox msgBox;
 		    msgBox.setIcon(QMessageBox::Critical);
-			sprintf(text, "The temporal file \"%s\" couldn't be deleted.", tempfilename.c_str());
-			msgBox.setText(text);
+			std::string text = std::string("The temporal file \"");
+			text += tempfilename;
+			text += std::string("\" couldn't be deleted.");
+			msgBox.setText(text.c_str());
 			msgBox.exec();
 		}
 	}

@@ -7,6 +7,9 @@
 // Notes: 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+// c++ includes
+#include <sstream>
+
 // Qt includes
 #include <QListWidget>
 #include <QListWidgetItem>
@@ -34,7 +37,6 @@ QtRelabel::~QtRelabel()
 void QtRelabel::SetInitialOptions(unsigned short label,vtkSmartPointer<vtkLookupTable> colors, Metadata* data)
 {
     double rgba[4];
-    char text[100];
     QPixmap icon(16,16);
     QColor color;
 
@@ -49,9 +51,11 @@ void QtRelabel::SetInitialOptions(unsigned short label,vtkSmartPointer<vtkLookup
         colors->GetTableValue(label, rgba);
         color.setRgbF(rgba[0], rgba[1], rgba[2], 1);
         icon.fill(color);
-        sprintf(text, "%s %d voxels",name.c_str(), static_cast<int>(label));
+        std::stringstream out;
+        out << label << " - " << name << " voxels";
+        std::string text = out.str();
         colorlabel->setPixmap(icon);
-        selectionlabel->setText(QString(text));
+        selectionlabel->setText(QString(text.c_str()));
     }
     else
         selectionlabel->setText("Background voxels");
@@ -69,8 +73,10 @@ void QtRelabel::SetInitialOptions(unsigned short label,vtkSmartPointer<vtkLookup
         color.setRgbF(rgba[0], rgba[1], rgba[2], 1);
         icon.fill(color);
         std::string name = data->GetObjectSegmentName(i);
-        sprintf(text, "%s %d", name.c_str(), i);
-        QListWidgetItem *item = new QListWidgetItem(QIcon(icon), QString(text));
+        std::stringstream out;
+        out << i << " - " << name;
+        std::string text = out.str();
+        QListWidgetItem *item = new QListWidgetItem(QIcon(icon), QString(text.c_str()));
         newlabelbox->addItem(item);
     }
     newlabelbox->addItem("New label");
