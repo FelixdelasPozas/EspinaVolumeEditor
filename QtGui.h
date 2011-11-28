@@ -124,6 +124,7 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         bool updatevoxelrenderer;
         bool updateslicerenderers;
         bool updatepointlabel;
+        bool renderisavolume;
 
         void AxialXYPick(unsigned long);
         void CoronalXYPick(unsigned long);
@@ -141,7 +142,6 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
 
         // misc attributes
         DataManager                           *_dataManager;
-        VoxelVolumeRender::RenderType          _volumeRenderType;
         
         // these are managed with new and delete and not with smartpointers so
         // BEWARE. created and destroyed by editor, so no need to keep references 

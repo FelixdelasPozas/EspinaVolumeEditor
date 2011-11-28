@@ -106,7 +106,7 @@ bool Metadata::Read(QString filename)
 			std::string name = std::string(labels.cap(1).toStdString());
 
 			if (0 == name.compare("Unassigned"))
-				this->SetUnassignedTagPosition(position);
+				SetUnassignedTagPosition(position);
 
 			unsigned int value = labels.cap(2).toUInt(&result, 10);
 			if (result == false)
@@ -132,7 +132,7 @@ bool Metadata::Read(QString filename)
 	return true;
 }
 
-bool Metadata::Write(QString filename, std::map<unsigned short, unsigned short> *labelValues)
+bool Metadata::Write(QString filename, std::map<unsigned short, unsigned short> *labelValues, std::map<unsigned short, unsigned long long> *voxelCount)
 {
 	QFile file(filename);
 	if (!file.open(QIODevice::ReadWrite | QIODevice::Text))
@@ -143,13 +143,14 @@ bool Metadata::Write(QString filename, std::map<unsigned short, unsigned short> 
 
 	QTextStream out(&file);
 
+	out << "\n";
 	std::vector<struct ObjectMetadata>::iterator objectit;
 	for (objectit = this->ObjectVector.begin(); objectit != this->ObjectVector.end(); objectit++)
 	{
-		out << "Object: label=" << (*objectit).label;
-		out << " segment=" << (*objectit).segment;
-		out << " selected=" << (*objectit).selected;
-		out << "\n";
+			out << "Object: label=" << (*objectit).label;
+			out << " segment=" << (*objectit).segment;
+			out << " selected=" << (*objectit).selected;
+			out << "\n";
 	}
 
 	if (ObjectVector.size() < ((*labelValues).size()-1))
@@ -166,14 +167,16 @@ bool Metadata::Write(QString filename, std::map<unsigned short, unsigned short> 
 		}
 	}
 
+	out << "\n";
 	std::vector<struct CountingBrickMetadata>::iterator brickit;
 	for (brickit = this->CountingBrickVector.begin(); brickit != this->CountingBrickVector.end(); brickit++)
 	{
 		out << "Counting Brick: inclusive=[" << (*brickit).inclusive[0] << ", " << (*brickit).inclusive[1] << ", " << (*brickit).inclusive[2];
-		out << "] exlusive=[" << (*brickit).exclusive[0] << ", " << (*brickit).exclusive[1] << ", " << (*brickit).exclusive[2];
+		out << "] exclusive=[" << (*brickit).exclusive[0] << ", " << (*brickit).exclusive[1] << ", " << (*brickit).exclusive[2];
 		out << "]\n";
 	}
 
+	out << "\n";
 	std::vector<struct SegmentMetadata>::iterator segmentit;
 	for (segmentit = this->SegmentVector.begin(); segmentit != this->SegmentVector.end(); segmentit++)
 	{

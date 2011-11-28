@@ -287,9 +287,6 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
                           vtkCommand::MouseWheelBackwardEvent, this, 
                           SLOT(SagittalInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
     
-    // default render mode options
-    this->_volumeRenderType = VoxelVolumeRender::RayCast;
-    
     // init some global variables
     this->_hasReferenceImage = false;
     this->_selectedLabel = 0;
@@ -508,13 +505,13 @@ void EspinaVolumeEditor::EditorOpen(void)
 		qApp->restoreOverrideCursor();
 		std::string text = std::string("The segmentation contains unused objects (with no voxels assigned).\nThose objects will be discarded.\n");
 		msgBox.setText(text.c_str());
-		std::string details = std::string("Unused labels: object ");
+		std::string details = std::string("Unused objects: label ");
 		for (unsigned int i = 0; i < unusedLabels.size(); i++)
 		{
 			out << unusedLabels.at(i);
 			details += out.str();
 			if ((i+1) < unusedLabels.size())
-				details += std::string(", object ");
+				details += std::string(", label ");
 		}
 		msgBox.setDetailedText(details.c_str());
 		msgBox.exec();
@@ -557,8 +554,7 @@ void EspinaVolumeEditor::EditorOpen(void)
 	_dataManager->SetStructuredPoints(convert->GetStructuredPointsOutput());
 
     // add volume actors to 3D renderer
-    _volumeRender = new VoxelVolumeRender(_dataManager->GetStructuredPoints(), _dataManager->GetLookupTable(), _voxelViewRenderer, _volumeRenderType, _progress);
-    _volumeRender->Compute();
+	_volumeRender = new VoxelVolumeRender(_dataManager, _voxelViewRenderer, _progress);
 
     // set the default POI (point of interest)
     Vector3ui size = _orientationData->GetTransformedSize();
@@ -617,7 +613,7 @@ void EspinaVolumeEditor::EditorOpen(void)
     coronalresetbutton->setEnabled(true);
     sagittalresetbutton->setEnabled(true);
     voxelresetbutton->setEnabled(true);
-    rendertypebutton->setEnabled(true);
+    rendertypebutton->setEnabled(false);
     axestypebutton->setEnabled(true);
 
     erodeoperation->setEnabled(false);
@@ -656,6 +652,7 @@ void EspinaVolumeEditor::EditorOpen(void)
     // we can now begin updating the viewports
     this->updatevoxelrenderer = true;
     this->updateslicerenderers = true;
+    this->renderisavolume = true;
     UpdateViewports(All);
     
     // reset parts of the GUI, needed when loading another image (another session) to reset buttons
@@ -753,7 +750,7 @@ void EspinaVolumeEditor::EditorReferenceOpen(void)
 		msgBox.setIcon(QMessageBox::Warning);
 
 		std::string text = std::string("Reference and segmentation images have different origin of coordinates.\nReference origin is [");
-		out << origin[0] << "," << origin[1] << "," << origin[2] << "]\nSegmentation origin is [" << segmentationorigin[0] << ",";
+		out << origin[0] << "," << origin[1] << "," << origin[2] << "].\nSegmentation origin is [" << segmentationorigin[0] << ",";
 		out << segmentationorigin[1] << "," << segmentationorigin[2] << "].\nEditor will use segmentation origin.";
 		text += out.str();
 		msgBox.setText(text.c_str());
@@ -772,7 +769,7 @@ void EspinaVolumeEditor::EditorReferenceOpen(void)
 
 		std::string text = std::string("Reference and segmentation images have different point spacing.\nReference spacing is [");
 		out << spacing[0] << "," << spacing[1] << "," << spacing[2] << "].\nSegmentation spacing is [" << segmentationspacing[0] << ",";
-		out << segmentationspacing[1] << "," << segmentationspacing[2] << "]\nEditor will use segmentation spacing for both.";
+		out << segmentationspacing[1] << "," << segmentationspacing[2] << "].\nEditor will use segmentation spacing for both.";
 		text += out.str();
 		msgBox.setText(text.c_str());
 		msgBox.exec();
@@ -835,7 +832,7 @@ void EspinaVolumeEditor::EditorSave()
 
     qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
     _editorOperations->SaveImage(filename.toStdString());
-    _fileMetadata->Write(filename, _dataManager->GetLabelValueTable());
+    _fileMetadata->Write(filename, _dataManager->GetLabelValueTable(), _dataManager->GetVoxelCountTable());
 }
 
 void EspinaVolumeEditor::EditorExit()
@@ -1065,10 +1062,6 @@ void EspinaVolumeEditor::LabelSelectionChanged(int value)
     {
     	_dataManager->GetLookupTable()->GetTableValue(previousValue, rgba);
     	_dataManager->GetLookupTable()->SetTableValue(previousValue, rgba[0], rgba[1], rgba[2], 0.4);
-    	// opacity of volume render is 1/4 of color table values if value != 1
-    	// because opacity of slice viewports is higher on purpose for better
-    	// visibility
-    	_volumeRender->UpdateColorTable(previousValue, 0.1);
     }
     
     previousValue = value;
@@ -1079,9 +1072,15 @@ void EspinaVolumeEditor::LabelSelectionChanged(int value)
     {
     	_dataManager->GetLookupTable()->GetTableValue(value, rgba);
     	_dataManager->GetLookupTable()->SetTableValue(value, rgba[0], rgba[1], rgba[2], 1);
-    	_volumeRender->UpdateColorTable(value, 1);
     }
     _dataManager->GetLookupTable()->Modified();
+
+    // focus volume renderer and reset switch render button
+    _volumeRender->UpdateFocus(value);
+    renderisavolume = true;
+    _volumeRender->ViewAsVolume();
+    rendertypebutton->setIcon(QIcon(":/newPrefix/icons/mesh.png"));
+    rendertypebutton->setToolTip(tr("Switch to mesh renderer"));
 
     // don't want filters with the background label
     switch (_selectedLabel)
@@ -1094,6 +1093,7 @@ void EspinaVolumeEditor::LabelSelectionChanged(int value)
     		watershedoperation->setEnabled(false);
     	    if (pickerbutton->isChecked())
     	    	viewbutton->setChecked(true);
+    	    rendertypebutton->setEnabled(false);
     	    UpdateViewports(All);
     		return;
     		break;
@@ -1103,11 +1103,13 @@ void EspinaVolumeEditor::LabelSelectionChanged(int value)
     		openoperation->setEnabled(true);
     		closeoperation->setEnabled(true);
     		watershedoperation->setEnabled(true);
+    		if(_voxelViewRenderer->GetDraw() != false)
+    			rendertypebutton->setEnabled(true);
     		break;
     }
 
     // if the user selected the label by hand I don't want to change the POI, just highlight the label
-    // in the point he/she just picked
+    // in the picked point
     if (pickerbutton->isChecked())
     {
     	viewbutton->setChecked(true);
@@ -1140,11 +1142,8 @@ void EspinaVolumeEditor::LabelSelectionChanged(int value)
 
     SetPointLabel();
 
-    // change voxel renderer to move around new POI
-    Vector3d spacing = _orientationData->GetImageSpacing();
-    _voxelViewRenderer->GetActiveCamera()->SetFocalPoint(_POI[0]*spacing[0],_POI[1]*spacing[1],_POI[2]*spacing[2]);
-
     // change slice view to the new label
+    Vector3d spacing = _orientationData->GetImageSpacing();
     double coords[3];
     _axialViewRenderer->GetActiveCamera()->GetPosition(coords);
     _axialViewRenderer->GetActiveCamera()->SetPosition(_POI[0]*spacing[0],_POI[1]*spacing[1],coords[2]);
@@ -1236,26 +1235,24 @@ void EspinaVolumeEditor::ViewReset()
 
 void EspinaVolumeEditor::SwitchVoxelRender()
 {
-    switch(_volumeRenderType)
+    switch(renderisavolume)
     {
-        case VoxelVolumeRender::Meshes:
-            _volumeRenderType = VoxelVolumeRender::RayCast;
+    	case false:
+    		renderisavolume = true;
+    		_volumeRender->ViewAsVolume();
             rendertypebutton->setIcon(QIcon(":/newPrefix/icons/mesh.png"));
             rendertypebutton->setToolTip(tr("Switch to mesh renderer"));
             break;
-        case VoxelVolumeRender::RayCast:
-            _volumeRenderType = VoxelVolumeRender::Meshes;
-            rendertypebutton->setIcon(QIcon(":/newPrefix/icons/voxel.png"));
+        case true:
+        	renderisavolume = false;
+        	_volumeRender->ViewAsMesh();
+        	rendertypebutton->setIcon(QIcon(":/newPrefix/icons/voxel.png"));
             rendertypebutton->setToolTip(tr("Switch to volume renderer"));
             break;
         default:
             break;
     }
     
-    delete _volumeRender;
-    
-    _volumeRender = new VoxelVolumeRender(_dataManager->GetStructuredPoints(), _dataManager->GetLookupTable(), _voxelViewRenderer, _volumeRenderType, _progress);
-    _volumeRender->Compute();
     UpdateViewports(Voxel);
 }
 
@@ -1303,13 +1300,13 @@ void EspinaVolumeEditor::EditorRelabel()
 {
     if (_editorOperations->RelabelSelection(this, _selectedLabel, _dataManager->GetLookupTable(), _fileMetadata))
     {
-        // not faster but easier
-        delete _volumeRender;
         FillColorLabels();
-        
-        _volumeRender = new VoxelVolumeRender(_dataManager->GetStructuredPoints(), _dataManager->GetLookupTable(), _voxelViewRenderer, _volumeRenderType, _progress);
-        _volumeRender->Compute();
+
+        // not faster but easier
+    	delete _volumeRender;
+    	_volumeRender = new VoxelVolumeRender(_dataManager, _voxelViewRenderer, _progress);
     }
+
 
     SetPointLabel();
     UpdateUndoRedoMenu();
@@ -1407,13 +1404,11 @@ void EspinaVolumeEditor::WatershedVolume()
 {
     _editorOperations->WatershedSelection(_selectedLabel);
 
-    // not faster but easier
-    delete _volumeRender;
-    
     FillColorLabels();
-    
-    _volumeRender = new VoxelVolumeRender(_dataManager->GetStructuredPoints(), _dataManager->GetLookupTable(), _voxelViewRenderer, _volumeRenderType, _progress);
-    _volumeRender->Compute();
+
+    // not faster but easier
+	delete _volumeRender;
+	_volumeRender = new VoxelVolumeRender(_dataManager, _voxelViewRenderer, _progress);
 
     SetPointLabel();
     UpdateUndoRedoMenu();
@@ -2190,7 +2185,8 @@ void EspinaVolumeEditor::DisableRenderView(void)
             voxelresetbutton->setEnabled(true);
             rendersizebutton->setEnabled(true);
             axestypebutton->setEnabled(true);
-            rendertypebutton->setEnabled(true);
+            if (_selectedLabel != 0)
+            	rendertypebutton->setEnabled(true);
 			renderdisablebutton->setIcon(QIcon(":/newPrefix/icons/cog_delete.png"));
             renderdisablebutton->setStatusTip(tr("Disable render view"));
             renderdisablebutton->setToolTip(tr("Disables the rendering view of the volume"));

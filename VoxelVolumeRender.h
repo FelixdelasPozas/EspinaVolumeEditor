@@ -10,12 +10,14 @@
 #ifndef _VOXELVOLUMERENDER_H_
 #define _VOXELVOLUMERENDER_H_
 
-// vtk includes 
+// vtk includes
 #include <vtkSmartPointer.h>
 #include <vtkLookupTable.h>
 #include <vtkStructuredPoints.h>
 #include <vtkRenderer.h>
 #include <vtkPiecewiseFunction.h>
+#include <vtkColorTransferFunction.h>
+#include <vtkVolumeRayCastMapper.h>
 
 // c++ includes
 #include <map>
@@ -30,54 +32,54 @@
 class VoxelVolumeRender
 {
     public:
-        typedef enum
-        {
-            RayCast, Meshes
-        } RenderType;
-        
         // constructor & destructor
-        VoxelVolumeRender(
-                vtkSmartPointer<vtkStructuredPoints>, 
-                vtkSmartPointer<vtkLookupTable>, 
-                vtkSmartPointer<vtkRenderer>, 
-                RenderType,
-                ProgressAccumulator*);
-        ~VoxelVolumeRender();
-        
-        // compute render
-        void Compute();
-        
+		VoxelVolumeRender(DataManager*, vtkSmartPointer<vtkRenderer>, ProgressAccumulator*);
+		~VoxelVolumeRender();
+
         // update color table with new alpha component
         void UpdateColorTable(int, double);
-        
-        // get render type
-        RenderType GetRenderType();
+
+        // update focus extent for renderers clipping planes
+        void UpdateFocus(unsigned short);
+
+        // render volume as a mesh
+        void ViewAsMesh();
+
+        // render volume as a raycasted volume
+        void ViewAsVolume();
     private:
         // delete all actors from renderer reset class
         void DeleteActors();
 
         // compute volume using raycast
         void ComputeRayCastVolume();
-        
-        // compute volume using meshes (slower because require more filters)
-        void ComputeMeshes();
-        
+
+        // compute mesh for a label
+        void ComputeMesh(unsigned short label);
+
         // compute volume using meshes (slower because require more filters)
         void ComputeGPURender();
 
         // attributes
-        vtkSmartPointer<vtkStructuredPoints> _structuredPoints;
-        vtkSmartPointer<vtkLookupTable>      _lookupTable;
         vtkSmartPointer<vtkRenderer>         _renderer;
-        RenderType                           _renderType;
-        ProgressAccumulator*                 _progress;
-        
+        ProgressAccumulator                 *_progress;
+        DataManager                         *_dataManager;
+
         // to update color table
         vtkSmartPointer<vtkPiecewiseFunction>      _opacityfunction;
-        std::map< int, vtkSmartPointer<vtkActor> > _actormap;
-        
-        // actors to delete to clear viewports (we get the actors of the meshes from the std::map)
+        vtkSmartPointer<vtkColorTransferFunction>  _colorfunction;
+
+        // actor for the mesh representation of the volume
+        vtkSmartPointer<vtkActor> _meshActor;
+
+        // actors for the volume
         vtkSmartPointer<vtkVolume> _volume;
+
+        // actual object label
+        unsigned short _objectLabel;
+
+        // software saycast volume mapper
+        vtkSmartPointer<vtkVolumeRayCastMapper> _volumemapper;
 };
 
 #endif

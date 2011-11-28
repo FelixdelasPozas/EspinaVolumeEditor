@@ -68,17 +68,30 @@ void DataManager::Initialize(itk::SmartPointer<LabelMapType> labelMap, Coordinat
     labelChanger->SetInput(evaluator->GetOutput());
   	labelChanger->SetInPlace(true);
 
-    // we can't init different type variables in the for loop init, i must be init here
+   	// set bounding box for the background label
+  	Vector3d spacing = _orientationData->GetImageSpacing();
+   	Vector3d imageorigin = _orientationData->GetImageOrigin();
+   	Vector3ui imagesize = _orientationData->GetImageSize();
+    itk::Index<3> origin;
+    origin[0] = static_cast<int>(imageorigin[0]/spacing[0]);
+    origin[1] = static_cast<int>(imageorigin[1]/spacing[1]);
+    origin[2] = static_cast<int>(imageorigin[2]/spacing[2]);
+    itk::Size<3> size;
+    size[0] = imagesize[0];
+    size[1] = imagesize[1];
+    size[2] = imagesize[2];
+    SetObjectBoundingBox(0, origin, size);
+
   	typedef itk::ImageRegion<3> ImageRegionType;
   	ImageRegionType region;
     unsigned short i = 1;
     itk::Point<double, 3> centroid;
-    Vector3d spacing = _orientationData->GetImageSpacing();
 
     for(iter = labelObjectContainer.begin(); iter != labelObjectContainer.end(); iter++, i++)
     {
         const unsigned short scalar = iter->first;
         LabelObjectType * labelObject = iter->second;
+
         centroid = labelObject->GetCentroid();
         region = labelObject->GetRegion();
 
@@ -111,7 +124,12 @@ void DataManager::Initialize(itk::SmartPointer<LabelMapType> labelMap, Coordinat
 
 DataManager::~DataManager()
 {
-    // just delete the undo/redo system, as the rest are handled by smartpointers
+	// delete the manually allocated bounding boxes
+	std::map<unsigned short, struct BoundingBox*>::iterator it;
+
+	for (it = _objectBox.begin(); it != _objectBox.end(); it++)
+		delete (*it).second;
+
     delete _actionsBuffer;
 }
 
@@ -171,6 +189,46 @@ void DataManager::SetVoxelScalar(unsigned int x, unsigned int y, unsigned int z,
     _temporalCentroid[scalar][0] += x;
     _temporalCentroid[scalar][1] += y;
     _temporalCentroid[scalar][2] += z;
+
+    // we have to check if this is a new label without a proper bounding box
+    itk::Index<3> origin;
+    itk::Size<3> size;
+
+    if (NULL == _objectBox[scalar])
+    {
+     	origin[0] = x;
+       	origin[1] = y;
+       	origin[2] = z;
+       	size[0] = 1;
+       	size[1] = 1;
+       	size[2] = 1;
+    }
+    else
+    {
+    	// calculate bounding box variation for the object adding voxels
+    	origin = GetBoundingBoxOrigin(scalar);
+    	size = GetBoundingBoxSize(scalar);
+
+    	if (x > origin[0]+size[0])
+    		size[0] = x-origin[0];
+
+       	if (y > origin[1]+size[1])
+       		size[1] = y-origin[1];
+
+       	if (z > origin[2]+size[2])
+       		size[2] = z-origin[2];
+
+       	if (x < static_cast<unsigned int>(origin[0]))
+       		origin[0] = x;
+
+       	if (y < static_cast<unsigned int>(origin[1]))
+     		origin[1] = y;
+
+       	if (z < static_cast<unsigned int>(origin[2]))
+       		origin[2] = z;
+    }
+
+    SetObjectBoundingBox(scalar, origin, size);
 
     _actionsBuffer->AddPoint(Vector3ui(x,y,z), *pixel);
     *pixel = scalar;
@@ -481,12 +539,16 @@ Vector3d DataManager::GetCentroidForObject(unsigned short int label)
 
 void DataManager::SetObjectBoundingBox(unsigned short label, itk::Index<3> origin, itk::Size<3> size)
 {
-	struct BoundingBox *box = new struct BoundingBox;
+	struct BoundingBox *box = _objectBox[label];
+
+	if (box == NULL)
+	{
+		box = new struct BoundingBox;
+		_objectBox[label] = box;
+	}
 
 	box->origin = origin;
 	box->size = size;
-
-	_objectBox.insert(std::pair<unsigned short, struct BoundingBox *>(label, box));
 }
 
 itk::Index<3> DataManager::GetBoundingBoxOrigin(unsigned short label)
@@ -497,4 +559,9 @@ itk::Index<3> DataManager::GetBoundingBoxOrigin(unsigned short label)
 itk::Size<3> DataManager::GetBoundingBoxSize(unsigned short label)
 {
 	return _objectBox[label]->size;
+}
+
+std::map<unsigned short, unsigned long long int>* DataManager::GetVoxelCountTable(void)
+{
+	return &_voxelCount;
 }

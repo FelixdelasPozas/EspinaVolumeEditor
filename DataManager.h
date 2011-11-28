@@ -130,6 +130,9 @@ class DataManager
         // voxel statistics per label
         unsigned long long int GetNumberOfVoxelsForLabel(unsigned short);
 
+        // get voxel count table
+        std::map<unsigned short, unsigned long long int>* GetVoxelCountTable(void);
+
         // set the bounding box for the object
         void SetObjectBoundingBox(unsigned short, itk::Index<3>, itk::Size<3>);
 
