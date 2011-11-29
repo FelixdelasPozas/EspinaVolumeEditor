@@ -147,10 +147,26 @@ bool Metadata::Write(QString filename, std::map<unsigned short, unsigned short> 
 	std::vector<struct ObjectMetadata>::iterator objectit;
 	for (objectit = this->ObjectVector.begin(); objectit != this->ObjectVector.end(); objectit++)
 	{
-			out << "Object: label=" << (*objectit).label;
-			out << " segment=" << (*objectit).segment;
-			out << " selected=" << (*objectit).selected;
-			out << "\n";
+		// don't write empty objects, we can't use find() because we're searching the "second" value of the pair
+		unsigned short label;
+		std::map<unsigned short, unsigned short>::iterator it;
+		for (it = labelValues->begin(); it != labelValues->end(); it++)
+		{
+			if ((*it).second == (*objectit).label)
+			{
+				label = (*it).first;
+				break;
+			}
+		}
+
+		if (0LL == (*voxelCount)[label])
+			continue;
+
+		// write object metadata
+		out << "Object: label=" << (*objectit).label;
+		out << " segment=" << (*objectit).segment;
+		out << " selected=" << (*objectit).selected;
+		out << "\n";
 	}
 
 	if (ObjectVector.size() < ((*labelValues).size()-1))

@@ -210,22 +210,31 @@ void DataManager::SetVoxelScalar(unsigned int x, unsigned int y, unsigned int z,
     	size = GetBoundingBoxSize(scalar);
 
     	if (x > origin[0]+size[0])
-    		size[0] = x-origin[0];
+    		size[0] = x - origin[0];
 
        	if (y > origin[1]+size[1])
-       		size[1] = y-origin[1];
+       		size[1] = y - origin[1];
 
        	if (z > origin[2]+size[2])
-       		size[2] = z-origin[2];
+       		size[2] = z - origin[2];
 
        	if (x < static_cast<unsigned int>(origin[0]))
+       	{
+       		size[0] += origin[0] - x;
        		origin[0] = x;
+       	}
 
        	if (y < static_cast<unsigned int>(origin[1]))
+       	{
+      		size[1] += origin[1] - y;
      		origin[1] = y;
+       	}
 
        	if (z < static_cast<unsigned int>(origin[2]))
+       	{
+       		size[2] += origin[2] - z;
        		origin[2] = z;
+       	}
     }
 
     SetObjectBoundingBox(scalar, origin, size);

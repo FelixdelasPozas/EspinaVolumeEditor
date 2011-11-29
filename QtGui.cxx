@@ -354,7 +354,7 @@ void EspinaVolumeEditor::EditorOpen(void)
     // MetaImageIO needed to read an image without a estandar extension (segmha in this case)
     typedef itk::Image<unsigned short, 3> ImageType;
     typedef itk::ImageFileReader<ImageType> ReaderType;
-    itk::MetaImageIO::Pointer io = itk::MetaImageIO::New();
+    itk::SmartPointer<itk::MetaImageIO> io = itk::MetaImageIO::New();
     io->SetFileName(filename.toStdString().c_str());
     itk::SmartPointer<ReaderType> reader = ReaderType::New();
     reader->SetImageIO(io);
@@ -1305,8 +1305,8 @@ void EspinaVolumeEditor::EditorRelabel()
         // not faster but easier
     	delete _volumeRender;
     	_volumeRender = new VoxelVolumeRender(_dataManager, _voxelViewRenderer, _progress);
+    	_volumeRender->UpdateFocus(_selectedLabel);
     }
-
 
     SetPointLabel();
     UpdateUndoRedoMenu();
@@ -1379,6 +1379,7 @@ void EspinaVolumeEditor::DilateVolume()
 
     SetPointLabel();
     UpdateUndoRedoMenu();
+    _volumeRender->UpdateFocusExtent();
     UpdateViewports(All);
 }
 
@@ -1388,6 +1389,7 @@ void EspinaVolumeEditor::OpenVolume()
 
     SetPointLabel();
     UpdateUndoRedoMenu();
+    _volumeRender->UpdateFocusExtent();
     UpdateViewports(All);
 }
 
@@ -1397,6 +1399,7 @@ void EspinaVolumeEditor::CloseVolume()
 
     SetPointLabel();
     UpdateUndoRedoMenu();
+    _volumeRender->UpdateFocusExtent();
     UpdateViewports(All);
 }
 
@@ -1409,9 +1412,11 @@ void EspinaVolumeEditor::WatershedVolume()
     // not faster but easier
 	delete _volumeRender;
 	_volumeRender = new VoxelVolumeRender(_dataManager, _voxelViewRenderer, _progress);
+	_volumeRender->UpdateFocus(_selectedLabel);
 
     SetPointLabel();
     UpdateUndoRedoMenu();
+    _volumeRender->UpdateFocusExtent();
     UpdateViewports(All);
 }
 
@@ -1420,28 +1425,20 @@ void EspinaVolumeEditor::UpdateUndoRedoMenu()
 	std::string text;
 
     if (_dataManager->IsUndoBufferEmpty())
-    {
         text = std::string("Undo");
-        a_undo->setEnabled(false);
-    }
     else
-    {
     	text = std::string("Undo ") + _dataManager->GetUndoActionString();
-        a_undo->setEnabled(true);
-    }
+
     a_undo->setText(text.c_str());
+    a_undo->setEnabled(!(_dataManager->IsUndoBufferEmpty()));
 
     if (_dataManager->IsRedoBufferEmpty())
-    {
     	text = std::string("Redo");
-        a_redo->setEnabled(false);
-    }
     else
-    {
     	text = std::string("Redo ") + _dataManager->GetRedoActionString();
-        a_redo->setEnabled(true);
-    }
+
     a_redo->setText(text.c_str());
+    a_redo->setEnabled(!(_dataManager->IsRedoBufferEmpty()));
 }
 
 void EspinaVolumeEditor::OperationUndo()
@@ -1719,6 +1716,7 @@ void EspinaVolumeEditor::AxialXYPick(unsigned long event)
         if ((paintbutton->isChecked()) && (pickedProp == SliceVisualization::Slice) && (actualPick == SliceVisualization::Slice))
         {
             _dataManager->OperationEnd();
+            _volumeRender->UpdateFocusExtent();
             UpdateUndoRedoMenu();
         }
         
@@ -1805,6 +1803,7 @@ void EspinaVolumeEditor::CoronalXYPick(unsigned long event)
         if ((paintbutton->isChecked()) && (pickedProp == SliceVisualization::Slice) && (actualPick == SliceVisualization::Slice))
         {
             _dataManager->OperationEnd();
+            _volumeRender->UpdateFocusExtent();
             UpdateUndoRedoMenu();
         }
         
@@ -1891,6 +1890,7 @@ void EspinaVolumeEditor::SagittalXYPick(unsigned long event)
         if ((paintbutton->isChecked()) && (pickedProp == SliceVisualization::Slice) && (actualPick == SliceVisualization::Slice))
         {
             _dataManager->OperationEnd();
+            _volumeRender->UpdateFocusExtent();
             UpdateUndoRedoMenu();
         }
         

@@ -18,6 +18,7 @@
 #include <vtkPiecewiseFunction.h>
 #include <vtkColorTransferFunction.h>
 #include <vtkVolumeRayCastMapper.h>
+#include <vtkSmartVolumeMapper.h>
 
 // c++ includes
 #include <map>
@@ -41,6 +42,9 @@ class VoxelVolumeRender
 
         // update focus extent for renderers clipping planes
         void UpdateFocus(unsigned short);
+
+        // update extent of focused object without moving the camera
+        void UpdateFocusExtent(void);
 
         // render volume as a mesh
         void ViewAsMesh();
@@ -80,6 +84,7 @@ class VoxelVolumeRender
 
         // software saycast volume mapper
         vtkSmartPointer<vtkVolumeRayCastMapper> _volumemapper;
+        vtkSmartPointer<vtkSmartVolumeMapper>  _GPUmapper;
 };
 
 #endif

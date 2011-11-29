@@ -328,7 +328,7 @@ void EditorOperations::ErodeSelection(unsigned short label)
 
     typedef itk::BinaryBallStructuringElement<ImageType::PixelType, 3> StructuringElementType;
     typedef itk::ErodeObjectMorphologyImageFilter<ImageType, ImageType, StructuringElementType> BinaryErodeImageFilterType;
-    BinaryErodeImageFilterType::Pointer erodeFilter = BinaryErodeImageFilterType::New();
+    itk::SmartPointer<BinaryErodeImageFilterType> erodeFilter = BinaryErodeImageFilterType::New();
 
     _progress->Observe(erodeFilter, "Erode", 1.0);
 
@@ -368,7 +368,7 @@ void EditorOperations::DilateSelection(unsigned short label)
 
     typedef itk::BinaryBallStructuringElement<ImageType::PixelType, 3> StructuringElementType;
     typedef itk::DilateObjectMorphologyImageFilter<ImageType, ImageType, StructuringElementType> BinaryDilateImageFilterType;
-    BinaryDilateImageFilterType::Pointer dilateFilter = BinaryDilateImageFilterType::New();
+    itk::SmartPointer<BinaryDilateImageFilterType> dilateFilter = BinaryDilateImageFilterType::New();
 
     _progress->Observe(dilateFilter, "Dilate", 1.0);
     
@@ -408,7 +408,7 @@ void EditorOperations::OpenSelection(unsigned short label)
 
     typedef itk::BinaryBallStructuringElement<ImageType::PixelType, 3> StructuringElementType;
     typedef itk::BinaryMorphologicalOpeningImageFilter<ImageType, ImageType, StructuringElementType> BinaryOpenImageFilterType;
-    BinaryOpenImageFilterType::Pointer openFilter = BinaryOpenImageFilterType::New();
+    itk::SmartPointer<BinaryOpenImageFilterType> openFilter = BinaryOpenImageFilterType::New();
 
     _progress->Observe(openFilter, "Open", 1.0);
     
@@ -448,7 +448,7 @@ void EditorOperations::CloseSelection(unsigned short label)
 
     typedef itk::BinaryBallStructuringElement<ImageType::PixelType, 3> StructuringElementType;
     typedef itk::BinaryMorphologicalClosingImageFilter<ImageType, ImageType, StructuringElementType> BinaryCloseImageFilterType;
-    BinaryCloseImageFilterType::Pointer closeFilter = BinaryCloseImageFilterType::New();
+    itk::SmartPointer<BinaryCloseImageFilterType> closeFilter = BinaryCloseImageFilterType::New();
 
     _progress->Observe(closeFilter, "Close", 1.0);
     
@@ -493,7 +493,7 @@ void EditorOperations::WatershedSelection(unsigned short label)
     itk::SmartPointer<ImageType> image = ImageType::New();
     image = GetItkImageFromSelection();
     
-    DanielssonFilterType::Pointer danielssonFilter = DanielssonFilterType::New();
+    itk::SmartPointer<DanielssonFilterType> danielssonFilter = DanielssonFilterType::New();
     _progress->Observe(danielssonFilter, "Danielsson", (1.0/3.0));
     
     danielssonFilter->SetInput(image);
@@ -514,7 +514,7 @@ void EditorOperations::WatershedSelection(unsigned short label)
     
     _progress->Ignore(danielssonFilter);
     
-    WatershedFilterType::Pointer watershedFilter = WatershedFilterType::New();
+    itk::SmartPointer<WatershedFilterType> watershedFilter = WatershedFilterType::New();
     _progress->Observe(watershedFilter, "Watershed", (1.0/3.0));
     
     watershedFilter->SetInput(danielssonFilter->GetOutput());
@@ -735,7 +735,7 @@ void EditorOperations::SaveImage(std::string filename)
     // save as an mha and rename
     std::string tempfilename = filename + std::string(".mha");
     typedef itk::ImageFileWriter<ImageType> WriterType;
-    itk::MetaImageIO::Pointer io = itk::MetaImageIO::New();
+    itk::SmartPointer<itk::MetaImageIO> io = itk::MetaImageIO::New();
     io->SetFileName(tempfilename.c_str());
     itk::SmartPointer<WriterType> writer = WriterType::New();
     writer->SetImageIO(io);

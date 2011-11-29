@@ -22,7 +22,6 @@
 #include <vtkColorTransferFunction.h>
 #include <vtkVolume.h>
 #include <vtkVolumeProperty.h>
-#include <vtkSmartVolumeMapper.h>
 #include <vtkVolumeRayCastCompositeFunction.h>
 #include <vtkCamera.h>
 
@@ -41,10 +40,12 @@ VoxelVolumeRender::VoxelVolumeRender(DataManager *data, vtkSmartPointer<vtkRende
     _meshActor = NULL;
     _volume = NULL;
     _volumemapper = NULL;
+    _GPUmapper = NULL;
     _objectLabel = 0;
 
     // the raycasted volume is always present
     ComputeRayCastVolume();
+//    ComputeGPURender();
 }
 
 VoxelVolumeRender::~VoxelVolumeRender()
@@ -191,10 +192,10 @@ void VoxelVolumeRender::ComputeGPURender()
     vtkSmartPointer<vtkLookupTable> table = _dataManager->GetLookupTable();
 
     // GPU mapper
-    vtkSmartPointer<vtkSmartVolumeMapper> GPUmapper = vtkSmartPointer<vtkSmartVolumeMapper>::New();
-    GPUmapper->SetInput(_dataManager->GetStructuredPoints());
-    GPUmapper->SetRequestedRenderMode(vtkSmartVolumeMapper::GPURenderMode);
-    GPUmapper->SetInterpolationModeToNearestNeighbor();
+    _GPUmapper = vtkSmartPointer<vtkSmartVolumeMapper>::New();
+    _GPUmapper->SetInput(_dataManager->GetStructuredPoints());
+    _GPUmapper->SetRequestedRenderMode(vtkSmartVolumeMapper::GPURenderMode);
+    _GPUmapper->SetInterpolationModeToNearestNeighbor();
 
     // assign label colors
     _colorfunction = vtkSmartPointer<vtkColorTransferFunction>::New();
@@ -224,7 +225,7 @@ void VoxelVolumeRender::ComputeGPURender()
     	_renderer->RemoveActor(_volume);
 
     _volume = vtkSmartPointer<vtkVolume>::New();
-    _volume->SetMapper(GPUmapper);
+    _volume->SetMapper(_GPUmapper);
     _volume->SetProperty(volumeproperty);
     
     _renderer->AddVolume(_volume);
@@ -236,6 +237,20 @@ void VoxelVolumeRender::UpdateColorTable(int value, double alpha)
     _opacityfunction->Modified();
 }
 
+void VoxelVolumeRender::UpdateFocusExtent(void)
+{
+	Vector3d spacing = _dataManager->GetOrientationData()->GetImageSpacing();
+	itk::Index<3> origin = _dataManager->GetBoundingBoxOrigin(_objectLabel);
+	itk::Size<3> size = _dataManager->GetBoundingBoxSize(_objectLabel);
+
+	_volumemapper->SetCroppingRegionPlanes(
+			(origin[0]-1)*spacing[0], (origin[0]+size[0]+1)*spacing[0],
+			(origin[1]-1)*spacing[1], (origin[1]+size[1]+1)*spacing[1],
+			(origin[2]-1)*spacing[2], (origin[2]+size[2]+1)*spacing[2]);
+	_volumemapper->CroppingOn();
+	_volumemapper->SetCroppingRegionFlagsToSubVolume();
+	_volumemapper->Update();
+}
 void VoxelVolumeRender::UpdateFocus(unsigned short label)
 {
 	// dim previous label
@@ -255,7 +270,7 @@ void VoxelVolumeRender::UpdateFocus(unsigned short label)
 			(origin[1]-1)*spacing[1], (origin[1]+size[1]+1)*spacing[1],
 			(origin[2]-1)*spacing[2], (origin[2]+size[2]+1)*spacing[2]);
 	_volumemapper->CroppingOn();
-    _volumemapper->SetCroppingRegionFlagsToSubVolume();
+	_volumemapper->SetCroppingRegionFlagsToSubVolume();
 	_volumemapper->Update();
 
     // if the selected label has no voxels it has no centroid
