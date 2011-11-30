@@ -152,7 +152,7 @@ bool Metadata::Write(QString filename, std::map<unsigned short, unsigned short> 
 		std::map<unsigned short, unsigned short>::iterator it;
 		for (it = labelValues->begin(); it != labelValues->end(); it++)
 		{
-			if ((*it).second == (*objectit).label)
+			if ((*it).second == (*objectit).scalar)
 			{
 				label = (*it).first;
 				break;
@@ -163,7 +163,7 @@ bool Metadata::Write(QString filename, std::map<unsigned short, unsigned short> 
 			continue;
 
 		// write object metadata
-		out << "Object: label=" << (*objectit).label;
+		out << "Object: label=" << (*objectit).scalar;
 		out << " segment=" << (*objectit).segment;
 		out << " selected=" << (*objectit).selected;
 		out << "\n";
@@ -213,7 +213,7 @@ bool Metadata::Write(QString filename, std::map<unsigned short, unsigned short> 
 void Metadata::AddObject(unsigned int label, unsigned int segment, unsigned int selected)
 {
 	struct ObjectMetadata* object = new struct ObjectMetadata;
-	object->label = label;
+	object->scalar = label;
 	object->segment = segment;
 	object->selected = selected;
 
@@ -258,7 +258,7 @@ bool Metadata::MarkObjectAsUsed(unsigned short label)
 {
 	std::vector<struct ObjectMetadata>::iterator it;
 	for (it = ObjectVector.begin(); it != ObjectVector.end(); it++)
-		if ((*it).label == label)
+		if ((*it).scalar == label)
 		{
 			(*it).used = true;
 			return true;
@@ -274,12 +274,18 @@ void Metadata::CompactObjects(void)
 	for (it = ObjectVector.begin(); it != ObjectVector.end(); it++)
 		if ((*it).used == false)
 		{
-			UnusedObjects.push_back((*it).label);
+			UnusedObjects.push_back((*it).scalar);
 			ObjectVector.erase(it);
 		}
 }
 
 std::vector<unsigned int> Metadata::GetUnusedObjectsLabels(void)
 {
-		return UnusedObjects;
+	return UnusedObjects;
+}
+
+unsigned short Metadata::GetObjectScalar(unsigned short label)
+{
+	// vector index goes 0->(n-1)
+	return ObjectVector[label-1].scalar;
 }

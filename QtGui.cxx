@@ -1039,7 +1039,7 @@ void EspinaVolumeEditor::FillColorLabels()
         color.setRgbF(rgba[0], rgba[1], rgba[2], 1);
         icon.fill(color);
         std::stringstream out;
-        out << i << " - " << _fileMetadata->GetObjectSegmentName(i);
+        out << _fileMetadata->GetObjectSegmentName(i) << " " << _fileMetadata->GetObjectScalar(i);
         QListWidgetItem *item = new QListWidgetItem(QIcon(icon), QString(out.str().c_str()));
         labelselector->addItem(item);
     }

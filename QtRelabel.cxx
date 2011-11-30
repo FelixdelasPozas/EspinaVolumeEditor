@@ -47,12 +47,11 @@ void QtRelabel::SetInitialOptions(unsigned short label,vtkSmartPointer<vtkLookup
     if (label != 0)
     {
         newlabelbox->insertItem(0, "Background");
-        std::string name = data->GetObjectSegmentName(label);
         colors->GetTableValue(label, rgba);
         color.setRgbF(rgba[0], rgba[1], rgba[2], 1);
         icon.fill(color);
         std::stringstream out;
-        out << label << " - " << name << " voxels";
+        out << data->GetObjectSegmentName(label) << " " << data->GetObjectScalar(label) << " voxels";
         std::string text = out.str();
         colorlabel->setPixmap(icon);
         selectionlabel->setText(QString(text.c_str()));
@@ -72,9 +71,8 @@ void QtRelabel::SetInitialOptions(unsigned short label,vtkSmartPointer<vtkLookup
         colors->GetTableValue(i, rgba);
         color.setRgbF(rgba[0], rgba[1], rgba[2], 1);
         icon.fill(color);
-        std::string name = data->GetObjectSegmentName(i);
         std::stringstream out;
-        out << i << " - " << name;
+        out << data->GetObjectSegmentName(i) << " " << data->GetObjectScalar(i);
         std::string text = out.str();
         QListWidgetItem *item = new QListWidgetItem(QIcon(icon), QString(text.c_str()));
         newlabelbox->addItem(item);

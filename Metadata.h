@@ -40,6 +40,9 @@ class Metadata
         // returns the segment name of the object
         std::string GetObjectSegmentName(unsigned short);
 
+        // returns the segment scalar
+        unsigned short GetObjectScalar(unsigned short);
+
         // compact object vector deleting unused objects and storing them into UnusedObjects vector
         void CompactObjects(void);
 
@@ -56,11 +59,11 @@ class Metadata
         // that the vector ObjectMetadata must be compacted after reading it
         struct ObjectMetadata
         {
-			unsigned int label;
+			unsigned int scalar;
 			unsigned int segment;
 			unsigned int selected;
 			bool used;
-			ObjectMetadata(): label(0), segment(0), selected(0), used(false) {};
+			ObjectMetadata(): scalar(0), segment(0), selected(0), used(false) {};
         };
 
         struct CountingBrickMetadata

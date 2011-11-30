@@ -50,11 +50,24 @@ SET(Libraries
   ${QT_LIBRARIES}
 )
 
-SET(CurrentFiles "SliceVisualization" "UndoRedoSystem" "EditorOperations" "ProgressAccumulator" "Coordinates" "VoxelVolumeRender" "DataManager" "AxesRender" "Metadata")
-SET(CurrentEditorFiles "Editor")
-ADD_LIBRARY(library SHARED ${CurrentFiles}.cxx ${QtSrcs} ${MOCSrcs} ${QtResources_CXX})
-ADD_EXECUTABLE(Editor ${CurrentEditorFiles}.cxx)
-TARGET_LINK_LIBRARIES(library ${Libraries})
-TARGET_LINK_LIBRARIES(Editor library)
-SET_TARGET_PROPERTIES(library PROPERTIES OUTPUT_NAME VolumeEditor)
-SET_TARGET_PROPERTIES(Editor PROPERTIES OUTPUT_NAME Editor)
+SET(CurrentFiles "Editor" "SliceVisualization" "UndoRedoSystem" "EditorOperations" "ProgressAccumulator" "Coordinates" "VoxelVolumeRender" "DataManager" "AxesRender" "Metadata")
+ADD_EXECUTABLE(Editor ${CurrentFiles}.cxx ${QtSrcs} ${MOCSrcs} ${QtResources_CXX})
+TARGET_LINK_LIBRARIES(Editor ${Libraries})
+SET_TARGET_PROPERTIES(Editor PROPERTIES OUTPUT_NAME EspinaEditor)
+
+INSTALL(TARGETS Editor DESTINATION bin)
+SET(CPACK_GENERATOR "DEB")
+SET(CPACK_DEBIAN_PACKAGE_MAINTAINER "Félix de las Pozas <fpozas@alumnos.upm.es>")
+SET(CPACK_DEBIAN_PACKAGE_NAME "Espina Volume Editor")
+SET(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
+SET(CPACK_PACKAGE_VERSION "1.0.0")
+SET(CPACK_PACKAGE_VERSION_MAJOR "1")
+SET(CPACK_PACKAGE_VERSION_MINOR "0")
+SET(CPACK_PACKAGE_VERSION_PATCH "0")
+SET(CPACK_DEBIAN_PACKAGE_ARCHITECTURE i386)
+SET(CPACK_DEBIAN_ARCHITECTURE ${CMAKE_SYSTEM_PROCESSOR})
+SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Volume editor for Espina segmentation tool")
+SET(CPACK_PACKAGE_DESCRIPTION "Volume editor for Espina segmentation tool")
+
+INCLUDE(CPack)
+

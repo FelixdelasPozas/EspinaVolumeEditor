@@ -37,7 +37,7 @@ DataManager::DataManager()
     _actionsBuffer = new UndoRedoSystem(this);
 }
 
-void DataManager::Initialize(itk::SmartPointer<LabelMapType> labelMap, Coordinates *OrientationData, Metadata* data)
+void DataManager::Initialize(itk::SmartPointer<LabelMapType> labelMap, Coordinates *OrientationData, Metadata *data)
 {
     _orientationData = OrientationData;
     
