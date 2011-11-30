@@ -991,7 +991,6 @@ void EspinaVolumeEditor::SetPointLabel()
     {
         pointlabelnumber->setText(" Background");
         pointlabelcolor->setText(" None");
-        valuelabel->setText(" None");
         return;
     }
 
@@ -1011,10 +1010,6 @@ void EspinaVolumeEditor::SetPointLabel()
     out1 << labelindex;
     pointlabelnumber->setText(out1.str().c_str());
     pointlabelcolor->setPixmap(icon);
-
-    std::stringstream out2;
-    out2 << _pointScalar;
-    valuelabel->setText(out2.str().c_str());
 }
 
 void EspinaVolumeEditor::FillColorLabels()

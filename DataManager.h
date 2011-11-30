@@ -156,10 +156,10 @@ class DataManager
         vtkSmartPointer<vtkStructuredPoints>    	_structuredPoints;
         vtkSmartPointer<vtkLookupTable>         	_lookupTable;
         Coordinates                            	   *_orientationData;
-        
+
         // map image values<->internal values
         std::map<unsigned short, unsigned short>  	_labelValues;
-        
+
         // map labels <-> centroids
         std::map<unsigned short, Vector3d>     		_objectCentroid;
         // undo/redo system
