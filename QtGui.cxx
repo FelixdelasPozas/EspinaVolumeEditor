@@ -113,6 +113,7 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
     connect(paintbutton, SIGNAL(toggled(bool)), this, SLOT(EditorSelectionEnd(bool)));
     connect(cutbutton, SIGNAL(clicked(bool)), this, SLOT(EditorCut()));
     connect(relabelbutton, SIGNAL(clicked(bool)), this, SLOT(EditorRelabel()));
+    connect(pickerbutton, SIGNAL(clicked(bool)), this, SLOT(EditorSelectionEnd(bool)));
 
     connect(axialresetbutton, SIGNAL(clicked(bool)), this, SLOT(ViewReset()));
     connect(coronalresetbutton, SIGNAL(clicked(bool)), this, SLOT(ViewReset()));
@@ -1034,7 +1035,7 @@ void EspinaVolumeEditor::FillColorLabels()
         color.setRgbF(rgba[0], rgba[1], rgba[2], 1);
         icon.fill(color);
         std::stringstream out;
-        out << _fileMetadata->GetObjectSegmentName(i) << " " << _fileMetadata->GetObjectScalar(i);
+        out << _fileMetadata->GetObjectSegmentName(i) << " " << _dataManager->GetScalarForLabel(i);
         QListWidgetItem *item = new QListWidgetItem(QIcon(icon), QString(out.str().c_str()));
         labelselector->addItem(item);
     }

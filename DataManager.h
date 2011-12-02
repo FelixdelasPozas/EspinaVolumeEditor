@@ -139,7 +139,6 @@ class DataManager
         // get the bounding box index and size for the object
         itk::Index<3> GetBoundingBoxOrigin(unsigned short);
         itk::Size<3> GetBoundingBoxSize(unsigned short);
-
     private:
         // resets lookuptable to initial state based on original labelmap, used during init too
         void GenerateLookupTable();

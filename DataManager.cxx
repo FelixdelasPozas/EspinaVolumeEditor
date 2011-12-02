@@ -574,3 +574,4 @@ std::map<unsigned short, unsigned long long int>* DataManager::GetVoxelCountTabl
 {
 	return &_voxelCount;
 }
+

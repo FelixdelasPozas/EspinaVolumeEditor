@@ -34,7 +34,7 @@ QtRelabel::~QtRelabel()
     // empty
 }
 
-void QtRelabel::SetInitialOptions(unsigned short label,vtkSmartPointer<vtkLookupTable> colors, Metadata* data)
+void QtRelabel::SetInitialOptions(unsigned short label,vtkSmartPointer<vtkLookupTable> colors, Metadata* data, DataManager* dataManager)
 {
     double rgba[4];
     QPixmap icon(16,16);
@@ -51,7 +51,7 @@ void QtRelabel::SetInitialOptions(unsigned short label,vtkSmartPointer<vtkLookup
         color.setRgbF(rgba[0], rgba[1], rgba[2], 1);
         icon.fill(color);
         std::stringstream out;
-        out << data->GetObjectSegmentName(label) << " " << data->GetObjectScalar(label) << " voxels";
+        out << data->GetObjectSegmentName(label) << " " << dataManager->GetScalarForLabel(label) << " voxels";
         std::string text = out.str();
         colorlabel->setPixmap(icon);
         selectionlabel->setText(QString(text.c_str()));

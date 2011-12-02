@@ -282,7 +282,7 @@ bool EditorOperations::RelabelSelection(QWidget *parent, unsigned short label, v
     bool newcolor = false;
     
     QtRelabel configdialog(parent);
-    configdialog.SetInitialOptions(label, colors, data);
+    configdialog.SetInitialOptions(label, colors, data, _dataManager);
     configdialog.exec();
     
     if (!configdialog.ModifiedData())

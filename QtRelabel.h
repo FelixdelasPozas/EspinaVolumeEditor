@@ -20,6 +20,7 @@
 
 // project includes
 #include "Metadata.h"
+#include "DataManager.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // QtRelabel class
@@ -33,7 +34,7 @@ class QtRelabel: public QDialog, private Ui_Relabel
         ~QtRelabel();
 
         // set initial options
-        void SetInitialOptions(unsigned short, vtkSmartPointer<vtkLookupTable>, Metadata*);
+        void SetInitialOptions(unsigned short, vtkSmartPointer<vtkLookupTable>, Metadata*, DataManager*);
 
         // get the label selected in combobox
         unsigned short GetSelectedLabel();
