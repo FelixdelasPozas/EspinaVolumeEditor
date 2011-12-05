@@ -21,6 +21,9 @@
 // project includes
 #include "VectorSpaceAlgebra.h"
 
+// DataManager forward declaration
+class DataManager;
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Metadata class
 //
@@ -35,7 +38,7 @@ class Metadata
         bool Read(QString);
 
         // write metadata to a segmha file
-        bool Write(QString, std::map<unsigned short, unsigned short>*, std::map<unsigned short, unsigned long long>*);
+        bool Write(QString, DataManager *);
 
         // returns the segment name of the object
         std::string GetObjectSegmentName(unsigned short);

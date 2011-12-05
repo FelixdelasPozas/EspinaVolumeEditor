@@ -19,6 +19,7 @@
 
 // project includes
 #include "DataManager.h"
+#include "UndoRedoSystem.h"
 #include "VectorSpaceAlgebra.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -40,15 +41,19 @@ DataManager::DataManager()
 void DataManager::Initialize(itk::SmartPointer<LabelMapType> labelMap, Coordinates *OrientationData, Metadata *data)
 {
     _orientationData = OrientationData;
-    
-    // initalize label values
-    _labelValues.clear();
-    _labelValues.insert(std::pair<unsigned short, unsigned short>(0,0));
+  	Vector3d spacing = _orientationData->GetImageSpacing();
+   	Vector3d imageorigin = _orientationData->GetImageOrigin();
+   	Vector3ui imagesize = _orientationData->GetImageSize();
 
-    // clear voxel statistics and set data from the background label
-    Vector3ui transformedsize = _orientationData->GetTransformedSize();
-    _voxelCount.clear();
-    _voxelCount.insert(std::pair<unsigned short, unsigned long long int>(0,static_cast<unsigned long long>(transformedsize[0])*static_cast<unsigned long long>(transformedsize[1])*static_cast<unsigned long long>(transformedsize[2])));
+   	// insert background label info, initially all voxels are background, we'll substract later
+   	struct ObjectInformation *object = new struct ObjectInformation;
+   	object->scalar = 0;
+   	object->centroid = Vector3d((imagesize[0]/2.0)*spacing[0], (imagesize[1]/2.0)*spacing[1], (imagesize[2]/2.0)/spacing[2]);
+   	object->sizeInVoxels = imagesize[0] * imagesize[1] * imagesize[2];
+   	object->min = Vector3ui(0,0,0);
+   	object->max = Vector3ui(imagesize[0], imagesize[1], imagesize[2]);
+
+   	ObjectVector.insert(std::pair<unsigned short, ObjectInformation*>(0,object));
 
 
     // evaluate shapelabelobjects to get the centroid of the object
@@ -68,20 +73,6 @@ void DataManager::Initialize(itk::SmartPointer<LabelMapType> labelMap, Coordinat
     labelChanger->SetInput(evaluator->GetOutput());
   	labelChanger->SetInPlace(true);
 
-   	// set bounding box for the background label
-  	Vector3d spacing = _orientationData->GetImageSpacing();
-   	Vector3d imageorigin = _orientationData->GetImageOrigin();
-   	Vector3ui imagesize = _orientationData->GetImageSize();
-    itk::Index<3> origin;
-    origin[0] = static_cast<int>(imageorigin[0]/spacing[0]);
-    origin[1] = static_cast<int>(imageorigin[1]/spacing[1]);
-    origin[2] = static_cast<int>(imageorigin[2]/spacing[2]);
-    itk::Size<3> size;
-    size[0] = imagesize[0];
-    size[1] = imagesize[1];
-    size[2] = imagesize[2];
-    SetObjectBoundingBox(0, origin, size);
-
   	typedef itk::ImageRegion<3> ImageRegionType;
   	ImageRegionType region;
     unsigned short i = 1;
@@ -91,20 +82,27 @@ void DataManager::Initialize(itk::SmartPointer<LabelMapType> labelMap, Coordinat
     {
         const unsigned short scalar = iter->first;
         LabelObjectType * labelObject = iter->second;
-
         centroid = labelObject->GetCentroid();
         region = labelObject->GetRegion();
-
         itk::Index<3> regionOrigin = region.GetIndex();
         itk::Size<3> regionSize = region.GetSize();
-        SetObjectBoundingBox(i, regionOrigin, regionSize);
 
-        _labelValues.insert(std::pair<unsigned short, unsigned short>(i,scalar));
-        _voxelCount.insert(std::pair<unsigned short, unsigned long long int>(i, labelObject->Size()));
-        _voxelCount[0] -= _voxelCount[i];
-        _objectCentroid.insert(std::pair<unsigned short, Vector3d>(i, Vector3d(centroid[0]/spacing[0],centroid[1]/spacing[1],centroid[2]/spacing[2])));
+        object = new struct ObjectInformation;
+        object->scalar = scalar;
+        object->centroid = Vector3d(centroid[0]/spacing[0],centroid[1]/spacing[1],centroid[2]/spacing[2]);
+        object->sizeInVoxels = labelObject->Size();
+        object->min = Vector3ui(regionOrigin[0], regionOrigin[1], regionOrigin[2]);
+        object->max = Vector3ui(regionSize[0]+regionOrigin[0], regionSize[1]+regionOrigin[1], regionSize[2]+regionOrigin[2]);
 
+        ObjectVector.insert(std::pair<unsigned short, ObjectInformation*>(i,object));
+
+        // substract the voxels of this object from the background label
+        ObjectVector[0]->sizeInVoxels -= labelObject->Size();
+
+        // need to mark object label as used to correct errors in the segmha metadata (defined labels but empty objects)
         data->MarkObjectAsUsed(scalar);
+
+        // flatten label
         labelChanger->SetChange(scalar,i);
     }
 
@@ -124,12 +122,20 @@ void DataManager::Initialize(itk::SmartPointer<LabelMapType> labelMap, Coordinat
 
 DataManager::~DataManager()
 {
-	// delete the manually allocated bounding boxes
-	std::map<unsigned short, struct BoundingBox*>::iterator it;
+	// delete manually allocated memory
+	std::map<unsigned short, struct ObjectInformation*>::iterator objectit;
+	for (objectit = ObjectVector.begin(); objectit != ObjectVector.end(); objectit++)
+		delete (*objectit).second;
+	ObjectVector.clear();
 
-	for (it = _objectBox.begin(); it != _objectBox.end(); it++)
-		delete (*it).second;
+	std::map<unsigned short, struct ActionInformation*>::iterator actionit;
+	for (actionit = ActionInformationVector.begin(); actionit != ActionInformationVector.end(); actionit++)
+		delete (*actionit).second;
+	ActionInformationVector.clear();
 
+	// this deletes the objects created by datamanager and stored in the redo buffer, finally deleting all
+	// dinamically allocated objects. The objects stored in the undo buffer have been already deleted
+	// because they were in the ObjectVector in DataManager.
     delete _actionsBuffer;
 }
 
@@ -137,7 +143,7 @@ void DataManager::SetStructuredPoints(vtkSmartPointer<vtkStructuredPoints> point
 {
     _structuredPoints = vtkSmartPointer<vtkStructuredPoints>::New();
     _structuredPoints->SetNumberOfScalarComponents(1);
-    _structuredPoints->SetScalarTypeToUnsignedChar();
+    _structuredPoints->SetScalarTypeToUnsignedShort();
     _structuredPoints->CopyInformation(points);
     _structuredPoints->AllocateScalars();
     _structuredPoints->DeepCopy(points);
@@ -159,9 +165,9 @@ Coordinates * DataManager::GetOrientationData()
     return _orientationData;
 }
 
-std::map<unsigned short, unsigned short>* DataManager::GetLabelValueTable()
+std::map<unsigned short, struct DataManager::ObjectInformation*>* DataManager::GetObjectTablePointer()
 {
-    return &_labelValues;
+    return &ObjectVector;
 }
 
 unsigned short DataManager::GetVoxelScalar(unsigned int x, unsigned int y, unsigned int z)
@@ -177,67 +183,54 @@ void DataManager::SetVoxelScalar(unsigned int x, unsigned int y, unsigned int z,
     if (scalar == *pixel)
         return;
 
-    _voxelActionCount[*pixel]--;
-    _voxelActionCount[scalar]++;
-    
-    // calculate centroid variation for both objects
-    Vector3d centroid = _objectCentroid[(*pixel)];
-    _temporalCentroid[*pixel][0] -= x;
-    _temporalCentroid[*pixel][1] -= y;
-    _temporalCentroid[*pixel][2] -= z;
-    centroid = _objectCentroid[scalar];
-    _temporalCentroid[scalar][0] += x;
-    _temporalCentroid[scalar][1] += y;
-    _temporalCentroid[scalar][2] += z;
-
-    // we have to check if this is a new label without a proper bounding box
-    itk::Index<3> origin;
-    itk::Size<3> size;
-
-    if (NULL == _objectBox[scalar])
+    if (NULL == ActionInformationVector[*pixel])
     {
-     	origin[0] = x;
-       	origin[1] = y;
-       	origin[2] = z;
-       	size[0] = 1;
-       	size[1] = 1;
-       	size[2] = 1;
+    	struct ActionInformation *action = new struct ActionInformation;
+    	ActionInformationVector[*pixel] = action;
+    	action->min = Vector3ui(x,y,z);
+    	action->max = Vector3ui(x+1,y+1,z+1);
     }
-    else
+    ActionInformationVector[*pixel]->sizeInVoxels -= 1;
+    ActionInformationVector[*pixel]->temporalCentroid[0] -= x;
+    ActionInformationVector[*pixel]->temporalCentroid[1] -= y;
+    ActionInformationVector[*pixel]->temporalCentroid[2] -= z;
+
+    if (NULL == ActionInformationVector[scalar])
     {
-    	// calculate bounding box variation for the object adding voxels
-    	origin = GetBoundingBoxOrigin(scalar);
-    	size = GetBoundingBoxSize(scalar);
-
-    	if (x > origin[0]+size[0])
-    		size[0] = x - origin[0];
-
-       	if (y > origin[1]+size[1])
-       		size[1] = y - origin[1];
-
-       	if (z > origin[2]+size[2])
-       		size[2] = z - origin[2];
-
-       	if (x < static_cast<unsigned int>(origin[0]))
-       	{
-       		size[0] += origin[0] - x;
-       		origin[0] = x;
-       	}
-
-       	if (y < static_cast<unsigned int>(origin[1]))
-       	{
-      		size[1] += origin[1] - y;
-     		origin[1] = y;
-       	}
-
-       	if (z < static_cast<unsigned int>(origin[2]))
-       	{
-       		size[2] += origin[2] - z;
-       		origin[2] = z;
-       	}
+    	struct ActionInformation *action = new struct ActionInformation;
+    	ActionInformationVector[scalar] = action;
+    	action->min = Vector3ui(x,y,z);
+    	action->max = Vector3ui(x+1,y+1,z+1);
     }
+    ActionInformationVector[scalar]->sizeInVoxels += 1;
+    ActionInformationVector[scalar]->temporalCentroid[0] += x;
+    ActionInformationVector[scalar]->temporalCentroid[1] += y;
+    ActionInformationVector[scalar]->temporalCentroid[2] += z;
 
-    SetObjectBoundingBox(scalar, origin, size);
+    // have to check if the added voxel is out of the object region to make the bounding box grow
+    Vector3ui min = ActionInformationVector[scalar]->min;
+    Vector3ui max = ActionInformationVector[scalar]->max;
+
+    if (x < min[0])
+     	min[0] = x;
+
+    if (x > max[0])
+       	max[0] = x;
+
+    if (y < min[1])
+       	min[1] = y;
+
+    if (y > max[1])
+      	max[1] = y;
+
+    if (z < min[2])
+      	min[2] = z;
+
+    if (z > max[2])
+       	max[2] = z;
+
+    ActionInformationVector[scalar]->min = min;
+    ActionInformationVector[scalar]->max = max;
 
     _actionsBuffer->AddPoint(Vector3ui(x,y,z), *pixel);
     *pixel = scalar;
@@ -255,12 +248,6 @@ void DataManager::SetVoxelScalarRaw(unsigned int x, unsigned int y, unsigned int
     _structuredPoints->Modified();
 }
 
-int DataManager::GetNumberOfLabels()
-{
-    // all labels plus background label
-    return _labelValues.size()+1;
-}
-
 vtkSmartPointer<vtkLookupTable> DataManager::GetLookupTable()
 {
     return _lookupTable;
@@ -269,30 +256,36 @@ vtkSmartPointer<vtkLookupTable> DataManager::GetLookupTable()
 unsigned short DataManager::SetLabel(Vector3d rgb)
 {
 	// labelvalues usually goes 0-n, that's n+1 values = _labelValues.size();
-    unsigned short newlabel = _labelValues.size();
+    unsigned short newlabel = ObjectVector.size();
     
-    // we need to find an unused value in our table 
+    // we need to find an unused scalar value in our table
     bool free = false;
     unsigned short freevalue = _firstFreeValue;
-    std::map<unsigned short, unsigned short>::iterator it;
+    std::map<unsigned short, struct ObjectInformation*>::iterator it;
     
     while (!free)
     {
         free = true;
         
         // can't use find() as the value we're searching is the 'second' field
-        for (it = _labelValues.begin(); it != _labelValues.end(); it++)
-            if ((*it).second == freevalue)
+        for (it = ObjectVector.begin(); it != ObjectVector.end(); it++)
+            if ((*it).second->scalar == freevalue)
+            {
                 free = false;
-        
-        if (free == false)
-            freevalue++;
+                freevalue++;
+            }
     }
     
-    _labelValues.insert(std::pair<unsigned short, unsigned short>(newlabel,freevalue));
-    _voxelCount.insert(std::pair<unsigned short, unsigned long long int>(newlabel, 0));
-    _objectCentroid.insert(std::pair<unsigned short, Vector3d>(newlabel,Vector3d(0,0,0)));
-    _actionsBuffer->StoreLabelValue(std::pair<unsigned short, unsigned short>(newlabel,freevalue));
+    struct ObjectInformation *object = new struct ObjectInformation;
+    object->scalar = freevalue;
+    object->sizeInVoxels = 0;
+    object->centroid = Vector3d(0,0,0);
+    object->min = Vector3ui(0,0,0);
+    object->max = Vector3ui(0,0,0);
+
+    ObjectVector.insert(std::pair<unsigned short, struct ObjectInformation*>(newlabel,object));
+
+    _actionsBuffer->StoreObject(std::pair<unsigned short, struct ObjectInformation*>(newlabel,object));
 
     vtkSmartPointer<vtkLookupTable> temptable = vtkSmartPointer<vtkLookupTable>::New();
     CopyLookupTable(_lookupTable, temptable);
@@ -368,10 +361,18 @@ void DataManager::SwitchLookupTables(vtkSmartPointer<vtkLookupTable> table)
     _lookupTable->Modified();
 }
 
+void DataManager::StatisticsActionClear(void)
+{
+	std::map<unsigned short, struct ActionInformation*>::iterator it;
+	for (it = ActionInformationVector.begin(); it != ActionInformationVector.end(); it++)
+		delete (*it).second;
+
+	ActionInformationVector.clear();
+}
+
 void DataManager::OperationStart(std::string actionName)
 {
-    _voxelActionCount.clear();
-    _temporalCentroid.clear();
+	StatisticsActionClear();
     _actionsBuffer->SignalBeginAction(actionName);
 }
 
@@ -413,17 +414,15 @@ bool DataManager::IsRedoBufferEmpty()
 
 void DataManager::DoUndoOperation()
 {
-   	_voxelActionCount.clear();
-   	_temporalCentroid.clear();
-    _actionsBuffer->DoAction(UndoRedoSystem::UNDO);
+	StatisticsActionClear();
+	_actionsBuffer->DoAction(UndoRedoSystem::UNDO);
     StatisticsActionJoin();
 }
 
 void DataManager::DoRedoOperation()
 {
-	_voxelActionCount.clear();
-	_temporalCentroid.clear();
-    _actionsBuffer->DoAction(UndoRedoSystem::REDO);
+	StatisticsActionClear();
+	_actionsBuffer->DoAction(UndoRedoSystem::REDO);
     StatisticsActionJoin();
 }
 
@@ -454,12 +453,12 @@ unsigned short DataManager::GetFirstFreeValue()
 
 unsigned short DataManager::GetLastUsedValue()
 {
-    std::map<unsigned short, unsigned short>::iterator it;
+    std::map<unsigned short, struct ObjectInformation*>::iterator it;
     unsigned short value = 0;
 
-    for (it = _labelValues.begin(); it != _labelValues.end(); it++)
-        if ((*it).second > value)
-            value = (*it).second;
+    for (it = ObjectVector.begin(); it != ObjectVector.end(); it++)
+        if ((*it).second->scalar > value)
+            value = (*it).second->scalar;
 
     return value;
 }
@@ -468,10 +467,10 @@ double* DataManager::GetRGBAColorForScalar(unsigned short scalar)
 {
     double* rgba = new double[4];
     
-    std::map<unsigned short, unsigned short>::iterator it;
+    std::map<unsigned short, struct ObjectInformation*>::iterator it;
     
-    for (it = _labelValues.begin(); it != _labelValues.end(); it++)
-        if ((*it).second == scalar)
+    for (it = ObjectVector.begin(); it != ObjectVector.end(); it++)
+        if ((*it).second->scalar == scalar)
         {
             _lookupTable->GetTableValue((*it).first, rgba);
             return rgba;
@@ -484,58 +483,93 @@ double* DataManager::GetRGBAColorForScalar(unsigned short scalar)
 
 void DataManager::StatisticsActionJoin(void)
 {
-    std::map<unsigned short, long long int>::iterator it;
+    std::map<unsigned short, struct ActionInformation*>::iterator it;
 
-    for (it = _voxelActionCount.begin(); it != _voxelActionCount.end(); it++)
+    for (it = ActionInformationVector.begin(); it != ActionInformationVector.end(); it++)
     {
+    	// the action information could refer to a deleted label (in undo/redo buffer)
+    	if (ObjectVector.count((*it).first) == 0)
+    		continue;
+
+    	// no need to recalculate centroid or bounding box for background label
     	if ((*it).first != 0)
     	{
-        	if (0 == (_voxelCount[(*it).first] + (*it).second))
-        		_objectCentroid[(*it).first] = Vector3d(0,0,0);
+    		// calculate new centroid based on modified voxels
+        	if (0 == (ObjectVector[(*it).first]->sizeInVoxels + (*it).second->sizeInVoxels))
+        		ObjectVector[(*it).first]->centroid = Vector3d(0,0,0);
         	else
         	{
-        		double x = (_temporalCentroid[(*it).first][0] / static_cast<double>((*it).second));
-        		double y = (_temporalCentroid[(*it).first][1] / static_cast<double>((*it).second));
-        		double z = (_temporalCentroid[(*it).first][2] / static_cast<double>((*it).second));
+        		double x = ((*it).second->temporalCentroid[0] / static_cast<double>((*it).second->sizeInVoxels));
+        		double y = ((*it).second->temporalCentroid[1] / static_cast<double>((*it).second->sizeInVoxels));
+        		double z = ((*it).second->temporalCentroid[2] / static_cast<double>((*it).second->sizeInVoxels));
 
-        		Vector3d centroid = _objectCentroid[(*it).first];
-        		unsigned long long int objectVoxels = GetNumberOfVoxelsForLabel((*it).first);
+        		Vector3d centroid = ObjectVector[(*it).first]->centroid;
+        		unsigned long long int objectVoxels = ObjectVector[(*it).first]->sizeInVoxels;
 
         		// if the object has a centroid
-         		if ((Vector3d(0.0,0.0,0.0) != centroid) && (0 != objectVoxels))
+        		if ((Vector3d(0,0,0) != centroid) && (0 != objectVoxels))
         		{
-        			double coef_1 = objectVoxels / static_cast<double>(objectVoxels +(*it).second);
-        			double coef_2 = (*it).second / static_cast<double>(objectVoxels +(*it).second);
+        			double coef_1 = objectVoxels / static_cast<double>(objectVoxels + (*it).second->sizeInVoxels);
+        			double coef_2 = (*it).second->sizeInVoxels / static_cast<double>(objectVoxels + (*it).second->sizeInVoxels);
 
 					x = (centroid[0] * coef_1) + (x * coef_2);
 					y = (centroid[1] * coef_1) + (y * coef_2);
 					z = (centroid[2] * coef_1) + (z * coef_2);
         		}
-        		_objectCentroid[(*it).first] = Vector3d(x,y,z);
+        		ObjectVector[(*it).first]->centroid = Vector3d(x,y,z);
         	}
+
+        	// if the object doesn't have voxels means that the calculated bounding box is the object bounding box
+        	if (0LL == ObjectVector[(*it).first]->sizeInVoxels)
+        	{
+        		ObjectVector[(*it).first]->min = (*it).second->min;
+        		ObjectVector[(*it).first]->max = (*it).second->max;
+        	}
+        	// else calculate new bounding box based on modified voxels, but only if we've been adding voxels, not substracting them
+        	else
+        		if (0LL < (*it).second->sizeInVoxels)
+        		{
+        			if (ObjectVector[(*it).first]->min[0] > (*it).second->min[0])
+        		 		ObjectVector[(*it).first]->min[0] = (*it).second->min[0];
+
+        			if (ObjectVector[(*it).first]->min[1] > (*it).second->min[1])
+        				ObjectVector[(*it).first]->min[1] = (*it).second->min[1];
+
+        			if (ObjectVector[(*it).first]->min[2] > (*it).second->min[2])
+        		 		ObjectVector[(*it).first]->min[2] = (*it).second->min[2];
+
+        			if (ObjectVector[(*it).first]->max[0] < (*it).second->max[0])
+        		 		ObjectVector[(*it).first]->max[0] = (*it).second->max[0];
+
+        			if (ObjectVector[(*it).first]->max[1] < (*it).second->max[1])
+        				ObjectVector[(*it).first]->max[1] = (*it).second->max[1];
+
+        			if (ObjectVector[(*it).first]->max[2] < (*it).second->max[2])
+        		 		ObjectVector[(*it).first]->max[2] = (*it).second->max[2];
+        		 }
     	}
-    	_voxelCount[(*it).first] += (*it).second;
+    	ObjectVector[(*it).first]->sizeInVoxels += (*it).second->sizeInVoxels;
     }
 }
 
 unsigned long long int DataManager::GetNumberOfVoxelsForLabel(unsigned short label)
 {
-    return _voxelCount[label];
+    return ObjectVector[label]->sizeInVoxels;
 }
 
-unsigned short DataManager::GetScalarForLabel(unsigned short colorNum)
+unsigned short DataManager::GetScalarForLabel(unsigned short label)
 {
-	return _labelValues[colorNum];
+	return ObjectVector[label]->scalar;
 }
 
 unsigned short DataManager::GetLabelForScalar(unsigned short scalar)
 {
-    std::map<unsigned short, unsigned short>::iterator it;
+    std::map<unsigned short, struct ObjectInformation*>::iterator it;
     
     // find the label number of the label value (scalar), can't use find() on map
     // because we're looking the 'second' field
-    for (it = _labelValues.begin(); it != _labelValues.end(); it++)
-        if ((*it).second == scalar)
+    for (it = ObjectVector.begin(); it != ObjectVector.end(); it++)
+        if ((*it).second->scalar == scalar)
             return (*it).first;
 
 	return 0;
@@ -543,35 +577,20 @@ unsigned short DataManager::GetLabelForScalar(unsigned short scalar)
 
 Vector3d DataManager::GetCentroidForObject(unsigned short int label)
 {
-	return _objectCentroid[label];
+	return ObjectVector[label]->centroid;
 }
 
-void DataManager::SetObjectBoundingBox(unsigned short label, itk::Index<3> origin, itk::Size<3> size)
+Vector3ui DataManager::GetBoundingBoxMin(unsigned short label)
 {
-	struct BoundingBox *box = _objectBox[label];
-
-	if (box == NULL)
-	{
-		box = new struct BoundingBox;
-		_objectBox[label] = box;
-	}
-
-	box->origin = origin;
-	box->size = size;
+	return ObjectVector[label]->min;
 }
 
-itk::Index<3> DataManager::GetBoundingBoxOrigin(unsigned short label)
+Vector3ui DataManager::GetBoundingBoxMax(unsigned short label)
 {
-	return _objectBox[label]->origin;
+	return ObjectVector[label]->max;
 }
 
-itk::Size<3> DataManager::GetBoundingBoxSize(unsigned short label)
+unsigned int DataManager::GetNumberOfLabels(void)
 {
-	return _objectBox[label]->size;
+	return ObjectVector.size();
 }
-
-std::map<unsigned short, unsigned long long int>* DataManager::GetVoxelCountTable(void)
-{
-	return &_voxelCount;
-}
-

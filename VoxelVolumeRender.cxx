@@ -240,13 +240,13 @@ void VoxelVolumeRender::UpdateColorTable(int value, double alpha)
 void VoxelVolumeRender::UpdateFocusExtent(void)
 {
 	Vector3d spacing = _dataManager->GetOrientationData()->GetImageSpacing();
-	itk::Index<3> origin = _dataManager->GetBoundingBoxOrigin(_objectLabel);
-	itk::Size<3> size = _dataManager->GetBoundingBoxSize(_objectLabel);
+	Vector3ui min = _dataManager->GetBoundingBoxMin(_objectLabel);
+	Vector3ui max = _dataManager->GetBoundingBoxMax(_objectLabel);
 
 	_volumemapper->SetCroppingRegionPlanes(
-			(origin[0]-1)*spacing[0], (origin[0]+size[0]+1)*spacing[0],
-			(origin[1]-1)*spacing[1], (origin[1]+size[1]+1)*spacing[1],
-			(origin[2]-1)*spacing[2], (origin[2]+size[2]+1)*spacing[2]);
+			(min[0]-1)*spacing[0], (max[0]+1)*spacing[0],
+			(min[1]-1)*spacing[1], (max[1]+1)*spacing[1],
+			(min[2]-1)*spacing[2], (max[2]+1)*spacing[2]);
 	_volumemapper->CroppingOn();
 	_volumemapper->SetCroppingRegionFlagsToSubVolume();
 	_volumemapper->Update();
@@ -262,16 +262,16 @@ void VoxelVolumeRender::UpdateFocus(unsigned short label)
 	ViewAsVolume();
 
 	Vector3d spacing = _dataManager->GetOrientationData()->GetImageSpacing();
-	itk::Index<3> origin = _dataManager->GetBoundingBoxOrigin(_objectLabel);
-	itk::Size<3> size = _dataManager->GetBoundingBoxSize(_objectLabel);
+	Vector3ui min = _dataManager->GetBoundingBoxMin(_objectLabel);
+	Vector3ui max = _dataManager->GetBoundingBoxMax(_objectLabel);
 
 	// it should really be (origin-0.5) and (origin+size+0.5) for rendering the
 	// correct bounding box for the object, but if we do it that way thin
 	// objects aren't rendered correctly, so 1.5 corrects this.
 	_volumemapper->SetCroppingRegionPlanes(
-			(origin[0]-1.5)*spacing[0], (origin[0]+size[0]+1.5)*spacing[0],
-			(origin[1]-1.5)*spacing[1], (origin[1]+size[1]+1.5)*spacing[1],
-			(origin[2]-1.5)*spacing[2], (origin[2]+size[2]+1.5)*spacing[2]);
+			(min[0]-1.5)*spacing[0], (max[0]+1.5)*spacing[0],
+			(min[1]-1.5)*spacing[1], (max[1]+1.5)*spacing[1],
+			(min[2]-1.5)*spacing[2], (max[2]+1.5)*spacing[2]);
 	_volumemapper->CroppingOn();
 	_volumemapper->SetCroppingRegionFlagsToSubVolume();
 	_volumemapper->Update();

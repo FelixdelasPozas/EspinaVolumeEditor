@@ -184,8 +184,10 @@ void EditorOperations::AddSelectionPoint(Vector3ui point)
             _selectedPoints.pop_back();
             _selectedPoints.push_back(point);
             break;
-        case 0: /* no break */
+        case 0:
             _actor->SetVisibility(true);
+            _selectedPoints.push_back(point);
+            break;
         default:
             _selectedPoints.push_back(point);
             break;
@@ -565,7 +567,6 @@ void EditorOperations::WatershedSelection(unsigned short label)
 
     // for the randomized label colors
     srand(time(NULL));
-    
     for(iter = labelObjectContainer.begin(); iter != labelObjectContainer.end(); iter++)
     {
         unsigned short newlabel = 0;
@@ -611,7 +612,6 @@ void EditorOperations::WatershedSelection(unsigned short label)
 
     _progress->Reset();
     _dataManager->OperationEnd();
-    return;
 }
 
 void EditorOperations::CleanImage(itk::SmartPointer<ImageType> image, unsigned short scalar)
@@ -712,9 +712,8 @@ void EditorOperations::SaveImage(std::string filename)
     if (labelChanger->CanRunInPlace() == true)
     	labelChanger->SetInPlace(true);
 
-    std::map<unsigned short int, unsigned short int>::iterator it;
-    for (it = _dataManager->GetLabelValueTable()->begin(); it != _dataManager->GetLabelValueTable()->end(); it++)
-    	labelChanger->SetChange(it->first,it->second);
+    for (unsigned short i = 1; i < _dataManager->GetNumberOfLabels(); i++)
+    	labelChanger->SetChange(i,_dataManager->GetScalarForLabel(i));
 
     _progress->Observe(labelChanger, "Fix Labels", 0.2);
     labelChanger->Update();

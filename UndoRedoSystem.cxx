@@ -29,23 +29,29 @@ UndoRedoSystem::UndoRedoSystem(DataManager *data)
     _bufferFull = false;
     _action = NULL;
     
-    // calculate sizes beforehand (maybe different in 32/64 bits architectures)
+    // calculate sizes beforehand (may be different in different architectures)
     _sizePoint = sizeof(std::pair<Vector3ui, unsigned short>);
-    _sizeValue = sizeof(std::pair<unsigned short, unsigned short>);
+    _sizeObject = sizeof(std::pair<unsigned short, struct DataManager::ObjectInformation*>);
     _sizeAction = sizeof(struct action);
+
 }
 
 UndoRedoSystem::~UndoRedoSystem()
 {
-    // this is automatically cleared on destruction but we made it explicit here for clarity
-    _undoBuffer.clear();
-    _redoBuffer.clear();
+	// NOTE: for this and the rest of UndoRedoSystem operations: the pointers to objects allocated
+	// in the undo buffer are never freed because are in use by DataManager and it will free them
+	// on destruction. On the other hand clearing the redo buffer deletes dinamically allocated
+	// objects created by DataManager, stored in UndoRedoSystem and NOT in use by DataManager.
+	ClearBuffer(ALL);
 }
 
 // All the elements of the buffer vector are dropped (their destructors are called) and
 // this leaves the buffer with a size of 0, freeing all the previously allocated memory
 void UndoRedoSystem::ClearBuffer(UndoRedoBuffer buffer)
 {
+	// in destruction of the object we must check if objects are NULL because some could have
+	// been previously deallocated while DataManager object destruction. we don't check for
+	// NULL on the rest of the class because we know that we're deleting existing objects.
     unsigned long int capacity = 0;
     std::list< struct action >::iterator it;
     
@@ -54,8 +60,8 @@ void UndoRedoSystem::ClearBuffer(UndoRedoBuffer buffer)
         case UNDO:
             for (it = _undoBuffer.begin(); it != _undoBuffer.end(); it++)
             {
-                capacity += (*it).actionBuffer.size() * _sizePoint;
-                capacity += (*it).actionTableValues.size() * _sizeValue;
+            	capacity += (*it).actionPoints.size() * _sizePoint;
+                capacity += (*it).actionObjects.size() * _sizeObject;
                 capacity += (*it).actionString.capacity();
                 if (NULL != (*it).actionLookupTable)
                     capacity += 4*(((*it).actionLookupTable)->GetNumberOfTableValues())*sizeof(unsigned char);
@@ -66,12 +72,19 @@ void UndoRedoSystem::ClearBuffer(UndoRedoBuffer buffer)
         case REDO:
             for (it = _redoBuffer.begin(); it != _redoBuffer.end(); it++)
             {
-                capacity += (*it).actionBuffer.size() * _sizePoint;
-                capacity += (*it).actionTableValues.size() * _sizeValue;
+            	capacity += (*it).actionPoints.size() * _sizePoint;
+                capacity += (*it).actionObjects.size() * _sizeObject;
                 capacity += (*it).actionString.capacity();
                 if (NULL != (*it).actionLookupTable)
                     capacity += 4*(((*it).actionLookupTable)->GetNumberOfTableValues())*sizeof(unsigned char);
                 capacity += _sizeAction;
+
+                // delete dinamically allocated objects
+                while (!(*it).actionObjects.empty())
+                {
+                	delete (*it).actionObjects.back().second;
+                	(*it).actionObjects.pop_back();
+                }
             }
             _redoBuffer.clear();
             break;
@@ -106,13 +119,13 @@ void UndoRedoSystem::SignalBeginAction(std::string actionstring)
     while ((_bufferUsed + capacity ) > _bufferSize)
     {
         // start deleting undo actions from the beginning of the list
-        _bufferUsed -= (*_undoBuffer.begin()).actionBuffer.size() * _sizePoint;
-        _bufferUsed -= (*_undoBuffer.begin()).actionTableValues.size() * _sizeValue;
+    	_bufferUsed -= (*_undoBuffer.begin()).actionPoints.size() * _sizePoint;
+        _bufferUsed -= (*_undoBuffer.begin()).actionObjects.size() * _sizeObject;
         _bufferUsed -= (*_undoBuffer.begin()).actionString.capacity();
         if (NULL != (*_undoBuffer.begin()).actionLookupTable)
             _bufferUsed -= 4*(((*_undoBuffer.begin()).actionLookupTable)->GetNumberOfTableValues())*sizeof(unsigned char);
         _bufferUsed -= _sizeAction;
-        
+
         _undoBuffer.erase(_undoBuffer.begin());
     }
     _bufferUsed += capacity;
@@ -124,8 +137,8 @@ void UndoRedoSystem::SignalEndAction()
 {
     if (false == _bufferFull)
     {
-        // if action has modified any point or label then store it, if not just discard
-        if (((*_action).actionBuffer.size() != 0) || ((*_action).actionTableValues.size() != 0))
+        // if action has modified any point, label or color then store it, if not just discard
+        if (((*_action).actionPoints.size() != 0) || ((*_action).actionObjects.size() != 0) || ((*_action).actionLookupTable != NULL))
             _undoBuffer.push_back(*_action);
         
         _action = NULL;
@@ -136,27 +149,30 @@ void UndoRedoSystem::SignalEndAction()
 
 void UndoRedoSystem::AddPoint(Vector3ui point, unsigned short label)
 {
+	// if buffer has been marked as full (one action is too big and doesn't fit in the
+	// buffer) don't do anything else.
     if (true == _bufferFull)
         return;
 
-    unsigned long int initial_size = (*_action).actionBuffer.size();
+    unsigned long int initial_size = (*_action).actionPoints.size();
     
     std::pair<Vector3ui, unsigned short> point_data = std::make_pair(point, label);
-    (*_action).actionBuffer.push_back(point_data);
+    (*_action).actionPoints.push_back(point_data);
 
-    _bufferUsed += ((*_action).actionBuffer.size() - initial_size) * _sizePoint;
+    _bufferUsed += ((*_action).actionPoints.size() - initial_size) * _sizePoint;
     
     // we need to know if we are at the limit of our buffer
     while (_bufferUsed > _bufferSize)
     {
         // start deleting undo actions from the beginning of the list, check first if this action
-        // fits in our buffer, and if not, delete all points entered until now
+    	// fits in our buffer, and if not, delete all points entered until now and mark buffer as
+    	// completely full (the action doesn't fit)
         if (_undoBuffer.size() == 0)
         {
             _bufferFull = true;
             
-            _bufferUsed -= (*_action).actionBuffer.size() * _sizePoint;
-            _bufferUsed -= (*_action).actionTableValues.size() * _sizeValue;
+            _bufferUsed -= (*_action).actionPoints.size() * _sizePoint;
+            _bufferUsed -= (*_action).actionObjects.size() * _sizeObject;
             _bufferUsed -= (*_action).actionString.capacity();
             if (NULL != (*_action).actionLookupTable)
                 _bufferUsed -= 4*(((*_action).actionLookupTable)->GetNumberOfTableValues())*sizeof(unsigned char);
@@ -167,8 +183,8 @@ void UndoRedoSystem::AddPoint(Vector3ui point, unsigned short label)
         }
         else
         {
-            _bufferUsed -= (*_undoBuffer.begin()).actionBuffer.size() * _sizePoint;
-            _bufferUsed -= (*_undoBuffer.begin()).actionTableValues.size() * _sizeValue;
+        	_bufferUsed -= (*_undoBuffer.begin()).actionPoints.size() * _sizePoint;
+            _bufferUsed -= (*_undoBuffer.begin()).actionObjects.size() * _sizeObject;
             _bufferUsed -= (*_undoBuffer.begin()).actionString.capacity();
             if (NULL != (*_undoBuffer.begin()).actionLookupTable)
                 _bufferUsed -= 4*(((*_undoBuffer.begin()).actionLookupTable)->GetNumberOfTableValues())*sizeof(unsigned char);
@@ -207,21 +223,27 @@ void UndoRedoSystem::ChangeSize(unsigned long int size)
     // we need to delete actions to fit in that size, first redo
     while ((_bufferUsed > size) && (!IsEmpty(REDO)))
     {
-        _bufferUsed -= (*_redoBuffer.begin()).actionBuffer.size() * _sizePoint;
-        _bufferUsed -= (*_redoBuffer.begin()).actionTableValues.size() * _sizeValue;
+    	_bufferUsed -= (*_redoBuffer.begin()).actionPoints.size() * _sizePoint;
+        _bufferUsed -= (*_redoBuffer.begin()).actionObjects.size() * _sizeObject;
         _bufferUsed -= (*_redoBuffer.begin()).actionString.capacity();
         if (NULL != (*_redoBuffer.begin()).actionLookupTable)
             _bufferUsed -= 4*(((*_redoBuffer.begin()).actionLookupTable)->GetNumberOfTableValues())*sizeof(unsigned char);
         _bufferUsed -= _sizeAction;
 
+        // delete dinamically allocated objects in redo
+        while (!(*_redoBuffer.begin()).actionObjects.empty())
+        {
+        	delete (*_redoBuffer.begin()).actionObjects.back().second;
+        	(*_redoBuffer.begin()).actionObjects.pop_back();
+        }
         _redoBuffer.erase(_redoBuffer.begin());
     }
     
     // then undo
     while ((_bufferUsed > size) && (!IsEmpty(UNDO)))
     {
-        _bufferUsed -= (*_undoBuffer.begin()).actionBuffer.size() * _sizePoint;
-        _bufferUsed -= (*_undoBuffer.begin()).actionTableValues.size() * _sizeValue;
+    	_bufferUsed -= (*_undoBuffer.begin()).actionPoints.size() * _sizePoint;
+        _bufferUsed -= (*_undoBuffer.begin()).actionObjects.size() * _sizeObject;
         _bufferUsed -= (*_undoBuffer.begin()).actionString.capacity();
         if (NULL != (*_undoBuffer.begin()).actionLookupTable)
             _bufferUsed -= 4*(((*_undoBuffer.begin()).actionLookupTable)->GetNumberOfTableValues())*sizeof(unsigned char);
@@ -253,16 +275,16 @@ void UndoRedoSystem::DoAction(UndoRedoBuffer actionBuffer)
     switch (actionBuffer)
     {
         case UNDO:
-            action_vector = _undoBuffer.back().actionBuffer;
+        	action_vector = _undoBuffer.back().actionPoints;
             (*_action).actionString = _undoBuffer.back().actionString;
             (*_action).actionLookupTable = _undoBuffer.back().actionLookupTable;
-            (*_action).actionTableValues = _undoBuffer.back().actionTableValues;
+            (*_action).actionObjects = _undoBuffer.back().actionObjects;
             break;
         case REDO:
-            action_vector = _redoBuffer.back().actionBuffer;
+        	action_vector = _redoBuffer.back().actionPoints;
             (*_action).actionString = _redoBuffer.back().actionString;
             (*_action).actionLookupTable = _redoBuffer.back().actionLookupTable;
-            (*_action).actionTableValues = _redoBuffer.back().actionTableValues;
+            (*_action).actionObjects = _redoBuffer.back().actionObjects;
             break;
         default: 
             break;
@@ -286,10 +308,12 @@ void UndoRedoSystem::DoAction(UndoRedoBuffer actionBuffer)
         Vector3ui point = action_point.first;
         _dataManager->SetVoxelScalar(point[0], point[1], point[2], action_point.second);
     }
-    
-    std::vector<std::pair<unsigned short, unsigned short> >::iterator it;
+
+    std::vector<std::pair<unsigned short, struct DataManager::ObjectInformation*> >::iterator it;
     
     // insert the changed action in the right buffer and apply the actual LookupTable and table values
+    // in fact only the pointers in the original ObjectVector (a std::map) are changed the objects are
+    // only deleted when the undoredosystem deletes them
     switch (actionBuffer)
     {
         case UNDO:
@@ -298,8 +322,8 @@ void UndoRedoSystem::DoAction(UndoRedoBuffer actionBuffer)
             if (NULL != _redoBuffer.back().actionLookupTable)
                 _dataManager->SwitchLookupTables(_redoBuffer.back().actionLookupTable);
             
-            for(it = _redoBuffer.back().actionTableValues.begin(); it != _redoBuffer.back().actionTableValues.end(); it++)
-                (*_dataManager->GetLabelValueTable()).erase((*it).first);
+            for(it = _redoBuffer.back().actionObjects.begin(); it != _redoBuffer.back().actionObjects.end(); it++)
+            	(*_dataManager->GetObjectTablePointer()).erase((*it).first);
 
             break;
         case REDO:
@@ -308,8 +332,8 @@ void UndoRedoSystem::DoAction(UndoRedoBuffer actionBuffer)
             if (NULL != _undoBuffer.back().actionLookupTable)
                 _dataManager->SwitchLookupTables(_undoBuffer.back().actionLookupTable);
             
-            for(it = _undoBuffer.back().actionTableValues.begin(); it != _undoBuffer.back().actionTableValues.end(); it++)
-                (*_dataManager->GetLabelValueTable()).insert((*it));
+            for(it = _undoBuffer.back().actionObjects.begin(); it != _undoBuffer.back().actionObjects.end(); it++)
+            	(*_dataManager->GetObjectTablePointer())[(*it).first] = (*it).second;
 
             break;
         default: 
@@ -319,14 +343,54 @@ void UndoRedoSystem::DoAction(UndoRedoBuffer actionBuffer)
     _action = NULL;
 }
 
-void UndoRedoSystem::StoreLabelValue(std::pair<unsigned short, unsigned short> value)
+void UndoRedoSystem::StoreObject(std::pair<unsigned short, struct DataManager::ObjectInformation*> value)
 {
-    (*_action).actionTableValues.push_back(value);
-    _bufferUsed += _sizeValue;
+	// if buffer marked as full, just return. complete action doesn't fit into memory
+	if (_bufferFull == true)
+		return;
+
+    (*_action).actionObjects.push_back(value);
+    _bufferUsed += _sizeObject;
+
+    // we need to know if we are at the limit of our buffer
+    while (_bufferUsed > _bufferSize)
+    {
+    	// start deleting undo actions from the beginning of the list, check first if this action
+    	// fits in our buffer, and if not, delete all points entered until now
+        if (_undoBuffer.size() == 0)
+        {
+        	_bufferFull = true;
+
+            // start deleting undo actions from the beginning of the list
+            _bufferUsed -= (*_action).actionPoints.size() * _sizePoint;
+            _bufferUsed -= (*_action).actionObjects.size() * _sizeObject;
+            _bufferUsed -= (*_action).actionString.capacity();
+            _bufferUsed -= 4*(((*_action).actionLookupTable)->GetNumberOfTableValues())*sizeof(unsigned char);
+            _bufferUsed -= _sizeAction;
+
+            delete _action;
+            _action = NULL;
+        }
+        else
+        {
+            _bufferUsed -= (*_undoBuffer.begin()).actionPoints.size() * _sizePoint;
+            _bufferUsed -= (*_undoBuffer.begin()).actionObjects.size() * _sizeObject;
+            _bufferUsed -= (*_undoBuffer.begin()).actionString.capacity();
+            if (NULL != (*_undoBuffer.begin()).actionLookupTable)
+            	_bufferUsed -= 4*(((*_undoBuffer.begin()).actionLookupTable)->GetNumberOfTableValues())*sizeof(unsigned char);
+            _bufferUsed -= _sizeAction;
+
+            _undoBuffer.erase(_undoBuffer.begin());
+        }
+    }
 }
 
 void UndoRedoSystem::StoreLookupTable(vtkSmartPointer<vtkLookupTable> lookupTable)
 {
+	// if buffer marked as full, just return. complete action doesn't fit into memory
+	if (_bufferFull == true)
+		return;
+
     if ((*_action).actionLookupTable == NULL)
     {
         (*_action).actionLookupTable = lookupTable;
@@ -343,8 +407,8 @@ void UndoRedoSystem::StoreLookupTable(vtkSmartPointer<vtkLookupTable> lookupTabl
                 _bufferFull = true;
                 
                 // start deleting undo actions from the beginning of the list
-                _bufferUsed -= (*_action).actionBuffer.size() * _sizePoint;
-                _bufferUsed -= (*_action).actionTableValues.size() * _sizeValue;
+                _bufferUsed -= (*_action).actionPoints.size() * _sizePoint;
+                _bufferUsed -= (*_action).actionObjects.size() * _sizeObject;
                 _bufferUsed -= (*_action).actionString.capacity();
                 _bufferUsed -= 4*(((*_action).actionLookupTable)->GetNumberOfTableValues())*sizeof(unsigned char);
                 _bufferUsed -= _sizeAction;
@@ -354,8 +418,8 @@ void UndoRedoSystem::StoreLookupTable(vtkSmartPointer<vtkLookupTable> lookupTabl
             }
             else
             {
-                _bufferUsed -= (*_undoBuffer.begin()).actionBuffer.size() * _sizePoint;
-                _bufferUsed -= (*_undoBuffer.begin()).actionTableValues.size() * _sizeValue;
+            	_bufferUsed -= (*_undoBuffer.begin()).actionPoints.size() * _sizePoint;
+                _bufferUsed -= (*_undoBuffer.begin()).actionObjects.size() * _sizeObject;
                 _bufferUsed -= (*_undoBuffer.begin()).actionString.capacity();
                 if (NULL != (*_undoBuffer.begin()).actionLookupTable)
                     _bufferUsed -= 4*(((*_undoBuffer.begin()).actionLookupTable)->GetNumberOfTableValues())*sizeof(unsigned char);
@@ -404,8 +468,8 @@ void UndoRedoSystem::SignalCancelAction()
 {
     _bufferFull = false;
     
-    _bufferUsed -= (*_action).actionBuffer.size() * _sizePoint;
-    _bufferUsed -= (*_action).actionTableValues.size() * _sizeValue;
+    _bufferUsed -= (*_action).actionPoints.size() * _sizePoint;
+    _bufferUsed -= (*_action).actionObjects.size() * _sizeObject;
     _bufferUsed -= (*_action).actionString.capacity();
     if (NULL != (*_action).actionLookupTable)
         _bufferUsed -= 4*(((*_action).actionLookupTable)->GetNumberOfTableValues())*sizeof(unsigned char);
@@ -413,22 +477,22 @@ void UndoRedoSystem::SignalCancelAction()
 
     // undo changes if there are some, bypassing the undo system as we don't want to store this
     // modifications to the data
-    while ((*_action).actionBuffer.size() != 0)
+    while ((*_action).actionPoints.size() != 0)
     {
-        std::pair<Vector3ui, unsigned short> action_point = (*_action).actionBuffer.back();
-        (*_action).actionBuffer.pop_back();
+        std::pair<Vector3ui, unsigned short> action_point = (*_action).actionPoints.back();
+        (*_action).actionPoints.pop_back();
 
         Vector3ui point = action_point.first;
         _dataManager->SetVoxelScalarRaw(point[0], point[1], point[2], action_point.second);
     }
 
-    // also undo changes to value table
-    if ((*_action).actionTableValues.size() != 0)
+    // delete dinamically allocated objects
+    while (!(*_action).actionObjects.empty())
     {
-        std::vector<std::pair<unsigned short, unsigned short> >::iterator it;
- 
-        for(it = (*_action).actionTableValues.begin(); it != (*_action).actionTableValues.end(); it++)
-            (*_dataManager->GetLabelValueTable()).erase((*it).first);
+    	std::pair<unsigned short, struct DataManager::ObjectInformation*> pair = (*_action).actionObjects.back();
+    	(*_dataManager->GetObjectTablePointer()).erase(pair.first);
+    	delete pair.second;
+    	(*_action).actionObjects.pop_back();
     }
     
     delete _action;

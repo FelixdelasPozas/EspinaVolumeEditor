@@ -13,6 +13,7 @@
 
 // project includes
 #include "Metadata.h"
+#include "DataManager.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Metadata class
@@ -132,7 +133,7 @@ bool Metadata::Read(QString filename)
 	return true;
 }
 
-bool Metadata::Write(QString filename, std::map<unsigned short, unsigned short> *labelValues, std::map<unsigned short, unsigned long long> *voxelCount)
+bool Metadata::Write(QString filename, DataManager *data)
 {
 	QFile file(filename);
 	if (!file.open(QIODevice::ReadWrite | QIODevice::Text))
@@ -147,19 +148,9 @@ bool Metadata::Write(QString filename, std::map<unsigned short, unsigned short> 
 	std::vector<struct ObjectMetadata>::iterator objectit;
 	for (objectit = this->ObjectVector.begin(); objectit != this->ObjectVector.end(); objectit++)
 	{
-		// don't write empty objects, we can't use find() because we're searching the "second" value of the pair
-		unsigned short label;
-		std::map<unsigned short, unsigned short>::iterator it;
-		for (it = labelValues->begin(); it != labelValues->end(); it++)
-		{
-			if ((*it).second == (*objectit).scalar)
-			{
-				label = (*it).first;
-				break;
-			}
-		}
+		unsigned short label = data->GetLabelForScalar((*objectit).scalar);
 
-		if (0LL == (*voxelCount)[label])
+		if (0LL == data->GetNumberOfVoxelsForLabel(label))
 			continue;
 
 		// write object metadata
@@ -169,14 +160,14 @@ bool Metadata::Write(QString filename, std::map<unsigned short, unsigned short> 
 		out << "\n";
 	}
 
-	if (ObjectVector.size() < ((*labelValues).size()-1))
+	if (ObjectVector.size() < (data->GetNumberOfLabels()-1))
 	{
 		unsigned int label = ObjectVector.size()+1;
 		int position = ((true == hasUnassignedTag) ? unassignedTagPosition : this->SegmentVector.size()+1);
 
-		while (label != (*labelValues).size())
+		while (label != data->GetNumberOfLabels())
 		{
-			out << "Object: label=" << static_cast<int>((*labelValues)[label]);
+			out << "Object: label=" << static_cast<int>(data->GetScalarForLabel(label));
 			out << " segment=" << position;
 			out << " selected=1\n";
 			label++;
@@ -203,7 +194,7 @@ bool Metadata::Write(QString filename, std::map<unsigned short, unsigned short> 
 	}
 
 	// BEWARE: assumes that segment values are consecutive, and only adds this segment definition if there are new labels.
-	if ((false == hasUnassignedTag) && (ObjectVector.size() < ((*labelValues).size()-1)))
+	if ((false == hasUnassignedTag) && (ObjectVector.size() < (data->GetNumberOfLabels()-1)))
 		out << "Segment: name=\"Unassigned\" value=" << this->SegmentVector.size()+1 << " color= 0, 0, 255" << "\n";
 
 	file.close();

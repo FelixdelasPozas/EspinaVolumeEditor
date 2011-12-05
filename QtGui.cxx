@@ -524,7 +524,7 @@ void EspinaVolumeEditor::EditorOpen(void)
 	itk::SmartPointer<LabelMapToImageFilterType> labelconverter = LabelMapToImageFilterType::New();
 
 	labelconverter->SetInput(_dataManager->GetLabelMap());
-	labelconverter->SetNumberOfThreads(1);
+	labelconverter->SetNumberOfThreads(1);						// if number of threads > 1 filter crashes (¿¿??)
 	labelconverter->ReleaseDataFlagOn();
 
 	_progress->Observe(labelconverter,"Convert Image", 0.14);
@@ -823,7 +823,9 @@ void EspinaVolumeEditor::EditorReferenceOpen(void)
 }
 
 void EspinaVolumeEditor::EditorSave()
-{    
+{
+	QMessageBox msgBox;
+
     QString filename = QFileDialog::getSaveFileName(this, tr("Save Segmentation Image"), QDir::currentPath(), QObject::tr("label image files (*.segmha)"));
 
     if(!filename.isNull())
@@ -833,7 +835,17 @@ void EspinaVolumeEditor::EditorSave()
 
     qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
     _editorOperations->SaveImage(filename.toStdString());
-    _fileMetadata->Write(filename, _dataManager->GetLabelValueTable(), _dataManager->GetVoxelCountTable());
+
+	if (!_fileMetadata->Write(filename, _dataManager))
+	{
+		msgBox.setIcon(QMessageBox::Critical);
+
+		std::string text = std::string("An error occurred saving the segmentation metadata to file \"");
+		text += filename.toStdString();
+		text += std::string("\".\nThe segmentation data has been saved, but the metadata has not.\nThe file could be unusable.");
+		msgBox.setText(text.c_str());
+		msgBox.exec();
+	}
 }
 
 void EspinaVolumeEditor::EditorExit()
@@ -1115,7 +1127,10 @@ void EspinaVolumeEditor::LabelSelectionChanged(int value)
 
     // if the selected label has no voxels it has no centroid
     if (0LL == _dataManager->GetNumberOfVoxelsForLabel(value))
+    {
+    	UpdateViewports(All);
     	return;
+    }
 
     Vector3d newPOI = _dataManager->GetCentroidForObject(value);
 
@@ -1412,7 +1427,6 @@ void EspinaVolumeEditor::WatershedVolume()
 
     SetPointLabel();
     UpdateUndoRedoMenu();
-    _volumeRender->UpdateFocusExtent();
     UpdateViewports(All);
 }
 
@@ -1695,7 +1709,17 @@ void EspinaVolumeEditor::AxialXYPick(unsigned long event)
     // we need to know first if we are picking something from the view
     actualPick = _axialSliceVisualization->GetPickPosition(&X, &Y);
     if (SliceVisualization::None == actualPick)
-        return;
+    {
+      	// fix a glitch in rendering
+      	if (vtkCommand::LeftButtonReleaseEvent == event)
+      	{
+      		updatevoxelrenderer = true;
+            updateslicerenderers = true;
+            UpdateViewports(All);
+            pickedProp = SliceVisualization::None;
+     	}
+      	return;
+    }
     
     // we need to know if we have started picking or we've picked something before
     if (SliceVisualization::None == pickedProp)
@@ -1782,7 +1806,17 @@ void EspinaVolumeEditor::CoronalXYPick(unsigned long event)
     // we need to know first if we are picking something from the view
     actualPick = _coronalSliceVisualization->GetPickPosition(&X, &Y);
     if (SliceVisualization::None == actualPick)
-        return;
+    {
+      	// fix a glitch in rendering
+      	if (vtkCommand::LeftButtonReleaseEvent == event)
+      	{
+      		updatevoxelrenderer = true;
+            updateslicerenderers = true;
+            UpdateViewports(All);
+            pickedProp = SliceVisualization::None;
+     	}
+      	return;
+    }
     
     // we need to know if we have started picking or we've picked something before
     if (SliceVisualization::None == pickedProp)
@@ -1869,7 +1903,17 @@ void EspinaVolumeEditor::SagittalXYPick(unsigned long event)
     // we need to know first if we are picking something from the view
     actualPick = _sagittalSliceVisualization->GetPickPosition(&X, &Y);
     if (SliceVisualization::None == actualPick)
-        return;
+    {
+      	// fix a glitch in rendering
+      	if (vtkCommand::LeftButtonReleaseEvent == event)
+      	{
+      		updatevoxelrenderer = true;
+            updateslicerenderers = true;
+            UpdateViewports(All);
+            pickedProp = SliceVisualization::None;
+     	}
+      	return;
+    }
     
     // we need to know if we have started picking or we've picked something before
     if (SliceVisualization::None == pickedProp)

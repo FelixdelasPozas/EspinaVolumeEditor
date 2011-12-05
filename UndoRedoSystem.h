@@ -23,7 +23,6 @@
 #include <list>
 
 // DataManager forward declaration
-class DataManager;
 
 class UndoRedoSystem
 {
@@ -72,7 +71,7 @@ class UndoRedoSystem
         void StoreLookupTable(vtkSmartPointer<vtkLookupTable>);
         
         // stores a new label scalar value
-        void StoreLabelValue(std::pair<unsigned short, unsigned short>);
+        void StoreObject(std::pair<unsigned short, struct DataManager::ObjectInformation*>);
         
         // returns the action string of the buffer specified
         std::string GetActionString(UndoRedoBuffer buffer);
@@ -82,13 +81,13 @@ class UndoRedoSystem
     private:
         // this defines an action, the data needed to store the action's effect on internal data
         // NOTE: to get size of members we'll use capacity() for vector and string, for the
-        //       vtkLookupTable the size is 4*sizeof(unsigned char)*(number of possible colors) always)
+        //       vtkLookupTable the size is 4*sizeof(unsigned char)*(number of colors) always)
         struct action
         {
-            std::vector< std::pair<Vector3ui, unsigned short> >       actionBuffer;
-            vtkSmartPointer<vtkLookupTable>                           actionLookupTable;
-            std::string                                               actionString;
-            std::vector< std::pair<unsigned short, unsigned short> >  actionTableValues;
+        	std::vector< std::pair<Vector3ui, unsigned short> >       							actionPoints;
+            vtkSmartPointer<vtkLookupTable>                           							actionLookupTable;
+            std::string                                               							actionString;
+            std::vector< std::pair<unsigned short, struct DataManager::ObjectInformation*> >  	actionObjects;
         };
         
         // action in progress
@@ -106,13 +105,14 @@ class UndoRedoSystem
         // pointer to data
         DataManager* _dataManager;
         
-        // signals is the we have reached maximum capacity
+        // signals is the we have reached maximum capacity with only one action, if there is more than one
+        // action in the buffer, the system deletes the older first to make room for the new one
         bool _bufferFull;
         
         // element sizes, should differ in different CPU word sizes
         int _sizePoint;
         int _sizeAction;
-        int _sizeValue;
+        int _sizeObject;
 };
 
 #endif // _UNDOREDOSYSTEM_H_

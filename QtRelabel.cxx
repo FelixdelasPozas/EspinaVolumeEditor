@@ -41,7 +41,9 @@ void QtRelabel::SetInitialOptions(unsigned short label,vtkSmartPointer<vtkLookup
     QColor color;
 
     _selectedLabel = label;
-    _maxcolors = colors->GetNumberOfTableValues();
+    _maxcolors = dataManager->GetNumberOfLabels();
+
+     assert(label < _maxcolors);
 
     // generate items
     if (label != 0)
@@ -60,19 +62,16 @@ void QtRelabel::SetInitialOptions(unsigned short label,vtkSmartPointer<vtkLookup
         selectionlabel->setText("Background voxels");
 
     // color 0 is black, so we will start from 1
-    int j = 0;
     for (unsigned int i = 1; i < _maxcolors; i++)
     {
         if (i == static_cast<unsigned int>(label))
             continue;
-        else
-            j++;
         
         colors->GetTableValue(i, rgba);
         color.setRgbF(rgba[0], rgba[1], rgba[2], 1);
         icon.fill(color);
         std::stringstream out;
-        out << data->GetObjectSegmentName(i) << " " << data->GetObjectScalar(i);
+        out << data->GetObjectSegmentName(i) << " " << dataManager->GetScalarForLabel(i);
         std::string text = out.str();
         QListWidgetItem *item = new QListWidgetItem(QIcon(icon), QString(text.c_str()));
         newlabelbox->addItem(item);

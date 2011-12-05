@@ -26,9 +26,8 @@
 
 // project includes
 #include "Coordinates.h"
-#include "UndoRedoSystem.h"
-#include "VectorSpaceAlgebra.h"
 #include "Metadata.h"
+#include "VectorSpaceAlgebra.h"
 
 // defines & typedefs
 typedef itk::ShapeLabelObject< unsigned short, 3 > LabelObjectType;
@@ -71,17 +70,11 @@ class DataManager
         unsigned short GetScalarForLabel(unsigned short);
         unsigned short GetLabelForScalar(unsigned short);
         
-        // get table of scalar<->label values
-        std::map<unsigned short, unsigned short>* GetLabelValueTable();
-        
         // get centroid of object with specified label
         Vector3d GetCentroidForObject(unsigned short int);
 
         // get scalar for voxel(x,y,z)
         unsigned short GetVoxelScalar(unsigned int, unsigned int, unsigned int);
-        
-        // get the number of labels in the image
-        int GetNumberOfLabels();
         
         // changes voxel label
         void SetVoxelScalar(unsigned int, unsigned int, unsigned int, unsigned short);
@@ -130,15 +123,27 @@ class DataManager
         // voxel statistics per label
         unsigned long long int GetNumberOfVoxelsForLabel(unsigned short);
 
-        // get voxel count table
-        std::map<unsigned short, unsigned long long int>* GetVoxelCountTable(void);
-
-        // set the bounding box for the object
-        void SetObjectBoundingBox(unsigned short, itk::Index<3>, itk::Size<3>);
-
         // get the bounding box index and size for the object
-        itk::Index<3> GetBoundingBoxOrigin(unsigned short);
-        itk::Size<3> GetBoundingBoxSize(unsigned short);
+        Vector3ui GetBoundingBoxMin(unsigned short);
+        Vector3ui GetBoundingBoxMax(unsigned short);
+
+        // get the number of labels used (number of objects - 1, as the background label doesn't represent an object)
+        unsigned int GetNumberOfLabels(void);
+
+        struct ObjectInformation
+        {
+        		unsigned short 			scalar;			// original scalar value in the image loaded
+        		Vector3d 				centroid;		// centroid of the object
+        		unsigned long long int 	sizeInVoxels;	// size of the object in voxels
+        		Vector3ui	 			min;			// Bounding Box: min values
+        		Vector3ui	 			max;			// Bounding Box: max values
+
+        		ObjectInformation(): scalar(0), centroid(Vector3d(0,0,0)), sizeInVoxels(0), min(Vector3ui(0,0,0)), max(Vector3ui(0,0,0)) {};
+        };
+
+        // get the table of objects
+        std::map<unsigned short, struct DataManager::ObjectInformation*>* GetObjectTablePointer();
+
     private:
         // resets lookuptable to initial state based on original labelmap, used during init too
         void GenerateLookupTable();
@@ -149,40 +154,32 @@ class DataManager
         // voxel statistics functions, trivial but implemented as functions because it appears frecuently
         void StatisticsActionReset(void);
         void StatisticsActionJoin(void);
+        void StatisticsActionClear(void);
         
         // needed data attributes
         itk::SmartPointer<LabelMapType>         	_labelMap;
         vtkSmartPointer<vtkStructuredPoints>    	_structuredPoints;
         vtkSmartPointer<vtkLookupTable>         	_lookupTable;
         Coordinates                            	   *_orientationData;
-
-        // map image values<->internal values
-        std::map<unsigned short, unsigned short>  	_labelValues;
-
-        // map labels <-> centroids
-        std::map<unsigned short, Vector3d>     		_objectCentroid;
-        // undo/redo system
         UndoRedoSystem                         	   *_actionsBuffer;
-        
+
         // first free value for new labels
         unsigned short                          	_firstFreeValue;
-        
-        // for voxel statistics, notice the NOT unsigned variable for actions, as those values can be negative.
-        // using two arrays allows us to ignore the number of voxels changed when an exception ocurrs, and an
-        // actions is ignored. the voxelCount must be always positive or null.
-        std::map<unsigned short, unsigned long long int>  _voxelCount;
-        std::map<unsigned short, long long int>  		  _voxelActionCount;
-        std::map<unsigned short, Vector3ll>			  	  _temporalCentroid;
 
-        // object bounding box
-        // for bounding box operations
-        struct BoundingBox
+        // object information vector
+        std::map<unsigned short, struct ObjectInformation*> ObjectVector;
+
+        // action in progress data for voxel counting and centroid calculations.
+        struct ActionInformation
         {
-        		itk::Index<3> origin;
-        		itk::Size<3> size;
-        };
+        		long long int 	sizeInVoxels;			// size of the action in voxels
+        		Vector3ll 		temporalCentroid;		// sum of the x,y,z coords of the points added/substraced in the action
+        		Vector3ui	 	min;					// Bounding Box: min values
+        		Vector3ui	 	max;					// Bounding Box: max values
 
-        std::map<unsigned short, struct BoundingBox *> _objectBox;
+        		ActionInformation(): sizeInVoxels(0), temporalCentroid(Vector3ll(0,0,0)), min(Vector3ui(0,0,0)), max(Vector3ui(0,0,0)) {};
+        };
+        std::map<unsigned short, struct ActionInformation*> ActionInformationVector;
 };
 
 #endif // _DATAMANAGER_H_
