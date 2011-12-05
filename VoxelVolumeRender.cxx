@@ -40,7 +40,7 @@ VoxelVolumeRender::VoxelVolumeRender(DataManager *data, vtkSmartPointer<vtkRende
     _meshActor = NULL;
     _volume = NULL;
     _volumemapper = NULL;
-    _GPUmapper = NULL;
+//    _GPUmapper = NULL;
     _objectLabel = 0;
 
     // the raycasted volume is always present
@@ -184,52 +184,54 @@ void VoxelVolumeRender::ComputeRayCastVolume()
     _renderer->AddVolume(_volume);
 }
 
-// this renderer is unused by default, as it renders fast but still has errors updating
-// volume colors and it hasn't the precision of the software renderer
-void VoxelVolumeRender::ComputeGPURender()
-{
-    double rgba[4];
-    vtkSmartPointer<vtkLookupTable> table = _dataManager->GetLookupTable();
-
-    // GPU mapper
-    _GPUmapper = vtkSmartPointer<vtkSmartVolumeMapper>::New();
-    _GPUmapper->SetInput(_dataManager->GetStructuredPoints());
-    _GPUmapper->SetRequestedRenderMode(vtkSmartVolumeMapper::GPURenderMode);
-    _GPUmapper->SetInterpolationModeToNearestNeighbor();
-
-    // assign label colors
-    _colorfunction = vtkSmartPointer<vtkColorTransferFunction>::New();
-    _colorfunction->AllowDuplicateScalarsOff();
-    for (unsigned short int i = 0; i != table->GetNumberOfTableValues(); i++)
-    {
-        table->GetTableValue(i, rgba);
-        _colorfunction->AddRGBPoint(i,rgba[0], rgba[1], rgba[2]);
-    }
-
-    // we need to set all labels to an opacity of 0.1
-    _opacityfunction = vtkSmartPointer<vtkPiecewiseFunction>::New();
-    _opacityfunction->AddPoint(0, 0.0);
-    for (int i=1; i != table->GetNumberOfTableValues(); i++)
-        _opacityfunction->AddPoint(i, 0.1);
-
-    // volume property
-    vtkSmartPointer<vtkVolumeProperty> volumeproperty = vtkSmartPointer<vtkVolumeProperty>::New();
-    volumeproperty->SetColor(_colorfunction);
-    volumeproperty->SetScalarOpacity(_opacityfunction);
-    volumeproperty->SetSpecular(0.2);
-    volumeproperty->ShadeOn();
-    volumeproperty->SetInterpolationTypeToNearest();
-    
-    // create volume and add to render
-    if (NULL != _volume)
-    	_renderer->RemoveActor(_volume);
-
-    _volume = vtkSmartPointer<vtkVolume>::New();
-    _volume->SetMapper(_GPUmapper);
-    _volume->SetProperty(volumeproperty);
-    
-    _renderer->AddVolume(_volume);
-}
+// TODO: check vtkSmartVolumeMapper on the next library release
+//
+//	// this renderer is unused by default, as it renders fast but still has errors updating
+//	// volume colors and it hasn't the precision of the software renderer
+//	void VoxelVolumeRender::ComputeGPURender()
+//	{
+//		double rgba[4];
+//		vtkSmartPointer<vtkLookupTable> table = _dataManager->GetLookupTable();
+//
+//		// GPU mapper
+//		_GPUmapper = vtkSmartPointer<vtkSmartVolumeMapper>::New();
+//		_GPUmapper->SetInput(_dataManager->GetStructuredPoints());
+//		_GPUmapper->SetRequestedRenderMode(vtkSmartVolumeMapper::GPURenderMode);
+//		_GPUmapper->SetInterpolationModeToNearestNeighbor();
+//
+//		// assign label colors
+//		_colorfunction = vtkSmartPointer<vtkColorTransferFunction>::New();
+//		_colorfunction->AllowDuplicateScalarsOff();
+//		for (unsigned short int i = 0; i != table->GetNumberOfTableValues(); i++)
+//		{
+//			table->GetTableValue(i, rgba);
+//			_colorfunction->AddRGBPoint(i,rgba[0], rgba[1], rgba[2]);
+//		}
+//
+//		// we need to set all labels to an opacity of 0.1
+//		_opacityfunction = vtkSmartPointer<vtkPiecewiseFunction>::New();
+//		_opacityfunction->AddPoint(0, 0.0);
+//		for (int i=1; i != table->GetNumberOfTableValues(); i++)
+//			_opacityfunction->AddPoint(i, 0.1);
+//
+//		// volume property
+//		vtkSmartPointer<vtkVolumeProperty> volumeproperty = vtkSmartPointer<vtkVolumeProperty>::New();
+//		volumeproperty->SetColor(_colorfunction);
+//		volumeproperty->SetScalarOpacity(_opacityfunction);
+//		volumeproperty->SetSpecular(0.2);
+//		volumeproperty->ShadeOn();
+//		volumeproperty->SetInterpolationTypeToNearest();
+//
+//		// create volume and add to render
+//		if (NULL != _volume)
+//			_renderer->RemoveActor(_volume);
+//
+//		_volume = vtkSmartPointer<vtkVolume>::New();
+//		_volume->SetMapper(_GPUmapper);
+//		_volume->SetProperty(volumeproperty);
+//
+//		_renderer->AddVolume(_volume);
+//	}
 
 void VoxelVolumeRender::UpdateColorTable(int value, double alpha)
 {

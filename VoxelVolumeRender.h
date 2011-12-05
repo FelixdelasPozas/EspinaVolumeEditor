@@ -18,7 +18,7 @@
 #include <vtkPiecewiseFunction.h>
 #include <vtkColorTransferFunction.h>
 #include <vtkVolumeRayCastMapper.h>
-#include <vtkSmartVolumeMapper.h>
+//#include <vtkSmartVolumeMapper.h>
 
 // c++ includes
 #include <map>
@@ -84,7 +84,7 @@ class VoxelVolumeRender
 
         // software saycast volume mapper
         vtkSmartPointer<vtkVolumeRayCastMapper> _volumemapper;
-        vtkSmartPointer<vtkSmartVolumeMapper>  _GPUmapper;
+//        vtkSmartPointer<vtkSmartVolumeMapper>  _GPUmapper;
 };
 
 #endif
