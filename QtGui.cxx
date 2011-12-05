@@ -825,6 +825,7 @@ void EspinaVolumeEditor::EditorReferenceOpen(void)
 void EspinaVolumeEditor::EditorSave()
 {
 	QMessageBox msgBox;
+	string filenameStd;
 
     QString filename = QFileDialog::getSaveFileName(this, tr("Save Segmentation Image"), QDir::currentPath(), QObject::tr("label image files (*.segmha)"));
 
@@ -833,15 +834,22 @@ void EspinaVolumeEditor::EditorSave()
     else
         return;
 
-    qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
-    _editorOperations->SaveImage(filename.toStdString());
+    filenameStd = filename.toStdString();
+    std::size_t found;
 
-	if (!_fileMetadata->Write(filename, _dataManager))
+    // check if user entered file extension "segmha" or not, if not just add it
+    if (std::string::npos == (found = filenameStd.rfind(".segmha")))
+    	filenameStd += std::string(".segmha");
+
+    qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
+    _editorOperations->SaveImage(filenameStd);
+
+	if (!_fileMetadata->Write(QString(filenameStd.c_str()), _dataManager))
 	{
 		msgBox.setIcon(QMessageBox::Critical);
 
 		std::string text = std::string("An error occurred saving the segmentation metadata to file \"");
-		text += filename.toStdString();
+		text += filenameStd;
 		text += std::string("\".\nThe segmentation data has been saved, but the metadata has not.\nThe file could be unusable.");
 		msgBox.setText(text.c_str());
 		msgBox.exec();
@@ -1730,8 +1738,6 @@ void EspinaVolumeEditor::AxialXYPick(unsigned long event)
     {
         updatevoxelrenderer = true;
         updateslicerenderers = true;
-        _axesRender->Update(_POI);
-        UpdateViewports(All);
 
         if ((paintbutton->isChecked()) && (pickedProp == SliceVisualization::Slice) && (actualPick == SliceVisualization::Slice))
         {
@@ -1739,7 +1745,9 @@ void EspinaVolumeEditor::AxialXYPick(unsigned long event)
             _volumeRender->UpdateFocusExtent();
             UpdateUndoRedoMenu();
         }
-        
+        _axesRender->Update(_POI);
+        UpdateViewports(All);
+
         pickedProp = SliceVisualization::None;
         return;
     }
@@ -1827,8 +1835,6 @@ void EspinaVolumeEditor::CoronalXYPick(unsigned long event)
     {
         updatevoxelrenderer = true;
         updateslicerenderers = true;
-        _axesRender->Update(_POI);
-        UpdateViewports(Voxel);
 
         if ((paintbutton->isChecked()) && (pickedProp == SliceVisualization::Slice) && (actualPick == SliceVisualization::Slice))
         {
@@ -1836,6 +1842,8 @@ void EspinaVolumeEditor::CoronalXYPick(unsigned long event)
             _volumeRender->UpdateFocusExtent();
             UpdateUndoRedoMenu();
         }
+        _axesRender->Update(_POI);
+        UpdateViewports(Voxel);
         
         pickedProp = SliceVisualization::None;
         return;
@@ -1924,8 +1932,6 @@ void EspinaVolumeEditor::SagittalXYPick(unsigned long event)
     {
         updatevoxelrenderer = true;
         updateslicerenderers = true;
-        _axesRender->Update(_POI);
-        UpdateViewports(Voxel);
 
         if ((paintbutton->isChecked()) && (pickedProp == SliceVisualization::Slice) && (actualPick == SliceVisualization::Slice))
         {
@@ -1933,6 +1939,8 @@ void EspinaVolumeEditor::SagittalXYPick(unsigned long event)
             _volumeRender->UpdateFocusExtent();
             UpdateUndoRedoMenu();
         }
+        _axesRender->Update(_POI);
+        UpdateViewports(Voxel);
         
         pickedProp = SliceVisualization::None;
         return;

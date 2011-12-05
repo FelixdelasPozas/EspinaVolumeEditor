@@ -246,9 +246,9 @@ void VoxelVolumeRender::UpdateFocusExtent(void)
 	Vector3ui max = _dataManager->GetBoundingBoxMax(_objectLabel);
 
 	_volumemapper->SetCroppingRegionPlanes(
-			(min[0]-1)*spacing[0], (max[0]+1)*spacing[0],
-			(min[1]-1)*spacing[1], (max[1]+1)*spacing[1],
-			(min[2]-1)*spacing[2], (max[2]+1)*spacing[2]);
+			(min[0]-1.5)*spacing[0], (max[0]+0.5)*spacing[0],
+			(min[1]-1.5)*spacing[1], (max[1]+0.5)*spacing[1],
+			(min[2]-1.5)*spacing[2], (max[2]+0.5)*spacing[2]);
 	_volumemapper->CroppingOn();
 	_volumemapper->SetCroppingRegionFlagsToSubVolume();
 	_volumemapper->Update();
@@ -271,9 +271,9 @@ void VoxelVolumeRender::UpdateFocus(unsigned short label)
 	// correct bounding box for the object, but if we do it that way thin
 	// objects aren't rendered correctly, so 1.5 corrects this.
 	_volumemapper->SetCroppingRegionPlanes(
-			(min[0]-1.5)*spacing[0], (max[0]+1.5)*spacing[0],
-			(min[1]-1.5)*spacing[1], (max[1]+1.5)*spacing[1],
-			(min[2]-1.5)*spacing[2], (max[2]+1.5)*spacing[2]);
+			(min[0]-1.5)*spacing[0], (max[0]+0.5)*spacing[0],
+			(min[1]-1.5)*spacing[1], (max[1]+0.5)*spacing[1],
+			(min[2]-1.5)*spacing[2], (max[2]+0.5)*spacing[2]);
 	_volumemapper->CroppingOn();
 	_volumemapper->SetCroppingRegionFlagsToSubVolume();
 	_volumemapper->Update();
