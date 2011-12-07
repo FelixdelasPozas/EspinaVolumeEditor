@@ -232,7 +232,7 @@ void DataManager::SetVoxelScalar(unsigned int x, unsigned int y, unsigned int z,
     ActionInformationVector[scalar]->min = min;
     ActionInformationVector[scalar]->max = max;
 
-    _actionsBuffer->AddPoint(Vector3ui(x,y,z), *pixel);
+    _actionsBuffer->StorePoint(Vector3ui(x,y,z), *pixel);
     *pixel = scalar;
     _structuredPoints->Modified();
 }

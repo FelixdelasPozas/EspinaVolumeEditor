@@ -239,6 +239,7 @@ void VoxelVolumeRender::UpdateColorTable(int value, double alpha)
     _opacityfunction->Modified();
 }
 
+// update focus but don't move camera of the renderer
 void VoxelVolumeRender::UpdateFocusExtent(void)
 {
 	Vector3d spacing = _dataManager->GetOrientationData()->GetImageSpacing();

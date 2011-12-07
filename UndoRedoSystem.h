@@ -40,29 +40,29 @@ class UndoRedoSystem
         // 1 - BEWARE: this action modify current data (touches DataManager data)
         // 2 - this action doesn't modify undo/redo system capacity
         // 3 - only call this action when you're sure there is at least one action in the undo buffer
-        void DoAction(UndoRedoBuffer);
+        void DoAction(const UndoRedoBuffer);
         
         // All the elements of the buffer vector are dropped (their destructors are called) and
         // this leaves the buffer with a size of 0, freeing all the previously allocated memory
-        void ClearBuffer(UndoRedoBuffer);
+        void ClearBuffer(const UndoRedoBuffer);
         
         // add a point to current undo action
-        void AddPoint(Vector3ui, unsigned short);
+        void StorePoint(const Vector3ui, const unsigned short);
         
         // check if one of the buffers is empty (to disable it's menu command)
-        bool IsEmpty(UndoRedoBuffer);
+        const bool IsEmpty(const UndoRedoBuffer);
         
         // change undo/redo system size
-        void ChangeSize(unsigned long int);
+        void ChangeSize(const unsigned long int);
         
         // get undo/redo system size
-        unsigned long int GetSize();
+        const unsigned long int GetSize();
 
         // get undo/redo system capacity (used bytes)
-        unsigned long int GetCapacity();
+        const unsigned long int GetCapacity();
 
         // create a new action
-        void SignalBeginAction(std::string);
+        void SignalBeginAction(const std::string);
         
         // we need to know when an action ends
         void SignalEndAction();
@@ -74,11 +74,14 @@ class UndoRedoSystem
         void StoreObject(std::pair<unsigned short, struct DataManager::ObjectInformation*>);
         
         // returns the action string of the buffer specified
-        std::string GetActionString(UndoRedoBuffer buffer);
+        const std::string GetActionString(const UndoRedoBuffer buffer);
         
         // deletes all the data stored in actual action buffer
         void SignalCancelAction();
     private:
+        // checks if we are at the limit of our buffer and if so, makes room for more actions
+        void CheckBufferLimits(void);
+
         // this defines an action, the data needed to store the action's effect on internal data
         // NOTE: to get size of members we'll use capacity() for vector and string, for the
         //       vtkLookupTable the size is 4*sizeof(unsigned char)*(number of colors) always)
@@ -89,7 +92,7 @@ class UndoRedoSystem
             std::string                                               							actionString;
             std::vector< std::pair<unsigned short, struct DataManager::ObjectInformation*> >  	actionObjects;
         };
-        
+
         // action in progress
         struct action* _action;
         
@@ -113,6 +116,7 @@ class UndoRedoSystem
         int _sizePoint;
         int _sizeAction;
         int _sizeObject;
+        int _sizeColor;
 };
 
 #endif // _UNDOREDOSYSTEM_H_

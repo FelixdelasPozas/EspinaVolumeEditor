@@ -291,7 +291,7 @@ bool EditorOperations::RelabelSelection(QWidget *parent, unsigned short label, v
         return false;
 
     _dataManager->OperationStart("Relabel");
-    
+
     unsigned short newlabel;
     
     if (!configdialog.IsNewLabel())
@@ -301,10 +301,10 @@ bool EditorOperations::RelabelSelection(QWidget *parent, unsigned short label, v
         QtColorPicker colorpicker(parent);
         colorpicker.SetInitialOptions(colors);
         colorpicker.exec();
-        
+
         if (!colorpicker.ModifiedData())
             return false;
-        
+
         color = colorpicker.GetColor();
 
         newlabel = _dataManager->SetLabel(color);
