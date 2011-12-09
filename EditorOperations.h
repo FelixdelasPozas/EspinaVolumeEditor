@@ -47,7 +47,7 @@ class EditorOperations
         void Initialize(vtkSmartPointer<vtkRenderer>, Coordinates *, ProgressAccumulator *);
         
         // modifies selection area with this point
-        void AddSelectionPoint(Vector3ui point);
+        void AddSelectionPoint(const Vector3ui point);
         
         // computes selection area
         void ComputeSelectionCube();
@@ -56,80 +56,80 @@ class EditorOperations
         void ClearSelection();
         
         // get selection points
-        std::vector<Vector3ui> GetSelection();
+        const std::vector<Vector3ui> GetSelection();
         
         // deletes voxels depending on selected label
-        void CutSelection(unsigned short);
+        void Cut(const unsigned short);
         
         // changes label of selected voxels to a different one
-        bool RelabelSelection(QWidget *parent, unsigned short, vtkSmartPointer<vtkLookupTable>, Metadata*);
+        bool Relabel(QWidget *parent, const unsigned short, vtkSmartPointer<vtkLookupTable>, Metadata*);
 
         // save volume as an GIPL image on disk
-        void SaveImage(std::string);
+        void SaveImage(const std::string);
         
         // get the labelmap out of data
         itk::SmartPointer<LabelMapType> GetImageLabelMap();
         
         // set the first scalar value that is free to assign a label (it's NOT the label number)
-        void SetFirstFreeValue(unsigned short);
+        void SetFirstFreeValue(const unsigned short);
         
         // get/set preferences
-        unsigned int GetFiltersRadius(void);
-        void SetFiltersRadius(unsigned int);
-        double GetWatershedLevel(void);
-        void SetWatershedLevel(double);
+        const unsigned int GetFiltersRadius(void);
+        void SetFiltersRadius(const unsigned int);
+        const double GetWatershedLevel(void);
+        void SetWatershedLevel(const double);
         
         // filters, operates on selection or, if there is not a selection, on the whole dataset
-        void ErodeSelection(unsigned short);
-        void DilateSelection(unsigned short);
-        void CloseSelection(unsigned short);
-        void OpenSelection(unsigned short);
-        void WatershedSelection(unsigned short);
+        void Erode(const unsigned short);
+        void Dilate(const unsigned short);
+        void Close(const unsigned short);
+        void Open(const unsigned short);
+        void Watershed(const unsigned short);
     private:
         // shows a message and gives the details of the exception error
         void EditorError(itk::ExceptionObject &);
         
         // temp description
-        void CleanImage(itk::SmartPointer<ImageType>, unsigned short);
+        void CleanImage(itk::SmartPointer<ImageType>, const unsigned short);
 
         // get a itk image from selected region to use it with filters
-        itk::SmartPointer<ImageType> GetItkImageFromSelection();
+        itk::SmartPointer<ImageType> GetItkImageFromSelection(const unsigned short, const unsigned int);
 
         // dump a itk::image back to vtkstructuredpoints
         void ItkImageToPoints(itk::SmartPointer<ImageType>);
         
         // pointer to renderer
-        vtkSmartPointer<vtkRenderer> _renderer;
+        vtkSmartPointer<vtkRenderer> 						_renderer;
         
         // poiner to orienation data
-        Coordinates *_orientation;
+        Coordinates 										*_orientation;
 
         // selection bounds
-        Vector3ui _max, _min;
+        Vector3ui 											_max, _min;
         
         // maximum bounds
-        Vector3ui _size;
+        Vector3ui 											_size;
 
         // selection points
-        std::vector< Vector3ui > _selectedPoints;
+        std::vector< Vector3ui > 							_selectedPoints;
         
         // representation of the selection
-        vtkSmartPointer<vtkCubeSource> _selectionCube;
+        vtkSmartPointer<vtkCubeSource> 						_selectionCube;
         
         // box actor
-        vtkSmartPointer<vtkActor> _actor;
+        vtkSmartPointer<vtkActor> 							_actor;
         
         // pointer to data
-        DataManager* _dataManager;
+        DataManager 										*_dataManager;
         
         // progress accumulator
-        ProgressAccumulator *_progress;
+        ProgressAccumulator 								*_progress;
         
-        // configuration options selectable by the user for erode/dilate/open/close filters (structuring element radius)
-        unsigned int _filtersRadius;
+        // configuration option for erode/dilate/open/close filters (structuring element radius)
+        unsigned int 										_filtersRadius;
         
-        // configuration option selectable by te user for watershed filter (flood level)
-        double _watershedLevel;
+        // configuration option for watershed filter (flood level)
+        double 												_watershedLevel;
 };
 
 #endif // _EDITOROPERATIONS_H_

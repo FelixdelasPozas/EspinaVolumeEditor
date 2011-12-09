@@ -175,7 +175,7 @@ void EditorOperations::ComputeSelectionCube()
     _selectionCube->Modified();
 }
 
-void EditorOperations::AddSelectionPoint(Vector3ui point)
+void EditorOperations::AddSelectionPoint(const Vector3ui point)
 {
     // how many points do we have?
     switch (_selectedPoints.size())
@@ -205,18 +205,65 @@ void EditorOperations::ClearSelection()
     _actor->SetVisibility(false);
 }
 
-std::vector<Vector3ui> EditorOperations::GetSelection()
+const std::vector<Vector3ui> EditorOperations::GetSelection()
 {
     return _selectedPoints;
 }
 
-itk::SmartPointer<ImageType> EditorOperations::GetItkImageFromSelection()
+itk::SmartPointer<ImageType> EditorOperations::GetItkImageFromSelection(const unsigned short label, const unsigned int boundsGrow)
 {
+	Vector3ui resultMin = _min;
+	Vector3ui resultMax = _max;
+	Vector3ui objectMin, objectMax;
+
 	// first crop the region and then use the vtk-itk pipeline to get a
 	// itk::Image of the region so we can apply a itk filter to it. 
 	vtkSmartPointer<vtkImageClip> imageClip = vtkSmartPointer<vtkImageClip>::New();
 	imageClip->SetInput(_dataManager->GetStructuredPoints());
-	imageClip->SetOutputWholeExtent(_min[0], _max[0], _min[1], _max[1], _min[2], _max[2]);
+
+	// if the operation involves the background label we will want the whole image.
+	if (0 != label)
+	{
+		// get the smallest image possible for operation if there is not a selected area
+		if ((Vector3ui(0,0,0) == _min) && (_max == _size))
+		{
+			objectMin = _dataManager->GetBoundingBoxMin(label);
+			objectMax = _dataManager->GetBoundingBoxMax(label);
+
+			if (objectMin[0] < boundsGrow)
+				resultMin[0] = 0;
+			else
+				resultMin[0] = objectMin[0] - boundsGrow;
+
+			if (objectMin[1] < boundsGrow)
+				resultMin[1] = 0;
+			else
+				resultMin[1] = objectMin[1] - boundsGrow;
+
+			if (objectMin[2] < boundsGrow)
+				resultMin[2] = 0;
+			else
+				resultMin[2] = objectMin[2] - boundsGrow;
+
+			if ((objectMax[0] + boundsGrow) > _size[0])
+				resultMax[0] = _size[0];
+			else
+				resultMax[0] = objectMax[0] + boundsGrow;
+
+			if ((objectMax[1] + boundsGrow) > _size[1])
+				resultMax[1] = _size[1];
+			else
+				resultMax[1] = objectMax[1] + boundsGrow;
+
+			if ((objectMax[2] + boundsGrow) > _size[2])
+				resultMax[2] = _size[2];
+			else
+				resultMax[2] = objectMax[2] + boundsGrow;
+
+		}
+	}
+
+	imageClip->SetOutputWholeExtent(resultMin[0], resultMax[0], resultMin[1], resultMax[1], resultMin[2], resultMax[2]);
 	imageClip->ClipDataOn();
 	imageClip->Update();
 	
@@ -260,7 +307,7 @@ void EditorOperations::ItkImageToPoints(itk::SmartPointer<ImageType> image)
     return;
 }
 
-void EditorOperations::CutSelection(unsigned short label)
+void EditorOperations::Cut(const unsigned short label)
 {
     if (label == 0)
     	return;
@@ -278,7 +325,7 @@ void EditorOperations::CutSelection(unsigned short label)
     _dataManager->OperationEnd();
 }
 
-bool EditorOperations::RelabelSelection(QWidget *parent, unsigned short label, vtkSmartPointer<vtkLookupTable> colors, Metadata *data)
+bool EditorOperations::Relabel(QWidget *parent, const unsigned short label, vtkSmartPointer<vtkLookupTable> colors, Metadata *data)
 {
     Vector3d color;
     bool newcolor = false;
@@ -324,7 +371,7 @@ bool EditorOperations::RelabelSelection(QWidget *parent, unsigned short label, v
     return newcolor;
 }
 
-void EditorOperations::ErodeSelection(unsigned short label)
+void EditorOperations::Erode(const unsigned short label)
 {
     _dataManager->OperationStart("Erode");
 
@@ -335,7 +382,7 @@ void EditorOperations::ErodeSelection(unsigned short label)
     _progress->Observe(erodeFilter, "Erode", 1.0);
 
     itk::SmartPointer<ImageType> image = ImageType::New();
-    image = GetItkImageFromSelection();
+    image = GetItkImageFromSelection(label, _filtersRadius);
     
     StructuringElementType structuringElement;
     structuringElement.SetRadius(_filtersRadius);
@@ -364,7 +411,7 @@ void EditorOperations::ErodeSelection(unsigned short label)
     return;
 }
 
-void EditorOperations::DilateSelection(unsigned short label)
+void EditorOperations::Dilate(const unsigned short label)
 {
     _dataManager->OperationStart("Dilate");
 
@@ -375,7 +422,7 @@ void EditorOperations::DilateSelection(unsigned short label)
     _progress->Observe(dilateFilter, "Dilate", 1.0);
     
     itk::SmartPointer<ImageType> image = ImageType::New();
-    image = GetItkImageFromSelection();
+    image = GetItkImageFromSelection(label, _filtersRadius);
 
     StructuringElementType structuringElement;
     structuringElement.SetRadius(_filtersRadius);
@@ -404,7 +451,7 @@ void EditorOperations::DilateSelection(unsigned short label)
     return;
 }
 
-void EditorOperations::OpenSelection(unsigned short label)
+void EditorOperations::Open(const unsigned short label)
 {
     _dataManager->OperationStart("Open");
 
@@ -415,7 +462,7 @@ void EditorOperations::OpenSelection(unsigned short label)
     _progress->Observe(openFilter, "Open", 1.0);
     
     itk::SmartPointer<ImageType> image = ImageType::New();
-    image = GetItkImageFromSelection();
+    image = GetItkImageFromSelection(label, _filtersRadius);
 
     StructuringElementType structuringElement;
     structuringElement.SetRadius(_filtersRadius); 
@@ -444,7 +491,7 @@ void EditorOperations::OpenSelection(unsigned short label)
     return;
 }
 
-void EditorOperations::CloseSelection(unsigned short label)
+void EditorOperations::Close(const unsigned short label)
 {
     _dataManager->OperationStart("Close");
 
@@ -455,7 +502,7 @@ void EditorOperations::CloseSelection(unsigned short label)
     _progress->Observe(closeFilter, "Close", 1.0);
     
     itk::SmartPointer<ImageType> image = ImageType::New();
-    image = GetItkImageFromSelection();
+    image = GetItkImageFromSelection(label, _filtersRadius);
 
     StructuringElementType structuringElement;
     structuringElement.SetRadius(_filtersRadius);
@@ -484,7 +531,7 @@ void EditorOperations::CloseSelection(unsigned short label)
     return;
 }
 
-void EditorOperations::WatershedSelection(unsigned short label)
+void EditorOperations::Watershed(const unsigned short label)
 {
     _dataManager->OperationStart("Watershed");
     
@@ -493,7 +540,7 @@ void EditorOperations::WatershedSelection(unsigned short label)
     typedef itk::SignedDanielssonDistanceMapImageFilter<ImageType, FloatImageType> DanielssonFilterType;
     
     itk::SmartPointer<ImageType> image = ImageType::New();
-    image = GetItkImageFromSelection();
+    image = GetItkImageFromSelection(label, 0);
     
     itk::SmartPointer<DanielssonFilterType> danielssonFilter = DanielssonFilterType::New();
     _progress->Observe(danielssonFilter, "Danielsson", (1.0/3.0));
@@ -614,31 +661,30 @@ void EditorOperations::WatershedSelection(unsigned short label)
     _dataManager->OperationEnd();
 }
 
-void EditorOperations::CleanImage(itk::SmartPointer<ImageType> image, unsigned short scalar)
+void EditorOperations::CleanImage(itk::SmartPointer<ImageType> image, const unsigned short label)
 {
-    ImageType::IndexType index = {{ 0, 0, 0 }};
+	typedef itk::ImageRegionConstIteratorWithIndex<ImageType> IteratorType;
+	IteratorType it(image, image->GetRequestedRegion());
 
-    for (unsigned int z = _min[2]; z <= _max[2]; z++)
-        for (unsigned int x = _min[0]; x <= _max[0]; x++)
-            for (unsigned int y = _min[1]; y <= _max[1]; y++)
-            {
-                index[0] = x;
-                index[1] = y;
-                index[2] = z;
-                unsigned short pointScalar = _dataManager->GetVoxelScalar(x,y,z);
-                
-                switch(scalar)
-                {
-                    case 0:
-                        if (0 == pointScalar)
-                            image->SetPixel(index, 0);
-                        break;
-                    default:
-                        if (pointScalar != scalar)
-                            image->SetPixel(index, 0);
-                        break;
-                }
-            }
+    // copy itk image to structuredpoints
+	ImageType::IndexType index;
+    for (it.GoToBegin(); !it.IsAtEnd(); ++it)
+    {
+    	index = it.GetIndex();
+    	unsigned short pointScalar = _dataManager->GetVoxelScalar(index[0], index[1], index[2]);
+
+        switch(label)
+        {
+            case 0:
+                if (0 == pointScalar)
+                    image->SetPixel(index, 0);
+                break;
+            default:
+                if (pointScalar != label)
+                    image->SetPixel(index, 0);
+                break;
+        }
+    }
 }
 
 void EditorOperations::EditorError(itk::ExceptionObject &excp)
@@ -663,20 +709,12 @@ void EditorOperations::EditorError(itk::ExceptionObject &excp)
 // originally the image was saved directly from the vtkStructuredPoints in memory but, although the
 // segmha file saved was correct, the orientation of the image was saved as ???, this doen't happen
 // with itk::ImageFileWriter as the orientation is saved as RAI.
-void EditorOperations::SaveImage(std::string filename)
+void EditorOperations::SaveImage(const std::string filename)
 {
     _progress->ManualSet("Save Image");
     
-    Vector3ui temp_min = _min;
-    Vector3ui temp_max = _max;
-    _max = _size;
-    _min = Vector3ui(0,0,0);
-    
     itk::SmartPointer<ImageType> image = ImageType::New();
-    image = GetItkImageFromSelection();
-
-    _max = temp_max;
-    _min = temp_min;
+    image = GetItkImageFromSelection(0,0);
     
     // must restore the image origin before writing
     Vector3d point = _orientation->GetImageOrigin();
@@ -794,7 +832,7 @@ itk::SmartPointer<LabelMapType> EditorOperations::GetImageLabelMap()
     _min = Vector3ui(0,0,0);
     
     itk::SmartPointer<ImageType> image = ImageType::New();
-    image = GetItkImageFromSelection();
+    image = GetItkImageFromSelection(0,0);
 
     _max = temp_max;
     _min = temp_min;
@@ -821,27 +859,27 @@ itk::SmartPointer<LabelMapType> EditorOperations::GetImageLabelMap()
     return outputLabelMap;
 }
 
-void EditorOperations::SetFirstFreeValue(unsigned short value)
+void EditorOperations::SetFirstFreeValue(const unsigned short value)
 {
     _dataManager->SetFirstFreeValue(value);
 }
 
-unsigned int EditorOperations::GetFiltersRadius(void)
+const unsigned int EditorOperations::GetFiltersRadius(void)
 {
 	return _filtersRadius;
 }
 
-void EditorOperations::SetFiltersRadius(unsigned int value)
+void EditorOperations::SetFiltersRadius(const unsigned int value)
 {
 	_filtersRadius = value;
 }
 
-double EditorOperations::GetWatershedLevel(void)
+const double EditorOperations::GetWatershedLevel(void)
 {
 	return _watershedLevel;
 }
 
-void EditorOperations::SetWatershedLevel(double value)
+void EditorOperations::SetWatershedLevel(const double value)
 {
 	_watershedLevel = value;
 }

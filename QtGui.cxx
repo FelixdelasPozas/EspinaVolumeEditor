@@ -1309,7 +1309,7 @@ void EspinaVolumeEditor::EditorSelectionEnd(bool value)
 
 void EspinaVolumeEditor::EditorCut()
 {
-    _editorOperations->CutSelection(_selectedLabel);
+    _editorOperations->Cut(_selectedLabel);
     SetPointLabel();
     UpdateUndoRedoMenu();
     UpdateViewports(All);
@@ -1317,7 +1317,7 @@ void EspinaVolumeEditor::EditorCut()
 
 void EspinaVolumeEditor::EditorRelabel()
 {
-    if (_editorOperations->RelabelSelection(this, _selectedLabel, _dataManager->GetLookupTable(), _fileMetadata))
+    if (_editorOperations->Relabel(this, _selectedLabel, _dataManager->GetLookupTable(), _fileMetadata))
     {
         FillColorLabels();
 
@@ -1385,7 +1385,7 @@ void EspinaVolumeEditor::About()
 
 void EspinaVolumeEditor::ErodeVolume()
 {
-    _editorOperations->ErodeSelection(_selectedLabel);
+    _editorOperations->Erode(_selectedLabel);
 
     SetPointLabel();
     UpdateUndoRedoMenu();
@@ -1394,7 +1394,7 @@ void EspinaVolumeEditor::ErodeVolume()
 
 void EspinaVolumeEditor::DilateVolume()
 {
-    _editorOperations->DilateSelection(_selectedLabel);
+    _editorOperations->Dilate(_selectedLabel);
 
     SetPointLabel();
     UpdateUndoRedoMenu();
@@ -1404,7 +1404,7 @@ void EspinaVolumeEditor::DilateVolume()
 
 void EspinaVolumeEditor::OpenVolume()
 {
-    _editorOperations->OpenSelection(_selectedLabel);
+    _editorOperations->Open(_selectedLabel);
 
     SetPointLabel();
     UpdateUndoRedoMenu();
@@ -1414,7 +1414,7 @@ void EspinaVolumeEditor::OpenVolume()
 
 void EspinaVolumeEditor::CloseVolume()
 {
-    _editorOperations->CloseSelection(_selectedLabel);
+    _editorOperations->Close(_selectedLabel);
 
     SetPointLabel();
     UpdateUndoRedoMenu();
@@ -1424,7 +1424,7 @@ void EspinaVolumeEditor::CloseVolume()
 
 void EspinaVolumeEditor::WatershedVolume()
 {
-    _editorOperations->WatershedSelection(_selectedLabel);
+    _editorOperations->Watershed(_selectedLabel);
 
     FillColorLabels();
 

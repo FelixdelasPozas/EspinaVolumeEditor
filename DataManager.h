@@ -49,14 +49,48 @@ class DataManager
         // class init
         void Initialize(itk::SmartPointer<LabelMapType>, Coordinates *, Metadata *);
 
-        // set image StructuredPoints
-    	void SetStructuredPoints(vtkSmartPointer<vtkStructuredPoints>);
-        
         // undo/redo system signaling
         void OperationStart(std::string);
         void OperationEnd();
         void OperationCancel();
         
+        // undo/redo system forwarding as i don't want other than DataManager touch the Undo/Redo system
+        // but need these actions for the GUI menu items
+        std::string GetUndoActionString();
+        std::string GetRedoActionString();
+        std::string GetActualActionString();
+        bool IsUndoBufferEmpty();
+        bool IsRedoBufferEmpty();
+        void DoUndoOperation();
+        void DoRedoOperation();
+
+        // undo/redo configuration
+        void SetUndoRedoBufferSize(unsigned long int);
+        unsigned long int GetUndoRedoBufferSize();
+        unsigned long int GetUndoRedoBufferCapacity();
+
+        // SETS /////////////////////////
+
+        // changes voxel label
+        void SetVoxelScalar(unsigned int, unsigned int, unsigned int, unsigned short);
+
+        // changes voxel label but bypass undo/redo system, used to take back changes made to data while
+        // we are inside an exception treatment code.
+        void SetVoxelScalarRaw(unsigned int, unsigned int, unsigned int, unsigned short);
+
+        // creates a new label and assigns a new scalar to that label, starting from an initial
+        // optional value (firstfreevalue). modifies color table and returns new label position
+        // (not scalar used for that label)
+        unsigned short SetLabel(Vector3d);
+
+        // set image StructuredPoints
+    	void SetStructuredPoints(vtkSmartPointer<vtkStructuredPoints>);
+
+        // set the first scalar value that is free to assign a label (it's NOT the label number)
+        void SetFirstFreeValue(unsigned short);
+
+        // GETS /////////////////////////
+
         // get pointer to vtkStructuredPoints
         vtkSmartPointer<vtkStructuredPoints> GetStructuredPoints();
         
@@ -76,26 +110,9 @@ class DataManager
         // get scalar for voxel(x,y,z)
         unsigned short GetVoxelScalar(unsigned int, unsigned int, unsigned int);
         
-        // changes voxel label
-        void SetVoxelScalar(unsigned int, unsigned int, unsigned int, unsigned short);
-        
-        // changes voxel label but bypass undo/redo system, used to take back changes made to data while
-        // we are inside an exception treatment code.
-        void SetVoxelScalarRaw(unsigned int, unsigned int, unsigned int, unsigned short);
-        
-        // creates a new label and assigns a new scalar to that label, starting from an initial
-        // optional value. modifies color table and returns new label position (not scalar)
-        unsigned short SetLabel(Vector3d);
-        
-        // switch tables
-        void SwitchLookupTables(vtkSmartPointer<vtkLookupTable>);
-        
         // get a smartpointer from the lookuptable
         vtkSmartPointer<vtkLookupTable> GetLookupTable();
-        
-        // set the first scalar value that is free to assign a label (it's NOT the label number)
-        void SetFirstFreeValue(unsigned short);
-        
+
         // get the first scalar value that is free to assign to a label (NOT the label number)
         unsigned short GetFirstFreeValue();
         
@@ -105,21 +122,6 @@ class DataManager
         // get a pointer to the rgba values of a scalar (it's NOT the label number)
         double* GetRGBAColorForScalar(unsigned short);
         
-        // undo/redo system forwarding as i don't want other than DataManager touch the Undo/Redo system
-        // but need these actions for the GUI menu items
-        std::string GetUndoActionString();
-        std::string GetRedoActionString();
-        std::string GetActualActionString();
-        bool IsUndoBufferEmpty();
-        bool IsRedoBufferEmpty();
-        void DoUndoOperation();
-        void DoRedoOperation();
-        
-        // undo/redo configuration
-        void SetUndoRedoBufferSize(unsigned long int);
-        unsigned long int GetUndoRedoBufferSize();
-        unsigned long int GetUndoRedoBufferCapacity();
-        
         // voxel statistics per label
         unsigned long long int GetNumberOfVoxelsForLabel(unsigned short);
 
@@ -127,7 +129,7 @@ class DataManager
         Vector3ui GetBoundingBoxMin(unsigned short);
         Vector3ui GetBoundingBoxMax(unsigned short);
 
-        // get the number of labels used (number of objects - 1, as the background label doesn't represent an object)
+        // get the number of labels used (including the background label)
         unsigned int GetNumberOfLabels(void);
 
         struct ObjectInformation
@@ -143,6 +145,11 @@ class DataManager
 
         // get the table of objects
         std::map<unsigned short, struct DataManager::ObjectInformation*>* GetObjectTablePointer();
+
+        // MISC /////////////////////////
+
+        // switch tables
+        void SwitchLookupTables(vtkSmartPointer<vtkLookupTable>);
 
     private:
         // resets lookuptable to initial state based on original labelmap, used during init too

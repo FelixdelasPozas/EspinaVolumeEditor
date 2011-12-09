@@ -55,7 +55,6 @@ void DataManager::Initialize(itk::SmartPointer<LabelMapType> labelMap, Coordinat
 
    	ObjectVector.insert(std::pair<unsigned short, ObjectInformation*>(0,object));
 
-
     // evaluate shapelabelobjects to get the centroid of the object
     itk::SmartPointer<itk::ShapeLabelMapFilter<LabelMapType> > evaluator = itk::ShapeLabelMapFilter<LabelMapType>::New();
     evaluator->SetInput(labelMap);
