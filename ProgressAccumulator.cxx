@@ -222,22 +222,28 @@ void ProgressAccumulator::IgnoreAll()
 }
 
 // value defaults to 0 so it's optional, see .h
-void ProgressAccumulator::ManualSet(std::string text, int value)
+void ProgressAccumulator::ManualSet(std::string text, int value, bool fromThread)
 {
     _progressLabel->setText(QString(text.c_str()));
     _progressBar->setValue(value);
-    _qApp->setOverrideCursor(QCursor(Qt::WaitCursor));
-    _qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
+
+    if (!fromThread)
+    {
+		_qApp->setOverrideCursor(QCursor(Qt::WaitCursor));
+		_qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
+    }
 }
 
-void ProgressAccumulator::ManualUpdate(int value)
+void ProgressAccumulator::ManualUpdate(int value, bool fromThread)
 {
 	_progressBar->setValue(value);
 	_progressBar->update();
-	_qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
+
+	if (!fromThread)
+		_qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
 }
 
-void ProgressAccumulator::ManualReset()
+void ProgressAccumulator::ManualReset(bool fromThread)
 {
 	_accumulatedProgress = 0;
 	
@@ -247,6 +253,9 @@ void ProgressAccumulator::ManualReset()
     if (_progressBar != NULL)
     	_progressBar->setValue(100);
     
-    _qApp->restoreOverrideCursor();
-    _qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
+    if (!fromThread)
+    {
+		_qApp->restoreOverrideCursor();
+		_qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
+    }
 }

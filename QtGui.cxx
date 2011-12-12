@@ -127,6 +127,10 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
     
     connect(renderdisablebutton, SIGNAL(clicked(bool)), this, SLOT(DisableRenderView()));
 
+    // create session timer and connect
+    _sessionTimer = new QTimer;
+    connect(_sessionTimer, SIGNAL(timeout()), this, SLOT(SaveSession()));
+
     XspinBox->setReadOnly(false);
     XspinBox->setWrapping(false);
     XspinBox->setAccelerated(true);
@@ -298,11 +302,13 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
     this->_coronalSliceVisualization = new SliceVisualization(SliceVisualization::Coronal);
     this->_axialSliceVisualization = new SliceVisualization(SliceVisualization::Axial);
 
-    
     // initialize editor progress bar
     this->_progress = new ProgressAccumulator(app);
     this->_progress->SetProgressBar(progressBar, progressLabel);
     this->_progress->Reset();
+
+    // create mutex for mutual exclusion sections
+    actionLock = new QMutex();
 }
 
 EspinaVolumeEditor::~EspinaVolumeEditor()
@@ -352,6 +358,8 @@ void EspinaVolumeEditor::EditorOpen(void)
     else
         return;
     
+	QMutexLocker locker(actionLock);
+
     // MetaImageIO needed to read an image without a estandar extension (segmha in this case)
     typedef itk::Image<unsigned short, 3> ImageType;
     typedef itk::ImageFileReader<ImageType> ReaderType;
@@ -600,7 +608,7 @@ void EspinaVolumeEditor::EditorOpen(void)
     // fill selection label combobox and draw label combobox
     FillColorLabels();
     this->updatepointlabel = true;
-    SetPointLabel();
+    GetPointLabel();
     
     // initalize EditorOperations instance
     _editorOperations->Initialize(_voxelViewRenderer, _orientationData, _progress);
@@ -666,6 +674,9 @@ void EspinaVolumeEditor::EditorOpen(void)
     // initially without a reference image
     _hasReferenceImage = false;
     
+    // start session timer
+    _sessionTimer->start(15000, true);
+
     _progress->ManualReset();
 }
 
@@ -824,6 +835,8 @@ void EspinaVolumeEditor::EditorReferenceOpen(void)
 
 void EspinaVolumeEditor::EditorSave()
 {
+	QMutexLocker locker(actionLock);
+
 	QMessageBox msgBox;
 	string filenameStd;
 
@@ -890,7 +903,7 @@ void EspinaVolumeEditor::MoveAxialSlider(int value)
     value--;
     _POI[2] = value;
     if (updatepointlabel)
-    	SetPointLabel();
+    	GetPointLabel();
     
     _sagittalSliceVisualization->UpdateCrosshair(_POI);
     _coronalSliceVisualization->UpdateCrosshair(_POI);
@@ -919,7 +932,7 @@ void EspinaVolumeEditor::MoveCoronalSlider(int value)
 
     _POI[1] = value;
     if (updatepointlabel)
-    	SetPointLabel();
+    	GetPointLabel();
 
     _sagittalSliceVisualization->UpdateCrosshair(_POI);
     _coronalSliceVisualization->UpdateSlice(_POI);
@@ -948,7 +961,7 @@ void EspinaVolumeEditor::MoveSagittalSlider(int value)
     
     _POI[0] = value;
     if (updatepointlabel)
-    	SetPointLabel();
+    	GetPointLabel();
 
     _sagittalSliceVisualization->UpdateSlice(_POI);
     _coronalSliceVisualization->UpdateCrosshair(_POI);
@@ -999,7 +1012,7 @@ void EspinaVolumeEditor::ChangeZspinBox(int value)
     axialslider->setSliderPosition(value);
 }
 
-void EspinaVolumeEditor::SetPointLabel()
+void EspinaVolumeEditor::GetPointLabel()
 {
 	// get pixel value
     _pointScalar = _dataManager->GetVoxelScalar(_POI[0],_POI[1],_POI[2]);
@@ -1012,6 +1025,7 @@ void EspinaVolumeEditor::SetPointLabel()
     {
         pointlabelnumber->setText(" Background");
         pointlabelcolor->setText(" None");
+        pointlabelname->setText(" None");
         return;
     }
 
@@ -1031,6 +1045,8 @@ void EspinaVolumeEditor::SetPointLabel()
     out1 << labelindex;
     pointlabelnumber->setText(out1.str().c_str());
     pointlabelcolor->setPixmap(icon);
+
+    pointlabelname->setText(_fileMetadata->GetObjectSegmentName(_pointScalar).c_str());
 }
 
 void EspinaVolumeEditor::FillColorLabels()
@@ -1159,7 +1175,7 @@ void EspinaVolumeEditor::LabelSelectionChanged(int value)
     _axialSliceVisualization->Update(_POI);
     _axesRender->Update(_POI);
 
-    SetPointLabel();
+    GetPointLabel();
 
     // change slice view to the new label
     Vector3d spacing = _orientationData->GetImageSpacing();
@@ -1309,14 +1325,18 @@ void EspinaVolumeEditor::EditorSelectionEnd(bool value)
 
 void EspinaVolumeEditor::EditorCut()
 {
+	QMutexLocker locker(actionLock);
+
     _editorOperations->Cut(_selectedLabel);
-    SetPointLabel();
+    GetPointLabel();
     UpdateUndoRedoMenu();
     UpdateViewports(All);
 }
 
 void EspinaVolumeEditor::EditorRelabel()
 {
+	QMutexLocker locker(actionLock);
+
     if (_editorOperations->Relabel(this, _selectedLabel, _dataManager->GetLookupTable(), _fileMetadata))
     {
         FillColorLabels();
@@ -1327,7 +1347,7 @@ void EspinaVolumeEditor::EditorRelabel()
     	_volumeRender->UpdateFocus(_selectedLabel);
     }
 
-    SetPointLabel();
+    GetPointLabel();
     UpdateUndoRedoMenu();
     UpdateViewports(All);
 }
@@ -1385,18 +1405,22 @@ void EspinaVolumeEditor::About()
 
 void EspinaVolumeEditor::ErodeVolume()
 {
+	QMutexLocker locker(actionLock);
+
     _editorOperations->Erode(_selectedLabel);
 
-    SetPointLabel();
+    GetPointLabel();
     UpdateUndoRedoMenu();
     UpdateViewports(All);
 }
 
 void EspinaVolumeEditor::DilateVolume()
 {
+	QMutexLocker locker(actionLock);
+
     _editorOperations->Dilate(_selectedLabel);
 
-    SetPointLabel();
+    GetPointLabel();
     UpdateUndoRedoMenu();
     _volumeRender->UpdateFocusExtent();
     UpdateViewports(All);
@@ -1404,9 +1428,11 @@ void EspinaVolumeEditor::DilateVolume()
 
 void EspinaVolumeEditor::OpenVolume()
 {
+	QMutexLocker locker(actionLock);
+
     _editorOperations->Open(_selectedLabel);
 
-    SetPointLabel();
+    GetPointLabel();
     UpdateUndoRedoMenu();
     _volumeRender->UpdateFocusExtent();
     UpdateViewports(All);
@@ -1414,9 +1440,11 @@ void EspinaVolumeEditor::OpenVolume()
 
 void EspinaVolumeEditor::CloseVolume()
 {
+	QMutexLocker locker(actionLock);
+
     _editorOperations->Close(_selectedLabel);
 
-    SetPointLabel();
+    GetPointLabel();
     UpdateUndoRedoMenu();
     _volumeRender->UpdateFocusExtent();
     UpdateViewports(All);
@@ -1424,6 +1452,8 @@ void EspinaVolumeEditor::CloseVolume()
 
 void EspinaVolumeEditor::WatershedVolume()
 {
+	QMutexLocker locker(actionLock);
+
     _editorOperations->Watershed(_selectedLabel);
 
     FillColorLabels();
@@ -1433,7 +1463,7 @@ void EspinaVolumeEditor::WatershedVolume()
 	_volumeRender = new VoxelVolumeRender(_dataManager, _voxelViewRenderer, _progress);
 	_volumeRender->UpdateFocus(_selectedLabel);
 
-    SetPointLabel();
+    GetPointLabel();
     UpdateUndoRedoMenu();
     UpdateViewports(All);
 }
@@ -1461,6 +1491,8 @@ void EspinaVolumeEditor::UpdateUndoRedoMenu()
 
 void EspinaVolumeEditor::OperationUndo()
 {
+	QMutexLocker locker(actionLock);
+
     std::string text = std::string("Undo ") + _dataManager->GetUndoActionString();
     _progress->ManualSet(text);
 
@@ -1471,7 +1503,7 @@ void EspinaVolumeEditor::OperationUndo()
         _selectedLabel = 0;
         
     LabelSelectionChanged(_selectedLabel);
-    SetPointLabel();
+    GetPointLabel();
     FillColorLabels();
     UpdateUndoRedoMenu();
     UpdateViewports(All);
@@ -1480,6 +1512,8 @@ void EspinaVolumeEditor::OperationUndo()
 
 void EspinaVolumeEditor::OperationRedo()
 {
+	QMutexLocker locker(actionLock);
+
 	std::string text = std::string("Redo ") + _dataManager->GetRedoActionString();
     _progress->ManualSet(text);
     
@@ -1490,7 +1524,7 @@ void EspinaVolumeEditor::OperationRedo()
         _selectedLabel = 0;
         
     LabelSelectionChanged(_selectedLabel);
-    SetPointLabel();
+    GetPointLabel();
     FillColorLabels();
     UpdateUndoRedoMenu();
     UpdateViewports(All);
@@ -1706,6 +1740,9 @@ void EspinaVolumeEditor::SagittalInteraction(vtkObject* object, unsigned long ev
 
 void EspinaVolumeEditor::AxialXYPick(unsigned long event)
 {
+	if (paintbutton->isChecked())
+		QMutexLocker locker(actionLock);
+
     // static var stores data between calls
     static SliceVisualization::PickingType pickedProp = SliceVisualization::None;
     SliceVisualization::PickingType actualPick = SliceVisualization::None;
@@ -1780,8 +1817,8 @@ void EspinaVolumeEditor::AxialXYPick(unsigned long event)
         }
     }
     
-    // get pixel value or pick a label if color picker is activated (managed in SetPointLabel())
-    SetPointLabel();
+    // get pixel value or pick a label if color picker is activated (managed in GetPointLabel())
+    GetPointLabel();
     updatepointlabel = true;
 
     if ((pickedProp == SliceVisualization::Slice) && (actualPick == SliceVisualization::Slice) && (paintbutton->isChecked()))
@@ -1803,6 +1840,9 @@ void EspinaVolumeEditor::AxialXYPick(unsigned long event)
 
 void EspinaVolumeEditor::CoronalXYPick(unsigned long event)
 {
+	if (paintbutton->isChecked())
+		QMutexLocker locker(actionLock);
+
     // static var stores data between calls
     static SliceVisualization::PickingType pickedProp = SliceVisualization::None;
     SliceVisualization::PickingType actualPick = SliceVisualization::None;
@@ -1878,7 +1918,7 @@ void EspinaVolumeEditor::CoronalXYPick(unsigned long event)
     }
 
     // get pixel value
-    SetPointLabel();
+    GetPointLabel();
     updatepointlabel = true;
 
     if ((paintbutton->isChecked()) && (pickedProp == SliceVisualization::Slice) && (actualPick == SliceVisualization::Slice))
@@ -1900,6 +1940,9 @@ void EspinaVolumeEditor::CoronalXYPick(unsigned long event)
 
 void EspinaVolumeEditor::SagittalXYPick(unsigned long event)
 {
+	if (paintbutton->isChecked())
+		QMutexLocker locker(actionLock);
+
     // static var stores data between calls
     static SliceVisualization::PickingType pickedProp = SliceVisualization::None;
     SliceVisualization::PickingType actualPick = SliceVisualization::None;
@@ -1975,7 +2018,7 @@ void EspinaVolumeEditor::SagittalXYPick(unsigned long event)
     }
 
     // get pixel value
-    SetPointLabel();
+    GetPointLabel();
     updatepointlabel = true;
 
     if ((paintbutton->isChecked()) && (pickedProp == SliceVisualization::Slice) && (actualPick == SliceVisualization::Slice))
@@ -1993,48 +2036,6 @@ void EspinaVolumeEditor::SagittalXYPick(unsigned long event)
         
     // we will render the viewports as rendersliceviews == false now
     UpdateViewports(Slices);    
-}
-
-bool EspinaVolumeEditor::VolumeModified()
-{
-    return _acceptedChanges;
-}
-
-itk::SmartPointer<LabelMapType> EspinaVolumeEditor::GetOutput()
-{
-    if (_acceptedChanges == false)
-        return NULL;
-
-    return _editorOperations->GetImageLabelMap();
-}
-
-void EspinaVolumeEditor::SetInitialFreeValue(unsigned short value)
-{
-    _dataManager->SetFirstFreeValue(value);
-}
-
-unsigned short EspinaVolumeEditor::GetLastUsedScalarValue()
-{
-    if ((_acceptedChanges == false) || (!GetUserCreatedNewLabels()))
-        return 0;
-
-    return _dataManager->GetLastUsedValue();
-}
-
-double* EspinaVolumeEditor::GetRGBAColorFromValue(unsigned short value)
-{
-    if (_acceptedChanges == false)
-        return NULL;
-
-    return _dataManager->GetRGBAColorForScalar(value);
-}
-
-bool EspinaVolumeEditor::GetUserCreatedNewLabels()
-{
-    if ((_acceptedChanges == false) || (_dataManager->GetFirstFreeValue() == 1))
-        return false;
-    
-    return (_dataManager->GetLastUsedValue() >= _dataManager->GetFirstFreeValue());
 }
 
 void EspinaVolumeEditor::ViewZoom(void)
@@ -2244,4 +2245,28 @@ void EspinaVolumeEditor::DisableRenderView(void)
 			break;
 
 	}
+}
+
+void EspinaVolumeEditor::SaveSession(void)
+{
+	SaveSessionThread* saveSession = new SaveSessionThread(this, _dataManager);
+	saveSession->start();
+}
+
+void EspinaVolumeEditor::SaveSessionStart(void)
+{
+	_progress->ManualSet("Save Session",0, true);
+}
+
+void EspinaVolumeEditor::SaveSessionProgress(int value)
+{
+	_progress->ManualUpdate(value, true);
+}
+
+void EspinaVolumeEditor::SaveSessionEnd(void)
+{
+	_progress->ManualReset(true);
+
+	// we use singleshot timers so until the save session operation has ended we don't restart it
+	_sessionTimer->start(10000, true);
 }

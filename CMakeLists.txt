@@ -20,9 +20,9 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-SET(QtSrcs QtGui.cxx QtPreferences.cxx QtRelabel.cxx QtAbout.cxx QtColorPicker.cxx)
+SET(QtSrcs QtGui.cxx QtPreferences.cxx QtRelabel.cxx QtAbout.cxx QtColorPicker.cxx SaveSession.cxx)
 SET(UIS QtGui.ui QtPreferences.ui QtRelabel.ui QtAbout.ui QtColorPicker.ui)
-SET (QtHeaders QtGui.h QtPreferences.h QtRelabel.h QtAbout.h QtColorPicker.h)
+SET (QtHeaders QtGui.h QtPreferences.h QtRelabel.h QtAbout.h QtColorPicker.h SaveSession.h)
 SET (QtResources editor.qrc about.qrc colorpicker.qrc)
 QT4_WRAP_UI(UIHeaders ${UIS})
 QT4_WRAP_CPP(MOCSrcs ${QtHeaders} )
@@ -48,7 +48,7 @@ SET(Libraries
   ${QT_LIBRARIES}
 )
 
-SET(CurrentFiles "Editor" "SliceVisualization" "UndoRedoSystem" "EditorOperations" "ProgressAccumulator" "Coordinates" "VoxelVolumeRender" "DataManager" "AxesRender" "Metadata")
+SET(CurrentFiles "Editor" "SliceVisualization" "UndoRedoSystem" "EditorOperations" "ProgressAccumulator" "Coordinates" "VoxelVolumeRender" "DataManager" "AxesRender" "Metadata" "SaveSession")
 ADD_EXECUTABLE(Editor ${CurrentFiles}.cxx ${QtSrcs} ${MOCSrcs} ${QtResources_CXX})
 TARGET_LINK_LIBRARIES(Editor ${Libraries})
 SET_TARGET_PROPERTIES(Editor PROPERTIES OUTPUT_NAME EspinaEditor)
@@ -60,7 +60,7 @@ SET(CPACK_DEBIAN_PACKAGE_NAME "EspinaVolumeEditor")
 SET(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
 SET(CPACK_PACKAGE_VERSION_MAJOR "1")
 SET(CPACK_PACKAGE_VERSION_MINOR "0")
-SET(CPACK_PACKAGE_VERSION_PATCH "0")
+SET(CPACK_PACKAGE_VERSION_PATCH "1")
 SET(CPACK_DEBIAN_ARCHITECTURE ${CMAKE_SYSTEM_PROCESSOR})
 SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Volume editor for Espina segmentation tool")
 SET(CPACK_PACKAGE_DESCRIPTION "Volume editor for Espina segmentation tool")

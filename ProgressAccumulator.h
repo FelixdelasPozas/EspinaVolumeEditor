@@ -81,9 +81,9 @@ class ProgressAccumulator
         void Reset();
         
         // manual operations
-        void ManualSet(std::string, int = 0);
-        void ManualUpdate(int);
-        void ManualReset();
+        void ManualSet(std::string, int = 0, bool = false);
+        void ManualUpdate(int, bool = false);
+        void ManualReset(bool = false);
     private:
         // manage a ITK process event
         void ITKProcessEvent(itk::Object*, const itk::EventObject &);

@@ -11,6 +11,8 @@
 #define _QTEDITORESPINA_H_
 
 // qt includes
+#include <QMutex>
+#include <QTimer>
 #include "ui_QtGui.h"
 
 // itk includes
@@ -41,6 +43,7 @@
 #include "EditorOperations.h"
 #include "DataManager.h"
 #include "Metadata.h"
+#include "SaveSession.h"
 
 // defines and typedefs
 typedef itk::ShapeLabelObject < unsigned short,3 >  LabelObjectType;
@@ -55,35 +58,11 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         EspinaVolumeEditor(QApplication *app, QWidget *parent = 0);
         ~EspinaVolumeEditor();
         
-        // INTERFACE FUNCTIONS //////////////////////////////////////////////////
-        
-        // set the initial scalar to be used by the editor to assign to a label.
-        // OPTIONAL: if not set the initial value is assumed to be 1
-        void SetInitialFreeValue(unsigned short);
-        
-        // get the last scalar used in the editor to assign a value to a label
-        unsigned short GetLastUsedScalarValue();
-        
-        // must be used to get sure that the user has created new labels, if false
-        // the value returned for GetLastUsedScalarValue is 0
-        bool GetUserCreatedNewLabels();
-        
-        // get the label map resulting from the volume edition
-        itk::SmartPointer<LabelMapType> GetOutput();
-        
-        // get a pointer to the rgba values of the scalar used by the user in
-        // the editor. 
-        // BEWARE: deallocation must be done by the caller of the function as
-        // those values won't be deleted when the editor class is destroyed.
-        double* GetRGBAColorFromValue(unsigned short);
-        
-        // must be called before using any of the gets to be sure that the used
-        // has accepted the modifications to the volume
-        bool VolumeModified();
+        // mutex to assure that no editing action is interrupted by the save session operation that can kick in at any time
+        QMutex *actionLock;
     public slots:
-        
     protected:
-    protected slots://
+    protected slots:
     	virtual void EditorOpen();
     	virtual void EditorReferenceOpen();
         virtual void EditorSave();
@@ -118,6 +97,10 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         virtual void OperationRedo();
         virtual void ViewZoom();
         virtual void DisableRenderView();
+        virtual void SaveSession();
+        virtual void SaveSessionStart();
+        virtual void SaveSessionEnd();
+        virtual void SaveSessionProgress(int);
     private:
         typedef enum { All, Slices, Voxel, Axial, Coronal, Sagittal } VIEWPORTSENUM;
         
@@ -129,7 +112,7 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         void AxialXYPick(unsigned long);
         void CoronalXYPick(unsigned long);
         void SagittalXYPick(unsigned long);
-        void SetPointLabel();
+        void GetPointLabel();
         void FillColorLabels();
         void UpdateViewports(VIEWPORTSENUM);
         void UpdateUndoRedoMenu();
@@ -180,7 +163,9 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
 
         // espina metadata
         Metadata							  *_fileMetadata;
-};
 
+        // session timer
+        QTimer 								  *_sessionTimer;
+};
 
 #endif
