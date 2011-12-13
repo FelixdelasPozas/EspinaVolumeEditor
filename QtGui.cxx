@@ -111,6 +111,7 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
     
     connect(viewbutton, SIGNAL(toggled(bool)), this, SLOT(EditorSelectionEnd(bool)));
     connect(paintbutton, SIGNAL(toggled(bool)), this, SLOT(EditorSelectionEnd(bool)));
+    connect(erasebutton, SIGNAL(toggled(bool)), this, SLOT(EditorSelectionEnd(bool)));
     connect(cutbutton, SIGNAL(clicked(bool)), this, SLOT(EditorCut()));
     connect(relabelbutton, SIGNAL(clicked(bool)), this, SLOT(EditorRelabel()));
     connect(pickerbutton, SIGNAL(clicked(bool)), this, SLOT(EditorSelectionEnd(bool)));
@@ -616,6 +617,7 @@ void EspinaVolumeEditor::EditorOpen(void)
     // enable disabled widgets
     viewbutton->setEnabled(true);
     paintbutton->setEnabled(true);
+    erasebutton->setEnabled(true);
     pickerbutton->setEnabled(true);
     selectbutton->setEnabled(true);
     axialresetbutton->setEnabled(true);
@@ -1740,7 +1742,8 @@ void EspinaVolumeEditor::SagittalInteraction(vtkObject* object, unsigned long ev
 
 void EspinaVolumeEditor::AxialXYPick(unsigned long event)
 {
-	if (paintbutton->isChecked())
+	// if we are modifing the volume get the lock
+	if ((paintbutton->isChecked()) || (erasebutton->isChecked()))
 		QMutexLocker locker(actionLock);
 
     // static var stores data between calls
@@ -1776,7 +1779,7 @@ void EspinaVolumeEditor::AxialXYPick(unsigned long event)
         updatevoxelrenderer = true;
         updateslicerenderers = true;
 
-        if ((paintbutton->isChecked()) && (pickedProp == SliceVisualization::Slice) && (actualPick == SliceVisualization::Slice))
+        if (((erasebutton->isChecked()) || (paintbutton->isChecked())) && (pickedProp == SliceVisualization::Slice) && (actualPick == SliceVisualization::Slice))
         {
             _dataManager->OperationEnd();
             _volumeRender->UpdateFocusExtent();
@@ -1793,6 +1796,9 @@ void EspinaVolumeEditor::AxialXYPick(unsigned long event)
     {
         if ((paintbutton->isChecked()) && (pickedProp == SliceVisualization::Slice) && (actualPick == SliceVisualization::Slice))
             _dataManager->OperationStart("Paint");
+
+        if ((erasebutton->isChecked()) && (pickedProp == SliceVisualization::Slice) && (actualPick == SliceVisualization::Slice))
+            _dataManager->OperationStart("Erase");
     }
 
     updatevoxelrenderer = false;
@@ -1824,6 +1830,9 @@ void EspinaVolumeEditor::AxialXYPick(unsigned long event)
     if ((pickedProp == SliceVisualization::Slice) && (actualPick == SliceVisualization::Slice) && (paintbutton->isChecked()))
         _dataManager->SetVoxelScalar(_POI[0], _POI[1], _POI[2], _selectedLabel);
     
+    if ((pickedProp == SliceVisualization::Slice) && (actualPick == SliceVisualization::Slice) && (erasebutton->isChecked()))
+        _dataManager->SetVoxelScalar(_POI[0], _POI[1], _POI[2], 0);
+
     if ((pickedProp == SliceVisualization::Slice) && (actualPick == SliceVisualization::Slice) && (selectbutton->isChecked()))
     {
         cutbutton->setEnabled(true);
@@ -1840,7 +1849,8 @@ void EspinaVolumeEditor::AxialXYPick(unsigned long event)
 
 void EspinaVolumeEditor::CoronalXYPick(unsigned long event)
 {
-	if (paintbutton->isChecked())
+	// if we are modifing the volume get the lock
+	if ((paintbutton->isChecked()) || (erasebutton->isChecked()))
 		QMutexLocker locker(actionLock);
 
     // static var stores data between calls
@@ -1876,7 +1886,7 @@ void EspinaVolumeEditor::CoronalXYPick(unsigned long event)
         updatevoxelrenderer = true;
         updateslicerenderers = true;
 
-        if ((paintbutton->isChecked()) && (pickedProp == SliceVisualization::Slice) && (actualPick == SliceVisualization::Slice))
+        if (((erasebutton->isChecked()) || (paintbutton->isChecked())) && (pickedProp == SliceVisualization::Slice) && (actualPick == SliceVisualization::Slice))
         {
             _dataManager->OperationEnd();
             _volumeRender->UpdateFocusExtent();
@@ -1893,6 +1903,9 @@ void EspinaVolumeEditor::CoronalXYPick(unsigned long event)
     {
         if ((paintbutton->isChecked()) && (pickedProp == SliceVisualization::Slice) && (actualPick == SliceVisualization::Slice))
             _dataManager->OperationStart("Paint");
+
+        if ((erasebutton->isChecked()) && (pickedProp == SliceVisualization::Slice) && (actualPick == SliceVisualization::Slice))
+            _dataManager->OperationStart("Erase");
     }
 
     updatevoxelrenderer = false;
@@ -1924,6 +1937,9 @@ void EspinaVolumeEditor::CoronalXYPick(unsigned long event)
     if ((paintbutton->isChecked()) && (pickedProp == SliceVisualization::Slice) && (actualPick == SliceVisualization::Slice))
         _dataManager->SetVoxelScalar(_POI[0], _POI[1], _POI[2],_selectedLabel);
     
+    if ((pickedProp == SliceVisualization::Slice) && (actualPick == SliceVisualization::Slice) && (erasebutton->isChecked()))
+        _dataManager->SetVoxelScalar(_POI[0], _POI[1], _POI[2], 0);
+
     if ((selectbutton->isChecked()) && (pickedProp == SliceVisualization::Slice) && (actualPick == SliceVisualization::Slice))
     {
         cutbutton->setEnabled(true);
@@ -1940,7 +1956,8 @@ void EspinaVolumeEditor::CoronalXYPick(unsigned long event)
 
 void EspinaVolumeEditor::SagittalXYPick(unsigned long event)
 {
-	if (paintbutton->isChecked())
+	// if we are modifing the volume get the lock
+	if ((paintbutton->isChecked()) || (erasebutton->isChecked()))
 		QMutexLocker locker(actionLock);
 
     // static var stores data between calls
@@ -1976,7 +1993,7 @@ void EspinaVolumeEditor::SagittalXYPick(unsigned long event)
         updatevoxelrenderer = true;
         updateslicerenderers = true;
 
-        if ((paintbutton->isChecked()) && (pickedProp == SliceVisualization::Slice) && (actualPick == SliceVisualization::Slice))
+        if (((erasebutton->isChecked()) || (paintbutton->isChecked())) && (pickedProp == SliceVisualization::Slice) && (actualPick == SliceVisualization::Slice))
         {
             _dataManager->OperationEnd();
             _volumeRender->UpdateFocusExtent();
@@ -1993,6 +2010,9 @@ void EspinaVolumeEditor::SagittalXYPick(unsigned long event)
     {
         if ((paintbutton->isChecked()) && (pickedProp == SliceVisualization::Slice) && (actualPick == SliceVisualization::Slice))
             _dataManager->OperationStart("Paint");
+
+        if ((erasebutton->isChecked()) && (pickedProp == SliceVisualization::Slice) && (actualPick == SliceVisualization::Slice))
+            _dataManager->OperationStart("Erase");
     }
 
     updatevoxelrenderer = false;
@@ -2024,6 +2044,9 @@ void EspinaVolumeEditor::SagittalXYPick(unsigned long event)
     if ((paintbutton->isChecked()) && (pickedProp == SliceVisualization::Slice) && (actualPick == SliceVisualization::Slice))
         _dataManager->SetVoxelScalar(_POI[0], _POI[1], _POI[2],_selectedLabel);
     
+    if ((pickedProp == SliceVisualization::Slice) && (actualPick == SliceVisualization::Slice) && (erasebutton->isChecked()))
+        _dataManager->SetVoxelScalar(_POI[0], _POI[1], _POI[2], 0);
+
     if ((selectbutton->isChecked()) && (pickedProp == SliceVisualization::Slice) && (actualPick == SliceVisualization::Slice))
     {
         cutbutton->setEnabled(true);
@@ -2249,7 +2272,7 @@ void EspinaVolumeEditor::DisableRenderView(void)
 
 void EspinaVolumeEditor::SaveSession(void)
 {
-	SaveSessionThread* saveSession = new SaveSessionThread(this, _dataManager);
+	SaveSessionThread* saveSession = new SaveSessionThread(this, _dataManager, _editorOperations);
 	saveSession->start();
 }
 

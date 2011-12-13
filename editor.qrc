@@ -1,5 +1,6 @@
 <RCC>
   <qresource prefix="newPrefix">
+    <file>icons/eraser.png</file>
     <file>icons/cog_add.png</file>
     <file>icons/cog_delete.png</file>
     <file>icons/colorpicker.png</file>

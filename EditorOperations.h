@@ -85,6 +85,8 @@ class EditorOperations
         void Close(const unsigned short);
         void Open(const unsigned short);
         void Watershed(const unsigned short);
+
+        friend class SaveSessionThread;
     private:
         // shows a message and gives the details of the exception error
         void EditorError(itk::ExceptionObject &);

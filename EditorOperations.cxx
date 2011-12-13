@@ -802,8 +802,7 @@ void EditorOperations::SaveImage(const std::string filename)
 	{
 	    QMessageBox msgBox;
 	    msgBox.setIcon(QMessageBox::Critical);
-		std::string text = std::string("An error occurred saving the segmentation file.\nThe operation has been aborted.");
-		msgBox.setText(text.c_str());
+		msgBox.setText("An error occurred saving the segmentation file.\nThe operation has been aborted.");
 		msgBox.setDetailedText(QString("The temporal file couldn't be renamed."));
 		msgBox.exec();
 
