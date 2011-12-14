@@ -127,6 +127,7 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
     connect(rendersizebutton, SIGNAL(clicked(bool)), this, SLOT(ViewZoom()));
     
     connect(renderdisablebutton, SIGNAL(clicked(bool)), this, SLOT(DisableRenderView()));
+    connect(eyebutton, SIGNAL(clicked(bool)), this, SLOT(SwitchSegmentationView()));
 
     // create session timer and connect
     _sessionTimer = new QTimer;
@@ -307,6 +308,8 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
     this->_progress = new ProgressAccumulator(app);
     this->_progress->SetProgressBar(progressBar, progressLabel);
     this->_progress->Reset();
+
+    _segmentationsAreVisible = true;
 
     // create mutex for mutual exclusion sections
     actionLock = new QMutex();
@@ -641,6 +644,9 @@ void EspinaVolumeEditor::EditorOpen(void)
     rendersizebutton->setEnabled(true);
     renderdisablebutton->setEnabled(true);
     
+    eyebutton->setEnabled(false);
+    eyelabel->setEnabled(false);
+
     // needed to maximize/mininize views, not really necessary but looks better
     viewgrid->setColumnMinimumWidth(0,0);
     viewgrid->setColumnMinimumWidth(1,0);
@@ -677,7 +683,7 @@ void EspinaVolumeEditor::EditorOpen(void)
     _hasReferenceImage = false;
     
     // start session timer
-    _sessionTimer->start(15000, true);
+    //_sessionTimer->start(15000, true);
 
     _progress->ManualReset();
 }
@@ -832,6 +838,17 @@ void EspinaVolumeEditor::EditorReferenceOpen(void)
 	// reset editing state
     viewbutton->setChecked(true);
     
+    // enable segmentation switch views
+    _segmentationsAreVisible = true;
+	eyebutton->setIcon(QPixmap(":/newPrefix/icons/eyeoff.svg"));
+	eyebutton->setToolTip(tr("Hide all segmentations"));
+	eyebutton->setStatusTip(tr("Hide all segmentations"));
+	eyelabel->setText(tr("Hide objects"));
+	eyelabel->setToolTip(tr("Hide all segmentations"));
+	eyelabel->setStatusTip(tr("Hide all segmentations"));
+    eyebutton->setEnabled(true);
+    eyelabel->setEnabled(true);
+
     _progress->ManualReset();
 }
 
@@ -2272,7 +2289,7 @@ void EspinaVolumeEditor::DisableRenderView(void)
 
 void EspinaVolumeEditor::SaveSession(void)
 {
-	SaveSessionThread* saveSession = new SaveSessionThread(this, _dataManager, _editorOperations);
+	SaveSessionThread* saveSession = new SaveSessionThread(this);
 	saveSession->start();
 }
 
@@ -2292,4 +2309,39 @@ void EspinaVolumeEditor::SaveSessionEnd(void)
 
 	// we use singleshot timers so until the save session operation has ended we don't restart it
 	_sessionTimer->start(10000, true);
+}
+
+void EspinaVolumeEditor::SwitchSegmentationView(void)
+{
+	// don't care about the key if the image doesn't have a reference image
+	if (!_hasReferenceImage)
+		return;
+
+	switch(_segmentationsAreVisible)
+	{
+		case false:
+			eyebutton->setIcon(QPixmap(":/newPrefix/icons/eyeoff.svg"));
+			eyebutton->setToolTip(tr("Hide all segmentations"));
+			eyebutton->setStatusTip(tr("Hide all segmentations"));
+			eyelabel->setText(tr("Hide objects"));
+			eyelabel->setToolTip(tr("Hide all segmentations"));
+			eyelabel->setStatusTip(tr("Hide all segmentations"));
+			break;
+		case true:
+			eyebutton->setIcon(QPixmap(":/newPrefix/icons/eyeon.svg"));
+			eyebutton->setToolTip(tr("Show all segmentations"));
+			eyebutton->setStatusTip(tr("Show all segmentations"));
+			eyelabel->setText(tr("Show objects"));
+			eyelabel->setToolTip(tr("Show all segmentations"));
+			eyelabel->setStatusTip(tr("Show all segmentations"));
+			break;
+		default:
+			break;
+	}
+
+	_segmentationsAreVisible = !_segmentationsAreVisible;
+    _axialSliceVisualization->ToggleSegmentationView();
+    _coronalSliceVisualization->ToggleSegmentationView();
+    _sagittalSliceVisualization->ToggleSegmentationView();
+    UpdateViewports(Slices);
 }

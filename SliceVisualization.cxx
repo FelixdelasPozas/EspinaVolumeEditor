@@ -35,7 +35,8 @@
 SliceVisualization::SliceVisualization(OrientationType orientation)
 {
 	// initilize options, minimum required
-	_segmentationOpacity = 50;
+	_segmentationOpacity = 75;
+	_segmentationHidden = false;
 	_blendimages = NULL;
 	_thumbRenderer = NULL;
 	_renderer = NULL;
@@ -676,7 +677,31 @@ unsigned int SliceVisualization::GetSegmentationOpacity()
 void SliceVisualization::SetSegmentationOpacity(unsigned int value)
 {
 	_segmentationOpacity = value;
-	
+
+	if (_segmentationHidden)
+		return;
+
 	if (this->_blendimages)
 		_blendimages->SetOpacity(1,static_cast<float>(value/100.0));
+}
+
+void SliceVisualization::ToggleSegmentationView(void)
+{
+	float opacity = 0.0;
+
+	switch(_segmentationHidden)
+	{
+		case true:
+			_segmentationHidden = false;
+			opacity = _segmentationOpacity/100.0;
+			break;
+		case false:
+			_segmentationHidden = true;
+			break;
+		default:
+			break;
+	}
+
+	if (this->_blendimages)
+		_blendimages->SetOpacity(1,opacity);
 }

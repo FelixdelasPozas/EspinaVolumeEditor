@@ -88,6 +88,9 @@ class SliceVisualization
         
         // set segmentation opacity
         void SetSegmentationOpacity(unsigned int);
+
+        // toggle segmentation view (switches from 0 opacity to previously set opacity)
+        void ToggleSegmentationView(void);
     private:
         // generate imageactor and adds it to renderer
         void GenerateSlice(
@@ -152,7 +155,8 @@ class SliceVisualization
         vtkSmartPointer<vtkPolyData>    _square;
         //
         // configuration options
-        unsigned int _segmentationOpacity;
+        unsigned int 					_segmentationOpacity;
+        bool							_segmentationHidden;
 };
 
 #endif // _SLICEVISUALIZATION_H_

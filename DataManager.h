@@ -151,6 +151,7 @@ class DataManager
         // switch tables
         void SwitchLookupTables(vtkSmartPointer<vtkLookupTable>);
 
+        friend class SaveSessionThread;
     private:
         // resets lookuptable to initial state based on original labelmap, used during init too
         void GenerateLookupTable();

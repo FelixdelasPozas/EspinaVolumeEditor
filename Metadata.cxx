@@ -136,7 +136,7 @@ bool Metadata::Read(QString filename)
 bool Metadata::Write(QString filename, DataManager *data)
 {
 	QFile file(filename);
-	if (!file.open(QIODevice::ReadWrite | QIODevice::Text))
+	if (!file.open(QIODevice::Append|QIODevice::Text))
 		return false;
 
 	if (false == file.seek(file.size()))

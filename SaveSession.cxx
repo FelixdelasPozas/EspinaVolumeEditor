@@ -24,12 +24,13 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // SaveSessionThread class
 //
-SaveSessionThread::SaveSessionThread(EspinaVolumeEditor* parent, DataManager* data, EditorOperations* editor)
+SaveSessionThread::SaveSessionThread(EspinaVolumeEditor* parent)
 {
 	moveToThread(this);
 	_parent = parent;
-	_dataManager = data;
-	_editorOperations = editor;
+	_dataManager = parent->_dataManager;
+	_editorOperations = parent->_editorOperations;
+	_metadata = parent->_fileMetadata;
 	connect(this, SIGNAL(finished()), parent, SLOT(SaveSessionEnd()), Qt::QueuedConnection);
 	connect(this, SIGNAL(startedSaving()), parent, SLOT(SaveSessionStart()), Qt::QueuedConnection);
 	connect(this, SIGNAL(progress(int)), parent, SLOT(SaveSessionProgress(int)), Qt::QueuedConnection);
@@ -62,7 +63,7 @@ int SaveSessionThread::exec()
 			QMessageBox msgBox;
 			msgBox.setIcon(QMessageBox::Critical);
 			msgBox.setText("An error occurred saving the editor session file.\nThe operation has been aborted.");
-			msgBox.setDetailedText("Previous session file exists but couldn't be removed for the new one.");
+			msgBox.setDetailedText("Previous session file exists but couldn't be removed.");
 			msgBox.exec();
 			return -1;
 		}
@@ -106,6 +107,8 @@ int SaveSessionThread::exec()
 		return -3;
 	}
 
+	emit progress(33);
+
 	if (0 != (rename(mhatemporalFilename.c_str(), temporalFilename.c_str())))
 	{
 	    QMessageBox msgBox;
@@ -119,13 +122,13 @@ int SaveSessionThread::exec()
 		    QMessageBox msgBox;
 		    msgBox.setIcon(QMessageBox::Critical);
 		    msgBox.setText("An error occurred saving the editor session file.\nThe operation has been aborted.");
-			msgBox.setDetailedText(QString("The temporal file couldn't be deleted."));
+			msgBox.setDetailedText(QString("The temporal file couldn't be deleted after an error renaming it."));
 			msgBox.exec();
 		}
 		return -4;
 	}
 
-	if (!file.open(QIODevice::WriteOnly|QIODevice::Text))
+	if (!file.open(QIODevice::Append|QIODevice::Text))
 	{
 		QMessageBox msgBox;
 		msgBox.setIcon(QMessageBox::Critical);
@@ -136,20 +139,31 @@ int SaveSessionThread::exec()
 	}
 
 	if (false == file.seek(file.size()))
-		return false;
+		return -6;
 
-	// TODO: continuar y terminar con el save session
-	// TODO: aumentar la opacidad por defecto al cargar las segmentaciones
-	// TODO: quitar/poner las segmentaciones con la barra espaciadora
+	QTextStream out(&file);
 
-	std::cout << "dormido\n";
-	sleep(2);
-	std::cout << "tempfilename: " << temporalFilename << std::endl;
-	emit progress(50);
-	sleep(3);
-	std::cout << "despierto\n";
+	out << "\n";
+
+	std::map<unsigned short, struct DataManager::ObjectInformation*>::iterator it;
+
+	for (it = _dataManager->ObjectVector.begin(); it != _dataManager->ObjectVector.end(); it++)
+	{
+		out << "Object " << (*it).first << " Scalar " << (*it).second->scalar;
+		out << " Centroid [" << (*it).second->centroid[0] << ","<< (*it).second->centroid[1] << "," << (*it).second->centroid[2] << "] ";
+		out << " BBMax [" << (*it).second->max[0] << "," << (*it).second->max[1] << "," << (*it).second->max[2] << "]";
+		out << " BBMin [" << (*it).second->min[0] << "," << (*it).second->min[1] << "," << (*it).second->min[2] << "]";
+		out << " Size " << (*it).second->sizeInVoxels << "\n";
+	}
+	file.close();
+
+	emit progress(66);
+
+	if (!_metadata->Write(QString(temporalFilename.c_str()), _dataManager))
+		return -7;
+
+	emit progress(100);
+
+	// everything went fine
 	return 0;
 }
-
-
-

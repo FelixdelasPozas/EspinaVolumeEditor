@@ -60,6 +60,9 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         
         // mutex to assure that no editing action is interrupted by the save session operation that can kick in at any time
         QMutex *actionLock;
+
+        // friends can touch your private parts
+        friend class SaveSessionThread;
     public slots:
     protected:
     protected slots:
@@ -71,6 +74,7 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         virtual void AxialInteraction(vtkObject*, unsigned long event, void*, void*, vtkCommand*);
         virtual void CoronalInteraction(vtkObject*, unsigned long event, void*, void*, vtkCommand*);
         virtual void SagittalInteraction(vtkObject*, unsigned long event, void*, void*, vtkCommand*);
+        virtual void SwitchSegmentationView();
         virtual void Preferences();
         virtual void About();
         virtual void MoveAxialSlider(int);
@@ -160,6 +164,7 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         
         // misc boolean values that affect editor 
         bool 								   _hasReferenceImage;
+        bool								   _segmentationsAreVisible;
 
         // espina metadata
         Metadata							  *_fileMetadata;

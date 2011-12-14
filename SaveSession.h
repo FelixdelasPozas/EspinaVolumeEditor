@@ -20,13 +20,14 @@
 class EspinaVolumeEditor;
 class DataManager;
 class EditorOperations;
+class Metadata;
 
 class SaveSessionThread : public QThread
 {
 		Q_OBJECT
 	public:
 		// usual constructor and destructor
-		SaveSessionThread(EspinaVolumeEditor *, DataManager *, EditorOperations *);
+		SaveSessionThread(EspinaVolumeEditor *);
 		virtual ~SaveSessionThread(void);
 
 		// default thread execution method
@@ -43,6 +44,7 @@ class SaveSessionThread : public QThread
 		EspinaVolumeEditor 		*_parent;
 		DataManager 			*_dataManager;
 		EditorOperations		*_editorOperations;
+		Metadata                *_metadata;
 };
 
 #endif // _SAVESESSION_H_
