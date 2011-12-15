@@ -75,6 +75,7 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
 
     connect(a_undo, SIGNAL(triggered()), this, SLOT(OperationUndo()));
     connect(a_redo, SIGNAL(triggered()), this, SLOT(OperationRedo()));
+    connect(a_hide_segmentations, SIGNAL(triggered()), this, SLOT(SwitchSegmentationView()));
     
     connect(a_fulltoggle, SIGNAL(triggered()), this, SLOT(FullscreenToggle()));
     connect(a_preferences, SIGNAL(triggered()), this, SLOT(Preferences()));
@@ -646,6 +647,7 @@ void EspinaVolumeEditor::EditorOpen(void)
     
     eyebutton->setEnabled(false);
     eyelabel->setEnabled(false);
+    a_hide_segmentations->setEnabled(false);
 
     // needed to maximize/mininize views, not really necessary but looks better
     viewgrid->setColumnMinimumWidth(0,0);
@@ -848,6 +850,9 @@ void EspinaVolumeEditor::EditorReferenceOpen(void)
 	eyelabel->setStatusTip(tr("Hide all segmentations"));
     eyebutton->setEnabled(true);
     eyelabel->setEnabled(true);
+    a_hide_segmentations->setEnabled(true);
+	a_hide_segmentations->setText(tr("Hide Segmentations"));
+	a_hide_segmentations->setIcon(QPixmap(":/newPrefix/icons/eyeoff.svg"));
 
     _progress->ManualReset();
 }
@@ -2323,17 +2328,21 @@ void EspinaVolumeEditor::SwitchSegmentationView(void)
 			eyebutton->setIcon(QPixmap(":/newPrefix/icons/eyeoff.svg"));
 			eyebutton->setToolTip(tr("Hide all segmentations"));
 			eyebutton->setStatusTip(tr("Hide all segmentations"));
-			eyelabel->setText(tr("Hide objects"));
+			eyelabel->setText(tr("Hide"));
 			eyelabel->setToolTip(tr("Hide all segmentations"));
 			eyelabel->setStatusTip(tr("Hide all segmentations"));
+			a_hide_segmentations->setText(tr("Hide Segmentations"));
+			a_hide_segmentations->setIcon(QPixmap(":/newPrefix/icons/eyeoff.svg"));
 			break;
 		case true:
 			eyebutton->setIcon(QPixmap(":/newPrefix/icons/eyeon.svg"));
 			eyebutton->setToolTip(tr("Show all segmentations"));
 			eyebutton->setStatusTip(tr("Show all segmentations"));
-			eyelabel->setText(tr("Show objects"));
+			eyelabel->setText(tr("Show"));
 			eyelabel->setToolTip(tr("Show all segmentations"));
 			eyelabel->setStatusTip(tr("Show all segmentations"));
+			a_hide_segmentations->setText(tr("Show Segmentations"));
+			a_hide_segmentations->setIcon(QPixmap(":/newPrefix/icons/eyeon.svg"));
 			break;
 		default:
 			break;

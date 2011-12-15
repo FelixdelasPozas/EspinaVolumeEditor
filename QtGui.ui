@@ -545,7 +545,7 @@ QGroupBox::title {
               <string>Hide all segmentations</string>
              </property>
              <property name="text">
-              <string>...</string>
+              <string/>
              </property>
              <property name="icon">
               <iconset resource="editor.qrc">
@@ -1953,6 +1953,8 @@ QGroupBox::title {
     </property>
     <addaction name="a_undo"/>
     <addaction name="a_redo"/>
+    <addaction name="separator"/>
+    <addaction name="a_hide_segmentations"/>
    </widget>
    <widget class="QMenu" name="menu_Preferences">
     <property name="title">
@@ -2150,6 +2152,27 @@ QGroupBox::title {
    </property>
    <property name="shortcut">
     <string>Ctrl+P</string>
+   </property>
+   <property name="iconVisibleInMenu">
+    <bool>true</bool>
+   </property>
+  </action>
+  <action name="a_hide_segmentations">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="editor.qrc">
+     <normaloff>:/newPrefix/icons/eyeoff.svg</normaloff>:/newPrefix/icons/eyeoff.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Hide Segmentations</string>
+   </property>
+   <property name="statusTip">
+    <string>Hide all segmentations</string>
+   </property>
+   <property name="shortcutContext">
+    <enum>Qt::WindowShortcut</enum>
    </property>
    <property name="iconVisibleInMenu">
     <bool>true</bool>
