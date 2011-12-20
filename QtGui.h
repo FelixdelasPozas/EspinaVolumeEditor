@@ -120,6 +120,8 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         void FillColorLabels();
         void UpdateViewports(VIEWPORTSENUM);
         void UpdateUndoRedoMenu();
+        void RestoreSavedSession();
+        void RemoveSessionFiles();
         
         // four renderers for four QVTKWidget viewports
         vtkSmartPointer<vtkRenderer>           _voxelViewRenderer;
@@ -148,19 +150,13 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         vtkSmartPointer<vtkEventQtSlotConnect> _connections;
         
         // label selectable by the user, used for painting  
-        unsigned short                         _selectedLabel;
+        unsigned short int                     _selectedLabel;
         
         // to handle itk vtk filter progress information
         ProgressAccumulator                   *_progress;
         
         // area selection
         EditorOperations                      *_editorOperations;
-        
-        // only used after program exit to inform that the user has accepted the
-        // changes to the volume. if _acceptedChanges == false then all other
-        // funtions that depend on user accepting changes like GetOutput alter
-        // their values.
-        bool 								   _acceptedChanges;
         
         // misc boolean values that affect editor 
         bool 								   _hasReferenceImage;
@@ -170,7 +166,12 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         Metadata							  *_fileMetadata;
 
         // session timer
+        SaveSessionThread					  *_saveSessionThread;
         QTimer 								  *_sessionTimer;
+
+        // names of files for saving session or reopening a failed session
+        std::string 						   _segmentationFileName;
+        std::string							   _referenceFileName;
 };
 
 #endif

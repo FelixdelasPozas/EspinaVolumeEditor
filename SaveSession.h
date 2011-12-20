@@ -10,6 +10,11 @@
 // qt includes
 #include <QtGui>
 
+// c++ includes
+#include <vector>
+#include <fstream>
+#include <algorithm>
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // SaveSession class
 //
@@ -41,10 +46,21 @@ class SaveSessionThread : public QThread
 		// initiate event loop for this thread
 		int exec(void);
 
+		template<typename T>void write(std::ofstream& out, T& t)
+		{
+			out.write(reinterpret_cast<char*>(&t), sizeof(T));
+		}
+
+		template<typename T>void read(std::ifstream& in, T& t)
+		{
+			in.read(reinterpret_cast<char*>(&t), sizeof(T));
+		}
+
 		EspinaVolumeEditor 		*_parent;
 		DataManager 			*_dataManager;
 		EditorOperations		*_editorOperations;
 		Metadata                *_metadata;
 };
+
 
 #endif // _SAVESESSION_H_

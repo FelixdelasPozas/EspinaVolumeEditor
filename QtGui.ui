@@ -557,9 +557,6 @@ QGroupBox::title {
                <height>16</height>
               </size>
              </property>
-             <property name="shortcut">
-              <string>Space</string>
-             </property>
             </widget>
            </item>
           </layout>
@@ -2171,8 +2168,8 @@ QGroupBox::title {
    <property name="statusTip">
     <string>Hide all segmentations</string>
    </property>
-   <property name="shortcutContext">
-    <enum>Qt::WindowShortcut</enum>
+   <property name="shortcut">
+    <string>Space</string>
    </property>
    <property name="iconVisibleInMenu">
     <bool>true</bool>

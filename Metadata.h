@@ -54,6 +54,10 @@ class Metadata
 
         // Get vector containing unused objects, CompactObjects() must be called first to populate the vector
         std::vector<unsigned int> GetUnusedObjectsLabels(void);
+
+        // needs to be friend with SaveSessionThread so it can access private members
+        friend class SaveSessionThread;
+        friend class EspinaVolumeEditor;
     private:
         // private structures definitions
         //

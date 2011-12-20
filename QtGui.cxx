@@ -7,6 +7,10 @@
 // Notes:
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+// TODO: terminar la carga de datos de sesión en void EspinaVolumeEditor::RestoreSavedSession(void)
+// TODO: modificar el tiempo del temporizador en una variable privada y incluir un booleano para desactivar la guarda de la sesión.
+// TODO: modificar la ventana de configuración del editor para incluir la opción de desactivar el temporizador y cambiar el tiempo del temporizador
+
 // qt includes 
 #include <QtGui>        // including <QtGui> saves us to include every class user, <QString>, <QFileDialog>,... 
 #include "QtGui.h"
@@ -66,6 +70,8 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
 	this->_volumeRender = NULL;
 	this->_editorOperations = NULL;
 	this->_dataManager = NULL;
+	this->_fileMetadata = NULL;
+	this->_saveSessionThread = NULL;
 	
 	// connect menu commands with signals (menu definitions are in the ui file)
 	connect(a_fileOpen, SIGNAL(triggered()), this, SLOT(EditorOpen()));
@@ -160,6 +166,7 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
     this->_axialViewRenderer->SetBackground(0, 0, 0);
     axialview->GetRenderWindow()->AddRenderer(_axialViewRenderer);
     axialview->GetRenderWindow()->GetInteractor()->SetInteractorStyle(axialinteractorstyle);
+    axialinteractorstyle->RemoveAllObservers();
 
     vtkSmartPointer<vtkInteractorStyleImage> coronalinteractorstyle = vtkSmartPointer<vtkInteractorStyleImage>::New();
     coronalinteractorstyle->AutoAdjustCameraClippingRangeOn();
@@ -313,7 +320,59 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
     _segmentationsAreVisible = true;
 
     // create mutex for mutual exclusion sections
+    _saveSessionThread = new SaveSessionThread(this);
     actionLock = new QMutex();
+
+    // let's see if a previous session crashed
+	std::string homedir = std::string(getenv("HOME"));
+	std::string username = std::string(getenv("USER"));
+	std::string baseFilename = homedir + std::string("/.espinaeditor-") + username;
+	std::string temporalFilename = baseFilename + std::string(".session");
+	std::string temporalFilenameMHA = baseFilename + std::string(".mha");
+
+	QFile file(QString(temporalFilename.c_str()));
+	QFile fileMHA(QString(temporalFilenameMHA.c_str()));
+
+	if (file.exists() && fileMHA.exists())
+	{
+		char *buffer;
+		unsigned short int size;
+		std::ifstream infile;
+		std::string segmentationFilename;
+		std::string detailedText = std::string("Session segmentation file is:\n");
+
+		// get the information about the file for the user
+		infile.open(temporalFilename.c_str(), std::ofstream::in|std::ofstream::binary);
+		infile.read(reinterpret_cast<char*>(&size), sizeof(unsigned short int));
+		buffer = (char*) malloc(size+1);
+		infile.read(buffer, size);
+		buffer[size] = '\0';
+		segmentationFilename = std::string(buffer);
+		free(buffer);
+		detailedText += segmentationFilename;
+		infile.close();
+
+		QMessageBox msgBox;
+		msgBox.setIcon(QMessageBox::Information);
+		msgBox.setText("Data from a previous Editor session exists (maybe the editor crashed or didn't exit cleanly).");
+		msgBox.setInformativeText("Do you want to restore that session?");
+		msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+		msgBox.setDefaultButton(QMessageBox::Yes);
+		msgBox.setDetailedText(detailedText.c_str());
+		int returnValue = msgBox.exec();
+
+	    switch (returnValue)
+	    {
+	    	case QMessageBox::Yes:
+	    		RestoreSavedSession();
+	    		break;
+	    	case QMessageBox::No:
+	    		RemoveSessionFiles();
+	    		break;
+	    	default:
+	    		break;
+	    }
+	}
 }
 
 EspinaVolumeEditor::~EspinaVolumeEditor()
@@ -345,6 +404,12 @@ EspinaVolumeEditor::~EspinaVolumeEditor()
     
     if (this->_progress)
         delete _progress;
+
+    if (this->_saveSessionThread)
+    	delete _saveSessionThread;
+
+    if (this->_fileMetadata)
+    	delete _fileMetadata;
 }
 
 void EspinaVolumeEditor::EditorOpen(void)
@@ -364,6 +429,9 @@ void EspinaVolumeEditor::EditorOpen(void)
         return;
     
 	QMutexLocker locker(actionLock);
+
+	// store segmentation filename
+	_segmentationFileName = filename.toStdString();
 
     // MetaImageIO needed to read an image without a estandar extension (segmha in this case)
     typedef itk::Image<unsigned short, 3> ImageType;
@@ -392,6 +460,9 @@ void EspinaVolumeEditor::EditorOpen(void)
 	}
 	
 	// file reading succesfull, parse additional espina metadata
+    if (this->_fileMetadata)
+    	delete _fileMetadata;
+
 	_fileMetadata = new Metadata;
 	if (!_fileMetadata->Read(filename))
 	{
@@ -417,7 +488,7 @@ void EspinaVolumeEditor::EditorOpen(void)
     this->updateslicerenderers = false;
     this->updatepointlabel = false;
     
-    // have to check first if we have a session, and preserve preferences (have to change this some day
+    // have to check first if we have an ongoing session, and preserve preferences (have to change this some day
     // to save preferences as global, not per class instance)
     if (this->_orientationData)
         delete _orientationData;
@@ -685,7 +756,7 @@ void EspinaVolumeEditor::EditorOpen(void)
     _hasReferenceImage = false;
     
     // start session timer
-    //_sessionTimer->start(15000, true);
+    _sessionTimer->start(5000, true);
 
     _progress->ManualReset();
 }
@@ -700,6 +771,9 @@ void EspinaVolumeEditor::EditorReferenceOpen(void)
 		filename.toAscii();
 	else
 		return;
+
+	// store reference filename
+	_referenceFileName = filename.toStdString();
 
 	vtkSmartPointer<vtkMetaImageReader> reader = vtkSmartPointer<vtkMetaImageReader>::New();
 	reader->SetFileName(filename.toStdString().c_str());
@@ -895,7 +969,7 @@ void EspinaVolumeEditor::EditorSave()
 
 void EspinaVolumeEditor::EditorExit()
 {
-    _acceptedChanges = false;       // no need to do this, we just make it explicit for future coders
+//	RemoveSessionFiles();
     qApp->exit();
 }
 
@@ -2294,8 +2368,7 @@ void EspinaVolumeEditor::DisableRenderView(void)
 
 void EspinaVolumeEditor::SaveSession(void)
 {
-	SaveSessionThread* saveSession = new SaveSessionThread(this);
-	saveSession->start();
+	_saveSessionThread->start();
 }
 
 void EspinaVolumeEditor::SaveSessionStart(void)
@@ -2313,7 +2386,7 @@ void EspinaVolumeEditor::SaveSessionEnd(void)
 	_progress->ManualReset(true);
 
 	// we use singleshot timers so until the save session operation has ended we don't restart it
-	_sessionTimer->start(10000, true);
+	_sessionTimer->start(20000, true);
 }
 
 void EspinaVolumeEditor::SwitchSegmentationView(void)
@@ -2353,4 +2426,351 @@ void EspinaVolumeEditor::SwitchSegmentationView(void)
     _coronalSliceVisualization->ToggleSegmentationView();
     _sagittalSliceVisualization->ToggleSegmentationView();
     UpdateViewports(Slices);
+}
+
+void EspinaVolumeEditor::RestoreSavedSession(void)
+{
+	// this only happens while starting the editor so we can assume that all classes are empty
+	// from session generated data.
+	_progress->ManualSet("Restore Session", 0);
+
+	std::string homedir = std::string(getenv("HOME"));
+	std::string username = std::string(getenv("USER"));
+	std::string baseFilename = homedir + std::string("/.espinaeditor-") + username;
+	std::string temporalFilename = baseFilename + std::string(".session");
+	std::string temporalFilenameMHA = baseFilename + std::string(".mha");
+
+	char *buffer;
+	unsigned short int size;
+	std::ifstream infile;
+	infile.open(temporalFilename.c_str(), std::ofstream::in|std::ofstream::binary);
+
+	// read original segmentation file name
+	infile.read(reinterpret_cast<char*>(&size), sizeof(unsigned short int));
+	buffer = (char*) malloc(size+1);
+	infile.read(buffer, size);
+	buffer[size] = '\0';
+	_segmentationFileName = std::string(buffer);
+	free(buffer);
+
+	// read _hasReferenceImage and _referenceFileName if it has one
+	infile.read(reinterpret_cast<char*>(&_hasReferenceImage), sizeof(bool));
+	if (_hasReferenceImage)
+	{
+		infile.read(reinterpret_cast<char*>(&size), sizeof(unsigned short int));
+		buffer = (char*) malloc(size+1);
+		infile.read(buffer, size);
+		buffer[size] = '\0';
+		_referenceFileName = std::string(buffer);
+		free(buffer);
+	}
+
+	// read _POI and _selectedLabel
+	infile.read(reinterpret_cast<char*>(&_selectedLabel), sizeof(unsigned short int));
+	infile.read(reinterpret_cast<char*>(&_POI[0]), sizeof(unsigned int));
+	infile.read(reinterpret_cast<char*>(&_POI[1]), sizeof(unsigned int));
+	infile.read(reinterpret_cast<char*>(&_POI[2]), sizeof(unsigned int));
+
+	renderview->setEnabled(true);
+	axialview->setEnabled(true);
+	sagittalview->setEnabled(true);
+	coronalview->setEnabled(true);
+
+	QMutexLocker locker(actionLock);
+
+    // MetaImageIO needed to read an image without a estandar extension (segmha in this case)
+    typedef itk::Image<unsigned short, 3> ImageType;
+    typedef itk::ImageFileReader<ImageType> ReaderType;
+    itk::SmartPointer<itk::MetaImageIO> io = itk::MetaImageIO::New();
+    io->SetFileName(temporalFilenameMHA.c_str());
+    itk::SmartPointer<ReaderType> reader = ReaderType::New();
+    reader->SetImageIO(io);
+    reader->SetFileName(temporalFilenameMHA.c_str());
+    reader->ReleaseDataFlagOn();
+
+	try
+	{
+		reader->Update();
+	}
+	catch (itk::ExceptionObject & excp)
+	{
+		_progress->ManualReset();
+		QMessageBox msgBox;
+		msgBox.setIcon(QMessageBox::Critical);
+
+		msgBox.setText("An error occurred loading the segmentation file.\nThe operation has been aborted.");
+		msgBox.setDetailedText(excp.what());
+		msgBox.exec();
+		return;
+	}
+
+    // do not update the viewports while loading
+    this->updatevoxelrenderer = false;
+    this->updateslicerenderers = false;
+    this->updatepointlabel = false;
+
+    _fileMetadata = new Metadata;
+
+	// read _Metadata objects
+	infile.read(reinterpret_cast<char*>(&size), sizeof(unsigned short int));
+	for (unsigned int i = 0; i < size; i++)
+	{
+		unsigned int scalar;
+		unsigned int segment;
+		unsigned int selected;
+		infile.read(reinterpret_cast<char*>(&scalar), sizeof(unsigned int));
+		infile.read(reinterpret_cast<char*>(&segment), sizeof(unsigned int));
+		infile.read(reinterpret_cast<char*>(&selected), sizeof(unsigned int));
+		_fileMetadata->AddObject(scalar, segment, selected);
+	}
+	std::cout << std::endl;
+
+	infile.read(reinterpret_cast<char*>(&size), sizeof(unsigned short int));
+	for (unsigned int i = 0; i < size; i++)
+	{
+		Vector3ui inclusive;
+		Vector3ui exclusive;
+		infile.read(reinterpret_cast<char*>(&inclusive[0]), sizeof(unsigned int));
+		infile.read(reinterpret_cast<char*>(&inclusive[1]), sizeof(unsigned int));
+		infile.read(reinterpret_cast<char*>(&inclusive[2]), sizeof(unsigned int));
+		infile.read(reinterpret_cast<char*>(&exclusive[0]), sizeof(unsigned int));
+		infile.read(reinterpret_cast<char*>(&exclusive[1]), sizeof(unsigned int));
+		infile.read(reinterpret_cast<char*>(&exclusive[2]), sizeof(unsigned int));
+		_fileMetadata->AddBrick(inclusive, exclusive);
+	}
+
+	infile.read(reinterpret_cast<char*>(&size), sizeof(unsigned short int));
+	for (unsigned int i = 0; i < size; i++)
+	{
+		char *buffer;
+		int nameSize;
+		Vector3ui color;
+		unsigned int value;
+		string name;
+		infile.read(reinterpret_cast<char*>(&color[0]), sizeof(unsigned int));
+		infile.read(reinterpret_cast<char*>(&color[1]), sizeof(unsigned int));
+		infile.read(reinterpret_cast<char*>(&color[2]), sizeof(unsigned int));
+		infile.read(reinterpret_cast<char*>(&value), sizeof(unsigned int));
+		infile.read(reinterpret_cast<char*>(&nameSize), sizeof(unsigned short int));
+		buffer = (char*) malloc(nameSize+1);
+		infile.read(buffer, nameSize);
+		buffer[nameSize] = '\0';
+		name = std::string(buffer);
+		_fileMetadata->AddSegment(name, value, color);
+	}
+
+	infile.read(reinterpret_cast<char*>(&_fileMetadata->hasUnassignedTag), sizeof(bool));
+	infile.read(reinterpret_cast<char*>(&_fileMetadata->unassignedTagPosition), sizeof(int));
+
+    _orientationData = new Coordinates(reader->GetOutput());
+    Vector3ui imageSize = _orientationData->GetTransformedSize();
+
+    // itkimage->itklabelmap
+    typedef itk::LabelImageToLabelMapFilter<ImageType, LabelMapType> ConverterType;
+    itk::SmartPointer<ConverterType> converter = ConverterType::New();
+
+    converter->SetInput(reader->GetOutput());
+    converter->ReleaseDataFlagOn();
+    converter->Update();
+    converter->GetOutput()->Optimize();
+    assert(0 != converter->GetOutput()->GetNumberOfLabelObjects());
+
+	// flatten labelmap, modify origin and store scalar label values
+	_dataManager->Initialize(converter->GetOutput(), _orientationData, _fileMetadata);
+
+	// overwrite _dataManager object vector
+	infile.read(reinterpret_cast<char*>(&size), sizeof(unsigned short int));
+	for (unsigned int i = 0; i < size; i++)
+	{
+		unsigned short int position;
+		infile.read(reinterpret_cast<char*>(&position), sizeof(unsigned short int));
+		struct DataManager::ObjectInformation *object = _dataManager->ObjectVector[position];
+		infile.read(reinterpret_cast<char*>(&object->scalar), sizeof(unsigned short));
+		infile.read(reinterpret_cast<char*>(&object->sizeInVoxels), sizeof(unsigned long long int));
+		infile.read(reinterpret_cast<char*>(&object->centroid[0]), sizeof(double));
+		infile.read(reinterpret_cast<char*>(&object->centroid[1]), sizeof(double));
+		infile.read(reinterpret_cast<char*>(&object->centroid[2]), sizeof(double));
+		infile.read(reinterpret_cast<char*>(&object->min[0]), sizeof(unsigned int));
+		infile.read(reinterpret_cast<char*>(&object->min[1]), sizeof(unsigned int));
+		infile.read(reinterpret_cast<char*>(&object->min[2]), sizeof(unsigned int));
+		infile.read(reinterpret_cast<char*>(&object->max[0]), sizeof(unsigned int));
+		infile.read(reinterpret_cast<char*>(&object->max[1]), sizeof(unsigned int));
+		infile.read(reinterpret_cast<char*>(&object->max[2]), sizeof(unsigned int));
+	}
+	infile.close();
+
+	// itklabelmap->itkimage
+	typedef itk::LabelMapToLabelImageFilter<LabelMapType, ImageType> LabelMapToImageFilterType;
+	itk::SmartPointer<LabelMapToImageFilterType> labelconverter = LabelMapToImageFilterType::New();
+
+	labelconverter->SetInput(_dataManager->GetLabelMap());
+	labelconverter->SetNumberOfThreads(1);						// if number of threads > 1 filter crashes (¿¿??)
+	labelconverter->ReleaseDataFlagOn();
+	labelconverter->Update();
+
+	// itkimage->vtkimage
+	typedef itk::VTKImageExport<ImageType> ITKExport;
+	itk::SmartPointer<ITKExport> itkExporter = ITKExport::New();
+	vtkSmartPointer<vtkImageImport> vtkImporter = vtkSmartPointer<vtkImageImport>::New();
+	itkExporter->SetInput(reader->GetOutput());
+	ConnectPipelines(itkExporter, vtkImporter);
+	vtkImporter->Update();
+
+	// get the vtkStructuredPoints out of the vtkImage
+	vtkSmartPointer<vtkImageToStructuredPoints> convert = vtkSmartPointer<vtkImageToStructuredPoints>::New();
+	convert->SetInput(vtkImporter->GetOutput());
+	convert->ReleaseDataFlagOn();
+	convert->Update();
+
+	// now we have our structuredpoints
+	_dataManager->SetStructuredPoints(convert->GetStructuredPointsOutput());
+
+    // add volume actors to 3D renderer
+	_volumeRender = new VoxelVolumeRender(_dataManager, _voxelViewRenderer, _progress);
+
+    // visualize slices in all planes
+    _sagittalSliceVisualization->Initialize(_dataManager->GetStructuredPoints(), _dataManager->GetLookupTable(), _sagittalViewRenderer, _orientationData);
+    _coronalSliceVisualization->Initialize(_dataManager->GetStructuredPoints(), _dataManager->GetLookupTable(),  _coronalViewRenderer, _orientationData);
+    _axialSliceVisualization->Initialize(_dataManager->GetStructuredPoints(), _dataManager->GetLookupTable(), _axialViewRenderer, _orientationData);
+    _axialSliceVisualization->Update(_POI);
+    _coronalSliceVisualization->Update(_POI);
+    _sagittalSliceVisualization->Update(_POI);
+
+    // we don't initialize slider position because thats what the spinBoxes will do on init with POI+1 because sliders go 1-max and POI is 0-(max-1)
+    axialslider->setEnabled(false);
+    axialslider->setMinimum(1);
+    axialslider->setMaximum(imageSize[2]);
+    axialslider->setEnabled(true);
+    coronalslider->setEnabled(false);
+    coronalslider->setMinimum(1);
+    coronalslider->setMaximum(imageSize[1]);
+    coronalslider->setEnabled(true);
+    sagittalslider->setEnabled(false);
+    sagittalslider->setMinimum(1);
+    sagittalslider->setMaximum(imageSize[0]);
+    sagittalslider->setEnabled(true);
+
+    // initialize spinbox positions with POI+1 because sliders & spinBoxes go 1-max and POI is 0-(max-1)
+    // it also initializes sliders and renders the viewports
+    XspinBox->setRange(1, imageSize[0]);
+    XspinBox->setEnabled(true);
+    XspinBox->setValue(_POI[0]+1);
+    YspinBox->setRange(1, imageSize[1]);
+    YspinBox->setEnabled(true);
+    YspinBox->setValue(_POI[1]+1);
+    ZspinBox->setRange(1, imageSize[2]);
+    ZspinBox->setEnabled(true);
+    ZspinBox->setValue(_POI[2]+1);
+
+    // fill selection label combobox and draw label combobox
+    FillColorLabels();
+    this->updatepointlabel = true;
+    GetPointLabel();
+
+    // initalize EditorOperations instance
+    _editorOperations->Initialize(_voxelViewRenderer, _orientationData, _progress);
+
+    // enable disabled widgets
+    viewbutton->setEnabled(true);
+    paintbutton->setEnabled(true);
+    erasebutton->setEnabled(true);
+    pickerbutton->setEnabled(true);
+    selectbutton->setEnabled(true);
+    axialresetbutton->setEnabled(true);
+    coronalresetbutton->setEnabled(true);
+    sagittalresetbutton->setEnabled(true);
+    voxelresetbutton->setEnabled(true);
+    rendertypebutton->setEnabled(false);
+    axestypebutton->setEnabled(true);
+
+    erodeoperation->setEnabled(false);
+    dilateoperation->setEnabled(false);
+    openoperation->setEnabled(false);
+    closeoperation->setEnabled(false);
+    watershedoperation->setEnabled(false);
+
+    a_fileSave->setEnabled(true);
+    a_fileReferenceOpen->setEnabled(true);
+    axialsizebutton->setEnabled(true);
+    coronalsizebutton->setEnabled(true);
+    sagittalsizebutton->setEnabled(true);
+    rendersizebutton->setEnabled(true);
+    renderdisablebutton->setEnabled(true);
+
+    eyebutton->setEnabled(false);
+    eyelabel->setEnabled(false);
+    a_hide_segmentations->setEnabled(false);
+
+    // needed to maximize/mininize views, not really necessary but looks better
+    viewgrid->setColumnMinimumWidth(0,0);
+    viewgrid->setColumnMinimumWidth(1,0);
+    viewgrid->setRowMinimumHeight(0,0);
+    viewgrid->setRowMinimumHeight(1,0);
+
+    // set axes initial state
+    _axesRender = new AxesRender(_voxelViewRenderer, _orientationData);
+    _axesRender->Update(_POI);
+
+    // update all renderers
+    _axialViewRenderer->ResetCamera();
+    _axialSliceVisualization->ZoomEvent();
+    _coronalViewRenderer->ResetCamera();
+    _coronalSliceVisualization->ZoomEvent();
+    _sagittalViewRenderer->ResetCamera();
+    _sagittalSliceVisualization->ZoomEvent();
+    _voxelViewRenderer->ResetCamera();
+
+    // we can now begin updating the viewports
+    this->updatevoxelrenderer = true;
+    this->updateslicerenderers = true;
+    this->renderisavolume = true;
+    UpdateViewports(All);
+
+    // reset parts of the GUI, needed when loading another image (another session) to reset buttons
+    // and items to their initial states. Same goes for selected label.
+    axestypebutton->setIcon(QIcon(":newPrefix/icons/noaxes.png"));
+    labelselector->setCurrentRow(0);
+    _selectedLabel = 0;
+    viewbutton->setChecked(true);
+
+    // initially without a reference image
+    _hasReferenceImage = false;
+
+    // start session timer
+    _sessionTimer->start(5000, true);
+
+    _progress->ManualReset();
+}
+
+void EspinaVolumeEditor::RemoveSessionFiles(void)
+{
+	// delete the temporal session files, if they exists
+	std::string homedir = std::string(getenv("HOME"));
+	std::string username = std::string(getenv("USER"));
+	std::string baseFilename = homedir + std::string("/.espinaeditor-") + username;
+	std::string temporalFilename = baseFilename + std::string(".session");
+	std::string temporalFilenameMHA = baseFilename + std::string(".mha");
+
+	// with the lock we make sure there's no save session action in progress
+	QMutexLocker locker(actionLock);
+
+	QFile file(QString(temporalFilename.c_str()));
+	if (file.exists())
+		if (!file.remove())
+		{
+			QMessageBox msgBox;
+			msgBox.setIcon(QMessageBox::Critical);
+			msgBox.setText("An error occurred exiting the editor.\n.Editor session file couldn't be removed.");
+			msgBox.exec();
+		}
+
+	QFile fileMHA(QString(temporalFilenameMHA.c_str()));
+	if (fileMHA.exists())
+		if (!fileMHA.remove())
+		{
+			QMessageBox msgBox;
+			msgBox.setIcon(QMessageBox::Critical);
+			msgBox.setText("An error occurred exiting the editor.\n.Editor MHA session file couldn't be removed.");
+			msgBox.exec();
+		}
 }

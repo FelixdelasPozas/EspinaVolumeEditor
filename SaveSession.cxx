@@ -19,7 +19,11 @@
 // project includes
 #include "SaveSession.h"
 #include "DataManager.h"
+#include "Metadata.h"
 #include "QtGui.h"
+
+// c++ includes
+#include <fstream>
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // SaveSessionThread class
@@ -28,9 +32,9 @@ SaveSessionThread::SaveSessionThread(EspinaVolumeEditor* parent)
 {
 	moveToThread(this);
 	_parent = parent;
-	_dataManager = parent->_dataManager;
-	_editorOperations = parent->_editorOperations;
-	_metadata = parent->_fileMetadata;
+	_dataManager = NULL;
+	_editorOperations = NULL;
+	_metadata = NULL;
 	connect(this, SIGNAL(finished()), parent, SLOT(SaveSessionEnd()), Qt::QueuedConnection);
 	connect(this, SIGNAL(startedSaving()), parent, SLOT(SaveSessionStart()), Qt::QueuedConnection);
 	connect(this, SIGNAL(progress(int)), parent, SLOT(SaveSessionProgress(int)), Qt::QueuedConnection);
@@ -43,14 +47,19 @@ SaveSessionThread::~SaveSessionThread(void)
 
 void SaveSessionThread::run()
 {
+	_dataManager = _parent->_dataManager;
+	_editorOperations = _parent->_editorOperations;
+	_metadata = _parent->_fileMetadata;
 	this->exec();
 }
 
 int SaveSessionThread::exec()
 {
-	QString userTempDir = QDir::tempPath();
+	std::string homedir = std::string(getenv("HOME"));
 	std::string username = std::string(getenv("USER"));
-	std::string temporalFilename = userTempDir.toStdString() + std::string("/espinaeditor-") + username + std::string(".session");
+	std::string baseFilename = homedir + std::string("/.espinaeditor-") + username;
+	std::string temporalFilename = baseFilename + std::string(".session");
+	std::string temporalFilenameMHA = baseFilename + std::string(".mha");
 
 	// needed to save the program state in the right moment so we wait for the lock to be open. Grab the lock and notify of action.
 	QMutexLocker locker(_parent->actionLock);
@@ -68,28 +77,28 @@ int SaveSessionThread::exec()
 			return -1;
 		}
 
-	if (!file.open(QIODevice::WriteOnly|QIODevice::Truncate))
-	{
-		QMessageBox msgBox;
-		msgBox.setIcon(QMessageBox::Critical);
-		msgBox.setText("An error occurred saving the editor session file.\nThe operation has been aborted.");
-		msgBox.setDetailedText("Error trying to truncate and open the session file for writing.");
-		msgBox.exec();
-		return -2;
-	}
-	file.close();
+	QFile fileMHA(QString(temporalFilenameMHA.c_str()));
+	if(fileMHA.exists())
+		if (!fileMHA.remove())
+		{
+			QMessageBox msgBox;
+			msgBox.setIcon(QMessageBox::Critical);
+			msgBox.setText("An error occurred saving the editor session file.\nThe operation has been aborted.");
+			msgBox.setDetailedText("Previous MHA session file exists but couldn't be removed.");
+			msgBox.exec();
+			return -2;
+		}
 
     itk::SmartPointer<ImageType> image = ImageType::New();
     image = _editorOperations->GetItkImageFromSelection(0,0);
 
-    // save as an mha and rename
-    std::string mhatemporalFilename = temporalFilename + std::string(".mha");
+    // save as an mha
     typedef itk::ImageFileWriter<ImageType> WriterType;
     itk::SmartPointer<itk::MetaImageIO> io = itk::MetaImageIO::New();
-    io->SetFileName(mhatemporalFilename.c_str());
+    io->SetFileName(temporalFilenameMHA.c_str());
     itk::SmartPointer<WriterType> writer = WriterType::New();
     writer->SetImageIO(io);
-    writer->SetFileName(mhatemporalFilename.c_str());
+    writer->SetFileName(temporalFilenameMHA.c_str());
     writer->SetInput(image);
     writer->UseCompressionOn();
 
@@ -101,67 +110,132 @@ int SaveSessionThread::exec()
 	{
 	    QMessageBox msgBox;
 	    msgBox.setIcon(QMessageBox::Critical);
-		msgBox.setText("An error occurred saving the editor session file.\nThe operation has been aborted.");
+		msgBox.setText("An error occurred saving the editor MHA session file.\nThe operation has been aborted.");
 		msgBox.setDetailedText(excp.what());
 		msgBox.exec();
 		return -3;
 	}
 
-	emit progress(33);
+	emit progress(50);
 
-	if (0 != (rename(mhatemporalFilename.c_str(), temporalFilename.c_str())))
-	{
-	    QMessageBox msgBox;
-	    msgBox.setIcon(QMessageBox::Critical);
-		msgBox.setText("An error occurred saving the editor session file.\nThe operation has been aborted.");
-		msgBox.setDetailedText(QString("The temporal file couldn't be renamed."));
-		msgBox.exec();
+	std::ofstream outfile;
+	outfile.open(temporalFilename.c_str(), std::ofstream::out|std::ofstream::trunc|std::ofstream::binary);
 
-		if (0 != (remove(mhatemporalFilename.c_str())))
-		{
-		    QMessageBox msgBox;
-		    msgBox.setIcon(QMessageBox::Critical);
-		    msgBox.setText("An error occurred saving the editor session file.\nThe operation has been aborted.");
-			msgBox.setDetailedText(QString("The temporal file couldn't be deleted after an error renaming it."));
-			msgBox.exec();
-		}
-		return -4;
-	}
-
-	if (!file.open(QIODevice::Append|QIODevice::Text))
+	if (!outfile.is_open())
 	{
 		QMessageBox msgBox;
 		msgBox.setIcon(QMessageBox::Critical);
 		msgBox.setText("An error occurred saving the editor session file.\nThe operation has been aborted.");
-		msgBox.setDetailedText("Error trying to open session file to write metadata.");
+		msgBox.setDetailedText("Couldn't open session file for writing.");
 		msgBox.exec();
-		return -5;
+		return -4;
 	}
 
-	if (false == file.seek(file.size()))
-		return -6;
+	// dump all relevant data and objects to file, first the size of the std::map or std::vector, the objects
+	// themselves and also all the relevant data.
+	// the order:
+	//		- EspinaEditor relevant data: POI, selectedlabel and file names
+	//		- metadata ObjectMetadata
+	//		- metadata CountingBrickMetadata
+	//		- metadata SegmentMetadata
+	//		- metadata relevant data: hasUnassignedTag, unassignedTadPosition
+	// 		- datamanager ObjectInformation
+	// in the editor we must follow the same order while loading this data, obviously...
 
-	QTextStream out(&file);
+	// EspinaEditor relevant data
+	unsigned short size = _parent->_segmentationFileName.size();
+	write(outfile, size);
+	outfile << _parent->_segmentationFileName;
 
-	out << "\n";
-
-	std::map<unsigned short, struct DataManager::ObjectInformation*>::iterator it;
-
-	for (it = _dataManager->ObjectVector.begin(); it != _dataManager->ObjectVector.end(); it++)
+	write(outfile, _parent->_hasReferenceImage);
+	if (_parent->_hasReferenceImage)
 	{
-		out << "Object " << (*it).first << " Scalar " << (*it).second->scalar;
-		out << " Centroid [" << (*it).second->centroid[0] << ","<< (*it).second->centroid[1] << "," << (*it).second->centroid[2] << "] ";
-		out << " BBMax [" << (*it).second->max[0] << "," << (*it).second->max[1] << "," << (*it).second->max[2] << "]";
-		out << " BBMin [" << (*it).second->min[0] << "," << (*it).second->min[1] << "," << (*it).second->min[2] << "]";
-		out << " Size " << (*it).second->sizeInVoxels << "\n";
+		size = _parent->_referenceFileName.size();
+		write(outfile, size);
+		outfile << _parent->_referenceFileName;
 	}
-	file.close();
 
-	emit progress(66);
+	write(outfile, _parent->_selectedLabel);
+	write(outfile, _parent->_POI[0]);
+	write(outfile, _parent->_POI[1]);
+	write(outfile, _parent->_POI[2]);
 
-	if (!_metadata->Write(QString(temporalFilename.c_str()), _dataManager))
-		return -7;
+	// Metadata::ObjectMetadata std::vector dump
+	size = _metadata->ObjectVector.size();
+	write(outfile, size);
 
+	std::vector<struct Metadata::ObjectMetadata>::iterator objmetait;
+	for (objmetait = _metadata->ObjectVector.begin(); objmetait != _metadata->ObjectVector.end(); objmetait++)
+	{
+		struct Metadata::ObjectMetadata object = (*objmetait);
+		write(outfile, object.scalar);
+		write(outfile, object.segment);
+		write(outfile, object.selected);
+		// we could write the whole structure just by doing write(outfile, object) but i don't want to write down the
+		// "used" bool field, i already know it's true
+	}
+
+	// Metadata::CountingBrickMetadata std::vector dump
+	size = _metadata->CountingBrickVector.size();
+	write(outfile, size);
+
+	std::vector<struct Metadata::CountingBrickMetadata>::iterator brickit;
+	for (brickit = _metadata->CountingBrickVector.begin(); brickit != _metadata->CountingBrickVector.end(); brickit++)
+	{
+		struct Metadata::CountingBrickMetadata object = (*brickit);
+		write(outfile, object.inclusive[0]);
+		write(outfile, object.inclusive[1]);
+		write(outfile, object.inclusive[2]);
+		write(outfile, object.exclusive[0]);
+		write(outfile, object.exclusive[1]);
+		write(outfile, object.exclusive[2]);
+	}
+
+	// Metadata::SegmentMetadata std::vector dump
+	size = _metadata->SegmentVector.size();
+	write(outfile, size);
+
+	std::vector<struct Metadata::SegmentMetadata>::iterator segit;
+	for (segit = _metadata->SegmentVector.begin(); segit != _metadata->SegmentVector.end(); segit++)
+	{
+		struct Metadata::SegmentMetadata object = (*segit);
+		write(outfile, object.color[0]);
+		write(outfile, object.color[1]);
+		write(outfile, object.color[2]);
+		write(outfile, object.value);
+		size = object.name.size();
+		write(outfile, size);
+		outfile << object.name;
+	}
+
+	// Metadata relevant data
+	write(outfile, _metadata->hasUnassignedTag);
+	write(outfile, _metadata->unassignedTagPosition);
+
+	// DataManager::ObjectInformation std::map dump
+	size = _dataManager->ObjectVector.size();
+	write(outfile, size);
+
+	std::map<unsigned short, struct DataManager::ObjectInformation*>::iterator objit;
+	for (objit = _dataManager->ObjectVector.begin(); objit != _dataManager->ObjectVector.end(); objit++)
+	{
+		unsigned short int position = (*objit).first;
+		struct DataManager::ObjectInformation *object = (*objit).second;
+		write(outfile, position);
+		write(outfile, object->scalar);
+		write(outfile, object->sizeInVoxels);
+		write(outfile, object->centroid[0]);
+		write(outfile, object->centroid[1]);
+		write(outfile, object->centroid[2]);
+		write(outfile, object->min[0]);
+		write(outfile, object->min[1]);
+		write(outfile, object->min[2]);
+		write(outfile, object->max[0]);
+		write(outfile, object->max[1]);
+		write(outfile, object->max[2]);
+	}
+
+	outfile.close();
 	emit progress(100);
 
 	// everything went fine

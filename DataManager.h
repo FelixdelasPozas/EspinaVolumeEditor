@@ -152,6 +152,7 @@ class DataManager
         void SwitchLookupTables(vtkSmartPointer<vtkLookupTable>);
 
         friend class SaveSessionThread;
+        friend class EspinaVolumeEditor;
     private:
         // resets lookuptable to initial state based on original labelmap, used during init too
         void GenerateLookupTable();
