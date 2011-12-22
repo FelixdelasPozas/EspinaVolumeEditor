@@ -155,7 +155,6 @@ int SaveSessionThread::exec()
 		outfile << _parent->_referenceFileName;
 	}
 
-	write(outfile, _parent->_selectedLabel);
 	write(outfile, _parent->_POI[0]);
 	write(outfile, _parent->_POI[1]);
 	write(outfile, _parent->_POI[2]);

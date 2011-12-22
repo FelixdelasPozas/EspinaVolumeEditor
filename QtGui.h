@@ -122,6 +122,8 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         void UpdateUndoRedoMenu();
         void RestoreSavedSession();
         void RemoveSessionFiles();
+        void LoadReferenceFile(QString);
+        void InitializeGUI();
         
         // four renderers for four QVTKWidget viewports
         vtkSmartPointer<vtkRenderer>           _voxelViewRenderer;
@@ -168,6 +170,8 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         // session timer
         SaveSessionThread					  *_saveSessionThread;
         QTimer 								  *_sessionTimer;
+        unsigned int						   _saveSessionTime;
+        bool 								   _saveSessionEnabled;
 
         // names of files for saving session or reopening a failed session
         std::string 						   _segmentationFileName;

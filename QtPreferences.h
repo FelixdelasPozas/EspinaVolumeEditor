@@ -30,7 +30,7 @@ class QtPreferences: public QDialog, private Ui_Preferences
         ~QtPreferences();
         
         // set initial options
-        void SetInitialOptions(unsigned long int, unsigned long int, unsigned int, double, int);
+        void SetInitialOptions(unsigned long int, unsigned long int, unsigned int, double, int, unsigned int, bool);
 
         // get the capacity
         unsigned long int GetSize(void);
@@ -49,12 +49,19 @@ class QtPreferences: public QDialog, private Ui_Preferences
         
         // enable the visualization options box, that should be disabled if there isn't a reference image loaded
         void EnableVisualizationBox(void);
+
+        // get the save session time
+        unsigned int GetSaveSessionTime(void);
+
+        // get if the save session data option is enabled
+        bool GetSaveSessionEnabled(void);
     public slots:
         // slots for signals
         virtual void SelectSize(int);
         virtual void SelectRadius(int);
         virtual void SelectLevel(double);
         virtual void SelectOpacity(int);
+        virtual void SelectSaveTime(int);
         
     private slots:
         void AcceptedData();
@@ -75,6 +82,9 @@ class QtPreferences: public QDialog, private Ui_Preferences
         // segmentation opacity when a reference image is present
         unsigned int _segmentationOpacity;
         
+        // save session time
+        unsigned int _saveTime;
+
         // just to know that the data has been modified 
         bool _modified;
 };

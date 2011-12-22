@@ -7,10 +7,6 @@
 // Notes:
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-// TODO: terminar la carga de datos de sesión en void EspinaVolumeEditor::RestoreSavedSession(void)
-// TODO: modificar el tiempo del temporizador en una variable privada y incluir un booleano para desactivar la guarda de la sesión.
-// TODO: modificar la ventana de configuración del editor para incluir la opción de desactivar el temporizador y cambiar el tiempo del temporizador
-
 // qt includes 
 #include <QtGui>        // including <QtGui> saves us to include every class user, <QString>, <QFileDialog>,... 
 #include "QtGui.h"
@@ -137,7 +133,9 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
     connect(eyebutton, SIGNAL(clicked(bool)), this, SLOT(SwitchSegmentationView()));
 
     // create session timer and connect
+    _saveSessionTime = 20 * 60 * 1000;
     _sessionTimer = new QTimer;
+    _saveSessionEnabled = true;
     connect(_sessionTimer, SIGNAL(timeout()), this, SLOT(SaveSession()));
 
     XspinBox->setReadOnly(false);
@@ -638,139 +636,33 @@ void EspinaVolumeEditor::EditorOpen(void)
 	// now we have our structuredpoints
 	_dataManager->SetStructuredPoints(convert->GetStructuredPointsOutput());
 
-    // add volume actors to 3D renderer
-	_volumeRender = new VoxelVolumeRender(_dataManager, _voxelViewRenderer, _progress);
-
-    // set the default POI (point of interest)
-    Vector3ui size = _orientationData->GetTransformedSize();
-    _POI[0] = (size[0]-1)/2;
-    _POI[1] = (size[1]-1)/2;
-    _POI[2] = (size[2]-1)/2;
-    
-    // visualize slices in all planes
-    _sagittalSliceVisualization->Initialize(_dataManager->GetStructuredPoints(), _dataManager->GetLookupTable(), _sagittalViewRenderer, _orientationData);
-    _coronalSliceVisualization->Initialize(_dataManager->GetStructuredPoints(), _dataManager->GetLookupTable(),  _coronalViewRenderer, _orientationData);
-    _axialSliceVisualization->Initialize(_dataManager->GetStructuredPoints(), _dataManager->GetLookupTable(), _axialViewRenderer, _orientationData);
-    _axialSliceVisualization->Update(_POI);
-    _coronalSliceVisualization->Update(_POI);
-    _sagittalSliceVisualization->Update(_POI);
-
-    // we don't initialize slider position because thats what the spinBoxes will do on init with POI+1 because sliders go 1-max and POI is 0-(max-1)
-    axialslider->setEnabled(false);
-    axialslider->setMinimum(1);
-    axialslider->setMaximum(size[2]);
-    axialslider->setEnabled(true);
-    coronalslider->setEnabled(false);
-    coronalslider->setMinimum(1);
-    coronalslider->setMaximum(size[1]);
-    coronalslider->setEnabled(true);
-    sagittalslider->setEnabled(false);
-    sagittalslider->setMinimum(1);
-    sagittalslider->setMaximum(size[0]);
-    sagittalslider->setEnabled(true);
-
-    // initialize spinbox positions with POI+1 because sliders & spinBoxes go 1-max and POI is 0-(max-1)
-    // it also initializes sliders and renders the viewports
-    XspinBox->setRange(1, size[0]);
-    XspinBox->setEnabled(true);
-    XspinBox->setValue(_POI[0]+1);
-    YspinBox->setRange(1, size[1]);
-    YspinBox->setEnabled(true);
-    YspinBox->setValue(_POI[1]+1);
-    ZspinBox->setRange(1, size[2]);
-    ZspinBox->setEnabled(true);
-    ZspinBox->setValue(_POI[2]+1);
-
-    // fill selection label combobox and draw label combobox
-    FillColorLabels();
-    this->updatepointlabel = true;
-    GetPointLabel();
-    
-    // initalize EditorOperations instance
-    _editorOperations->Initialize(_voxelViewRenderer, _orientationData, _progress);
-
-    // enable disabled widgets
-    viewbutton->setEnabled(true);
-    paintbutton->setEnabled(true);
-    erasebutton->setEnabled(true);
-    pickerbutton->setEnabled(true);
-    selectbutton->setEnabled(true);
-    axialresetbutton->setEnabled(true);
-    coronalresetbutton->setEnabled(true);
-    sagittalresetbutton->setEnabled(true);
-    voxelresetbutton->setEnabled(true);
-    rendertypebutton->setEnabled(false);
-    axestypebutton->setEnabled(true);
-
-    erodeoperation->setEnabled(false);
-    dilateoperation->setEnabled(false);
-    openoperation->setEnabled(false);
-    closeoperation->setEnabled(false);
-    watershedoperation->setEnabled(false);
-
-    a_fileSave->setEnabled(true);
-    a_fileReferenceOpen->setEnabled(true);
-    axialsizebutton->setEnabled(true);
-    coronalsizebutton->setEnabled(true);
-    sagittalsizebutton->setEnabled(true);
-    rendersizebutton->setEnabled(true);
-    renderdisablebutton->setEnabled(true);
-    
-    eyebutton->setEnabled(false);
-    eyelabel->setEnabled(false);
-    a_hide_segmentations->setEnabled(false);
-
-    // needed to maximize/mininize views, not really necessary but looks better
-    viewgrid->setColumnMinimumWidth(0,0);
-    viewgrid->setColumnMinimumWidth(1,0);
-    viewgrid->setRowMinimumHeight(0,0);
-    viewgrid->setRowMinimumHeight(1,0);
-    
-    // set axes initial state
-    _axesRender = new AxesRender(_voxelViewRenderer, _orientationData);
-    _axesRender->Update(_POI);
-
-    // update all renderers
-    _axialViewRenderer->ResetCamera();
-    _axialSliceVisualization->ZoomEvent();
-    _coronalViewRenderer->ResetCamera();
-    _coronalSliceVisualization->ZoomEvent();
-    _sagittalViewRenderer->ResetCamera();
-    _sagittalSliceVisualization->ZoomEvent();
-    _voxelViewRenderer->ResetCamera();
-    
-    // we can now begin updating the viewports
-    this->updatevoxelrenderer = true;
-    this->updateslicerenderers = true;
-    this->renderisavolume = true;
-    UpdateViewports(All);
-    
-    // reset parts of the GUI, needed when loading another image (another session) to reset buttons
-    // and items to their initial states. Same goes for selected label.
-    axestypebutton->setIcon(QIcon(":newPrefix/icons/noaxes.png"));
-    labelselector->setCurrentRow(0);
-    _selectedLabel = 0;
-    viewbutton->setChecked(true);
+	// gui setup
+	InitializeGUI();
 
     // initially without a reference image
     _hasReferenceImage = false;
     
     // start session timer
-    _sessionTimer->start(5000, true);
+    _sessionTimer->start(_saveSessionTime, true);
 
     _progress->ManualReset();
 }
 
 void EspinaVolumeEditor::EditorReferenceOpen(void)
 {
-	QMessageBox msgBox;
-
 	QString filename = QFileDialog::getOpenFileName(this, tr("Open Reference Image"), QDir::currentPath(), QObject::tr("image files (*.mhd *.mha);;All files (*.*)"));
 
 	if (!filename.isNull())
 		filename.toAscii();
 	else
 		return;
+
+	LoadReferenceFile(filename);
+}
+
+void EspinaVolumeEditor::LoadReferenceFile(QString filename)
+{
+	QMessageBox msgBox;
 
 	// store reference filename
 	_referenceFileName = filename.toStdString();
@@ -969,7 +861,7 @@ void EspinaVolumeEditor::EditorSave()
 
 void EspinaVolumeEditor::EditorExit()
 {
-//	RemoveSessionFiles();
+	RemoveSessionFiles();
     qApp->exit();
 }
 
@@ -1294,7 +1186,6 @@ void EspinaVolumeEditor::LabelSelectionChanged(int value)
     updatepointlabel = true;
     updateslicerenderers = true;
     updatevoxelrenderer = true;
-
     UpdateViewports(All);
 }
 
@@ -1307,7 +1198,9 @@ void EspinaVolumeEditor::Preferences()
     		_dataManager->GetUndoRedoBufferCapacity(), 
     		_editorOperations->GetFiltersRadius(), 
     		_editorOperations->GetWatershedLevel(), 
-    		_axialSliceVisualization->GetSegmentationOpacity());
+    		_axialSliceVisualization->GetSegmentationOpacity(),
+    		_saveSessionTime,
+    		_saveSessionEnabled);
     
     if (true == _hasReferenceImage)
     	configdialog.EnableVisualizationBox();
@@ -1320,6 +1213,25 @@ void EspinaVolumeEditor::Preferences()
     _editorOperations->SetFiltersRadius(configdialog.GetRadius());
     _editorOperations->SetWatershedLevel(configdialog.GetLevel());
     _dataManager->SetUndoRedoBufferSize(configdialog.GetSize());
+
+    if (_saveSessionTime != (configdialog.GetSaveSessionTime() * 60 * 1000))
+    {
+    	// time for saving session data changed, just update the timer
+    	_saveSessionTime = configdialog.GetSaveSessionTime() * 60 * 1000;
+    	_sessionTimer->changeInterval(_saveSessionTime);
+    }
+
+    if (false == configdialog.GetSaveSessionEnabled())
+    {
+    	_saveSessionEnabled = false;
+    	_sessionTimer->stop();
+    }
+    else
+    {
+    	_saveSessionEnabled = true;
+       	if (!_sessionTimer->isActive() && (_segmentationFileName != std::string()))
+    		_sessionTimer->start(_saveSessionTime, true);
+    }
 
     // the undo/redo system size could have been modified and then some actions could have been deleted
     UpdateUndoRedoMenu();
@@ -2386,7 +2298,7 @@ void EspinaVolumeEditor::SaveSessionEnd(void)
 	_progress->ManualReset(true);
 
 	// we use singleshot timers so until the save session operation has ended we don't restart it
-	_sessionTimer->start(20000, true);
+	_sessionTimer->start(_saveSessionTime, true);
 }
 
 void EspinaVolumeEditor::SwitchSegmentationView(void)
@@ -2466,7 +2378,6 @@ void EspinaVolumeEditor::RestoreSavedSession(void)
 	}
 
 	// read _POI and _selectedLabel
-	infile.read(reinterpret_cast<char*>(&_selectedLabel), sizeof(unsigned short int));
 	infile.read(reinterpret_cast<char*>(&_POI[0]), sizeof(unsigned int));
 	infile.read(reinterpret_cast<char*>(&_POI[1]), sizeof(unsigned int));
 	infile.read(reinterpret_cast<char*>(&_POI[2]), sizeof(unsigned int));
@@ -2625,6 +2536,60 @@ void EspinaVolumeEditor::RestoreSavedSession(void)
 	// now we have our structuredpoints
 	_dataManager->SetStructuredPoints(convert->GetStructuredPointsOutput());
 
+	// initialize the GUI
+	InitializeGUI();
+
+    // initially without a reference image
+    if (_hasReferenceImage)
+    	LoadReferenceFile(QString(_referenceFileName.c_str()));
+
+    // start session timer
+    _sessionTimer->start(_saveSessionTime, true);
+
+    _progress->ManualReset();
+}
+
+void EspinaVolumeEditor::RemoveSessionFiles(void)
+{
+	// delete the temporal session files, if they exists
+	std::string homedir = std::string(getenv("HOME"));
+	std::string username = std::string(getenv("USER"));
+	std::string baseFilename = homedir + std::string("/.espinaeditor-") + username;
+	std::string temporalFilename = baseFilename + std::string(".session");
+	std::string temporalFilenameMHA = baseFilename + std::string(".mha");
+
+	// with the lock we make sure there's no save session action in progress
+	QMutexLocker locker(actionLock);
+
+	QFile file(QString(temporalFilename.c_str()));
+	if (file.exists())
+		if (!file.remove())
+		{
+			QMessageBox msgBox;
+			msgBox.setIcon(QMessageBox::Critical);
+			msgBox.setText("An error occurred exiting the editor.\n.Editor session file couldn't be removed.");
+			msgBox.exec();
+		}
+
+	QFile fileMHA(QString(temporalFilenameMHA.c_str()));
+	if (fileMHA.exists())
+		if (!fileMHA.remove())
+		{
+			QMessageBox msgBox;
+			msgBox.setIcon(QMessageBox::Critical);
+			msgBox.setText("An error occurred exiting the editor.\n.Editor MHA session file couldn't be removed.");
+			msgBox.exec();
+		}
+}
+
+void EspinaVolumeEditor::InitializeGUI(void)
+{
+	// set POI (point of interest)
+	Vector3ui imageSize = _orientationData->GetTransformedSize();
+	_POI[0] = (imageSize[0]-1)/2;
+	_POI[1] = (imageSize[1]-1)/2;
+	_POI[2] = (imageSize[2]-1)/2;
+
     // add volume actors to 3D renderer
 	_volumeRender = new VoxelVolumeRender(_dataManager, _voxelViewRenderer, _progress);
 
@@ -2720,12 +2685,6 @@ void EspinaVolumeEditor::RestoreSavedSession(void)
     _sagittalSliceVisualization->ZoomEvent();
     _voxelViewRenderer->ResetCamera();
 
-    // we can now begin updating the viewports
-    this->updatevoxelrenderer = true;
-    this->updateslicerenderers = true;
-    this->renderisavolume = true;
-    UpdateViewports(All);
-
     // reset parts of the GUI, needed when loading another image (another session) to reset buttons
     // and items to their initial states. Same goes for selected label.
     axestypebutton->setIcon(QIcon(":newPrefix/icons/noaxes.png"));
@@ -2733,44 +2692,9 @@ void EspinaVolumeEditor::RestoreSavedSession(void)
     _selectedLabel = 0;
     viewbutton->setChecked(true);
 
-    // initially without a reference image
-    _hasReferenceImage = false;
-
-    // start session timer
-    _sessionTimer->start(5000, true);
-
-    _progress->ManualReset();
-}
-
-void EspinaVolumeEditor::RemoveSessionFiles(void)
-{
-	// delete the temporal session files, if they exists
-	std::string homedir = std::string(getenv("HOME"));
-	std::string username = std::string(getenv("USER"));
-	std::string baseFilename = homedir + std::string("/.espinaeditor-") + username;
-	std::string temporalFilename = baseFilename + std::string(".session");
-	std::string temporalFilenameMHA = baseFilename + std::string(".mha");
-
-	// with the lock we make sure there's no save session action in progress
-	QMutexLocker locker(actionLock);
-
-	QFile file(QString(temporalFilename.c_str()));
-	if (file.exists())
-		if (!file.remove())
-		{
-			QMessageBox msgBox;
-			msgBox.setIcon(QMessageBox::Critical);
-			msgBox.setText("An error occurred exiting the editor.\n.Editor session file couldn't be removed.");
-			msgBox.exec();
-		}
-
-	QFile fileMHA(QString(temporalFilenameMHA.c_str()));
-	if (fileMHA.exists())
-		if (!fileMHA.remove())
-		{
-			QMessageBox msgBox;
-			msgBox.setIcon(QMessageBox::Critical);
-			msgBox.setText("An error occurred exiting the editor.\n.Editor MHA session file couldn't be removed.");
-			msgBox.exec();
-		}
+    // we can now begin updating the viewports
+    this->updatevoxelrenderer = true;
+    this->updateslicerenderers = true;
+    this->renderisavolume = true;
+    UpdateViewports(All);
 }

@@ -9,8 +9,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>308</width>
-    <height>347</height>
+    <width>324</width>
+    <height>443</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -21,14 +21,14 @@
   </property>
   <property name="minimumSize">
    <size>
-    <width>308</width>
-    <height>347</height>
+    <width>324</width>
+    <height>443</height>
    </size>
   </property>
   <property name="maximumSize">
    <size>
-    <width>308</width>
-    <height>347</height>
+    <width>324</width>
+    <height>443</height>
    </size>
   </property>
   <property name="contextMenuPolicy">
@@ -319,6 +319,68 @@ QGroupBox::title {
          </widget>
         </item>
        </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="saveSessionBox">
+     <property name="styleSheet">
+      <string notr="true"> QGroupBox {
+	 font: bold gray;
+	color: rgb(84, 84, 84);
+     border: 1px solid gray;
+     border-radius: 5px;
+     margin-top: 2ex; /* leave space at the top for the title */
+     padding: 2px
+ }
+
+QGroupBox::title {
+     font: bold 10px;
+     subcontrol-origin: margin;
+     subcontrol-position: left top; /* position at the top center */
+     padding: 2px;
+ }</string>
+     </property>
+     <property name="title">
+      <string>AutoSave Session Data</string>
+     </property>
+     <property name="checkable">
+      <bool>true</bool>
+     </property>
+     <layout class="QHBoxLayout" name="horizontalLayout_4">
+      <item>
+       <widget class="QLabel" name="label_6">
+        <property name="text">
+         <string>Save session every</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QSpinBox" name="saveTimeBox">
+        <property name="frame">
+         <bool>true</bool>
+        </property>
+        <property name="minimum">
+         <number>5</number>
+        </property>
+        <property name="maximum">
+         <number>60</number>
+        </property>
+        <property name="singleStep">
+         <number>5</number>
+        </property>
+        <property name="value">
+         <number>20</number>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="label_7">
+        <property name="text">
+         <string>minutes</string>
+        </property>
+       </widget>
       </item>
      </layout>
     </widget>
