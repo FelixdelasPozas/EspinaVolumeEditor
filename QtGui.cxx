@@ -318,7 +318,6 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
     _segmentationsAreVisible = true;
 
     // create mutex for mutual exclusion sections
-    _saveSessionThread = new SaveSessionThread(this);
     actionLock = new QMutex();
 
     // let's see if a previous session crashed
@@ -1098,7 +1097,7 @@ void EspinaVolumeEditor::LabelSelectionChanged(int value)
     _dataManager->GetLookupTable()->Modified();
 
     // focus volume renderer and reset switch render button
-    _volumeRender->UpdateFocus(value);
+  	_volumeRender->UpdateFocus(value);
     renderisavolume = true;
     _volumeRender->ViewAsVolume();
     rendertypebutton->setIcon(QIcon(":/newPrefix/icons/mesh.png"));
@@ -1113,6 +1112,8 @@ void EspinaVolumeEditor::LabelSelectionChanged(int value)
     		openoperation->setEnabled(false);
     		closeoperation->setEnabled(false);
     		watershedoperation->setEnabled(false);
+    		cutbutton->setEnabled(false);
+    		relabelbutton->setEnabled(false);
     	    if (pickerbutton->isChecked())
     	    	viewbutton->setChecked(true);
     	    rendertypebutton->setEnabled(false);
@@ -1125,6 +1126,8 @@ void EspinaVolumeEditor::LabelSelectionChanged(int value)
     		openoperation->setEnabled(true);
     		closeoperation->setEnabled(true);
     		watershedoperation->setEnabled(true);
+    		cutbutton->setEnabled(true);
+    		relabelbutton->setEnabled(true);
     		if(_voxelViewRenderer->GetDraw() != false)
     			rendertypebutton->setEnabled(true);
     		break;
@@ -1327,9 +1330,6 @@ void EspinaVolumeEditor::EditorSelectionEnd(bool value)
     _axialSliceVisualization->ClearSelection();
     _coronalSliceVisualization->ClearSelection();
     _sagittalSliceVisualization->ClearSelection();
-    
-    relabelbutton->setEnabled(false);
-    cutbutton->setEnabled(false);
     UpdateViewports(All);
 }
 
@@ -2280,6 +2280,7 @@ void EspinaVolumeEditor::DisableRenderView(void)
 
 void EspinaVolumeEditor::SaveSession(void)
 {
+	_saveSessionThread = new SaveSessionThread(this);
 	_saveSessionThread->start();
 }
 
@@ -2299,6 +2300,9 @@ void EspinaVolumeEditor::SaveSessionEnd(void)
 
 	// we use singleshot timers so until the save session operation has ended we don't restart it
 	_sessionTimer->start(_saveSessionTime, true);
+
+	delete _saveSessionThread;
+	_saveSessionThread = NULL;
 }
 
 void EspinaVolumeEditor::SwitchSegmentationView(void)

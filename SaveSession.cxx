@@ -50,6 +50,8 @@ void SaveSessionThread::run()
 	_dataManager = _parent->_dataManager;
 	_editorOperations = _parent->_editorOperations;
 	_metadata = _parent->_fileMetadata;
+
+	// errors are handled by thread->exec() so we don't really need to check the returning value of exec()
 	this->exec();
 }
 
