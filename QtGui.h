@@ -61,7 +61,7 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         // mutex to assure that no editing action is interrupted by the save session operation that can kick in at any time
         QMutex *actionLock;
 
-        // friends can touch your private parts
+        // friends can touch your private parts, tsk tsk...
         friend class SaveSessionThread;
     public slots:
     protected:
@@ -108,14 +108,16 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
     private:
         typedef enum { All, Slices, Voxel, Axial, Coronal, Sagittal } VIEWPORTSENUM;
         
-        bool updatevoxelrenderer;
-        bool updateslicerenderers;
-        bool updatepointlabel;
-        bool renderisavolume;
+        // useful variables to minimize drawing time
+        bool updateVoxelRenderer;
+        bool updateSliceRenderers;
+        bool updatePointLabel;
 
-        void AxialXYPick(unsigned long);
-        void CoronalXYPick(unsigned long);
-        void SagittalXYPick(unsigned long);
+        bool renderIsAVolume;
+
+        void AxialXYPick(const unsigned long);
+        void CoronalXYPick(const unsigned long);
+        void SagittalXYPick(const unsigned long);
         void GetPointLabel();
         void FillColorLabels();
         void UpdateViewports(VIEWPORTSENUM);
@@ -131,9 +133,6 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         vtkSmartPointer<vtkRenderer>           _sagittalViewRenderer;
         vtkSmartPointer<vtkRenderer>           _coronalViewRenderer;
 
-        // misc attributes
-        DataManager                           *_dataManager;
-        
         // these are managed with new and delete and not with smartpointers so
         // BEWARE. created and destroyed by editor, so no need to keep references 
         SliceVisualization                    *_axialSliceVisualization;
@@ -142,6 +141,11 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         AxesRender                            *_axesRender;
         Coordinates                           *_orientationData;
         VoxelVolumeRender                     *_volumeRender;
+        Metadata							  *_fileMetadata;
+        SaveSessionThread					  *_saveSessionThread;
+        DataManager                           *_dataManager;
+        ProgressAccumulator                   *_progress;
+        EditorOperations                      *_editorOperations;
         
         // point of interest and its label 
         Vector3ui                              _POI;
@@ -154,21 +158,11 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         // label selectable by the user, used for painting  
         unsigned short int                     _selectedLabel;
         
-        // to handle itk vtk filter progress information
-        ProgressAccumulator                   *_progress;
-        
-        // area selection
-        EditorOperations                      *_editorOperations;
-        
         // misc boolean values that affect editor 
         bool 								   _hasReferenceImage;
         bool								   _segmentationsAreVisible;
 
-        // espina metadata
-        Metadata							  *_fileMetadata;
-
-        // session timer
-        SaveSessionThread					  *_saveSessionThread;
+        // session timer and options
         QTimer 								  *_sessionTimer;
         unsigned int						   _saveSessionTime;
         bool 								   _saveSessionEnabled;

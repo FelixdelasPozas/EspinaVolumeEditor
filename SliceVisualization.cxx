@@ -331,7 +331,7 @@ void SliceVisualization::UpdateCrosshair(Vector3ui point)
     _POIVerticalLine->Update();
 }
 
-SliceVisualization::PickingType SliceVisualization::GetPickPosition(int* X, int* Y)
+SliceVisualization::PickingType SliceVisualization::GetPickData(int* X, int* Y)
 {
     PickingType pickedProp = None;
     

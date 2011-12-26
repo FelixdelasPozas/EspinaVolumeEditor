@@ -103,7 +103,7 @@ class EditorOperations
         // pointer to renderer
         vtkSmartPointer<vtkRenderer> 						_renderer;
         
-        // poiner to orienation data
+        // pointer to orienation data
         Coordinates 										*_orientation;
 
         // selection bounds

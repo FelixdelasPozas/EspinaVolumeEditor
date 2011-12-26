@@ -68,8 +68,8 @@ class SliceVisualization
         // updates slice
         void UpdateSlice(Vector3ui);
         
-        // returns true if the prop has been picked
-        SliceVisualization::PickingType GetPickPosition(int*, int*);
+        // returns true if the prop has been picked and the picked coords by reference
+        SliceVisualization::PickingType GetPickData(int*, int*);
         
         // set selection
         void SetSelection(std::vector< Vector3ui >);
@@ -89,7 +89,7 @@ class SliceVisualization
         // set segmentation opacity
         void SetSegmentationOpacity(unsigned int);
 
-        // toggle segmentation view (switches from 0 opacity to previously set opacity)
+        // toggle segmentation view (switches from 0 opacity to previously set opacity and viceversa)
         void ToggleSegmentationView(void);
     private:
         // generate imageactor and adds it to renderer

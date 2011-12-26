@@ -363,8 +363,8 @@ bool EditorOperations::Relabel(QWidget *parent, const unsigned short label, vtkS
     for (unsigned int z = _min[2]; z <= _max[2]; z++)
         for (unsigned int x = _min[0]; x <= _max[0]; x++)
             for (unsigned int y = _min[1]; y <= _max[1]; y++)
-                if (label == _dataManager->GetVoxelScalar(x,y,z))
-                    _dataManager->SetVoxelScalar(x,y,z,newlabel);
+				if (label == _dataManager->GetVoxelScalar(x, y, z))
+					_dataManager->SetVoxelScalar(x, y, z, newlabel);
     
     _progress->ManualReset();
     _dataManager->OperationEnd();
@@ -384,8 +384,10 @@ void EditorOperations::Erode(const unsigned short label)
     itk::SmartPointer<ImageType> image = ImageType::New();
     image = GetItkImageFromSelection(label, _filtersRadius);
     
+    // BEWARE: radius on erode is _filtersRadius-1 because erode seems to be too strong. it seems to work fine with that value.
+    //		   the less it can be is 0 as _filterRadius >= 1 always.
     StructuringElementType structuringElement;
-    structuringElement.SetRadius(_filtersRadius);
+    structuringElement.SetRadius(_filtersRadius-1);
     structuringElement.CreateStructuringElement();
 
     erodeFilter->SetInput(image);
@@ -852,6 +854,7 @@ itk::SmartPointer<LabelMapType> EditorOperations::GetImageLabelMap()
         return NULL;
     }
     
+    _progress->Ignore(converter);
     itk::SmartPointer<LabelMapType> outputLabelMap = converter->GetOutput();
     outputLabelMap->Register();
     
