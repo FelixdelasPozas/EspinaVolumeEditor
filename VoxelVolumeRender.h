@@ -65,26 +65,26 @@ class VoxelVolumeRender
         void ComputeGPURender();
 
         // attributes
-        vtkSmartPointer<vtkRenderer>         _renderer;
-        ProgressAccumulator                 *_progress;
-        DataManager                         *_dataManager;
+        vtkSmartPointer<vtkRenderer>         		_renderer;
+        ProgressAccumulator                 	   *_progress;
+        DataManager                         	   *_dataManager;
 
         // to update color table
-        vtkSmartPointer<vtkPiecewiseFunction>      _opacityfunction;
-        vtkSmartPointer<vtkColorTransferFunction>  _colorfunction;
+        vtkSmartPointer<vtkPiecewiseFunction>      	_opacityfunction;
+        vtkSmartPointer<vtkColorTransferFunction>  	_colorfunction;
 
         // actor for the mesh representation of the volume
-        vtkSmartPointer<vtkActor> _meshActor;
+        vtkSmartPointer<vtkActor> 					_meshActor;
 
         // actors for the volume
-        vtkSmartPointer<vtkVolume> _volume;
+        vtkSmartPointer<vtkVolume> 					_volume;
 
         // actual object label
-        unsigned short _objectLabel;
+        unsigned short 								_objectLabel;
 
         // software saycast volume mapper
-        vtkSmartPointer<vtkVolumeRayCastMapper> _volumemapper;
-//        vtkSmartPointer<vtkSmartVolumeMapper>  _GPUmapper;
+        vtkSmartPointer<vtkVolumeRayCastMapper> 	_volumemapper;
+//        vtkSmartPointer<vtkSmartVolumeMapper>  	_GPUmapper;
 };
 
 #endif

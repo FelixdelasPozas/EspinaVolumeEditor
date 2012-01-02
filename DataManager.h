@@ -23,6 +23,7 @@
 
 // c++ includes
 #include <map>
+#include <set>
 
 // project includes
 #include "Coordinates.h"
@@ -69,6 +70,16 @@ class DataManager
         unsigned long int GetUndoRedoBufferSize();
         unsigned long int GetUndoRedoBufferCapacity();
 
+        // lookuptable color modification and check
+        void ColorHighlight(const unsigned short);
+        void ColorDim(const unsigned short);
+        void ColorHighlightExclusive(unsigned short);
+        void ColorDimAll(void);
+        bool ColorIsInUse(double* color);
+        unsigned int GetNumberOfColors();
+        void GetColorComponents(unsigned short, double*);
+        void SetColorComponents(unsigned short, double*);
+
         // SETS /////////////////////////
 
         // changes voxel label
@@ -91,6 +102,9 @@ class DataManager
 
         // GETS /////////////////////////
 
+        // get the lookuptable (used only by slices because we need the same lookuptable pointer for all)
+        vtkSmartPointer<vtkLookupTable> GetLookupTable();
+
         // get pointer to vtkStructuredPoints
         vtkSmartPointer<vtkStructuredPoints> GetStructuredPoints();
         
@@ -110,9 +124,6 @@ class DataManager
         // get scalar for voxel(x,y,z)
         unsigned short GetVoxelScalar(unsigned int, unsigned int, unsigned int);
         
-        // get a smartpointer from the lookuptable
-        vtkSmartPointer<vtkLookupTable> GetLookupTable();
-
         // get the first scalar value that is free to assign to a label (NOT the label number)
         unsigned short GetFirstFreeValue();
         
@@ -189,6 +200,8 @@ class DataManager
         		ActionInformation(): sizeInVoxels(0), temporalCentroid(Vector3ll(0,0,0)), min(Vector3ui(0,0,0)), max(Vector3ui(0,0,0)) {};
         };
         std::map<unsigned short, struct ActionInformation*> ActionInformationVector;
+
+        std::set<unsigned short> 					_highlightedLabels;
 };
 
 #endif // _DATAMANAGER_H_

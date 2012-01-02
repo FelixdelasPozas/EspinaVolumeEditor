@@ -34,7 +34,7 @@ QtRelabel::~QtRelabel()
     // empty
 }
 
-void QtRelabel::SetInitialOptions(unsigned short label,vtkSmartPointer<vtkLookupTable> colors, Metadata* data, DataManager* dataManager)
+void QtRelabel::SetInitialOptions(unsigned short label, Metadata* data, DataManager* dataManager)
 {
     double rgba[4];
     QPixmap icon(16,16);
@@ -49,7 +49,7 @@ void QtRelabel::SetInitialOptions(unsigned short label,vtkSmartPointer<vtkLookup
     if (label != 0)
     {
         newlabelbox->insertItem(0, "Background");
-        colors->GetTableValue(label, rgba);
+        dataManager->GetColorComponents(label, rgba);
         color.setRgbF(rgba[0], rgba[1], rgba[2], 1);
         icon.fill(color);
         std::stringstream out;
@@ -67,7 +67,7 @@ void QtRelabel::SetInitialOptions(unsigned short label,vtkSmartPointer<vtkLookup
         if (i == static_cast<unsigned int>(label))
             continue;
         
-        colors->GetTableValue(i, rgba);
+        dataManager->GetColorComponents(i, rgba);
         color.setRgbF(rgba[0], rgba[1], rgba[2], 1);
         icon.fill(color);
         std::stringstream out;

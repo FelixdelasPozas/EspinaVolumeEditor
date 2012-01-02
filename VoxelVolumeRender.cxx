@@ -114,7 +114,7 @@ void VoxelVolumeRender::ComputeMesh(unsigned short label)
 	_progress->Observe(isoMapper, "Map", 1.0/3.0);
 	isoMapper->SetInputConnection(normals->GetOutputPort());
 	isoMapper->ReleaseDataFlagOn();
-	isoMapper->ImmediateModeRenderingOff();
+	isoMapper->ImmediateModeRenderingOn();
 	isoMapper->ScalarVisibilityOff();
 	isoMapper->Update();
 	_progress->Ignore(isoMapper);
@@ -125,7 +125,7 @@ void VoxelVolumeRender::ComputeMesh(unsigned short label)
 
     _meshActor = vtkSmartPointer<vtkActor>::New();
     _meshActor->SetMapper(isoMapper);
-	_dataManager->GetLookupTable()->GetTableValue(label, rgba);
+	_dataManager->GetColorComponents(label, rgba);
 	_meshActor->GetProperty()->SetColor(rgba[0], rgba[1], rgba[2]);
 	_meshActor->GetProperty()->SetOpacity(1);
 	_meshActor->GetProperty()->SetSpecular(0.2);
@@ -139,7 +139,6 @@ void VoxelVolumeRender::ComputeMesh(unsigned short label)
 void VoxelVolumeRender::ComputeRayCastVolume()
 {
     double rgba[4];
-    vtkSmartPointer<vtkLookupTable> table = _dataManager->GetLookupTable();
 
     // model mapper
     _volumemapper = vtkSmartPointer<vtkVolumeRayCastMapper>::New();
@@ -153,16 +152,16 @@ void VoxelVolumeRender::ComputeRayCastVolume()
     // assign label colors
     _colorfunction = vtkSmartPointer<vtkColorTransferFunction>::New();
     _colorfunction->AllowDuplicateScalarsOff();
-    for (unsigned short int i = 0; i != table->GetNumberOfTableValues(); i++)
+    for (unsigned short int i = 0; i != _dataManager->GetNumberOfColors(); i++)
     {
-        table->GetTableValue(i, rgba);
+        _dataManager->GetColorComponents(i, rgba);
         _colorfunction->AddRGBPoint(i,rgba[0], rgba[1], rgba[2]);
     }
 
     // we need to set all labels to an opacity of 0.1
     _opacityfunction = vtkSmartPointer<vtkPiecewiseFunction>::New();
     _opacityfunction->AddPoint(0, 0.0);
-    for (int i=1; i != table->GetNumberOfTableValues(); i++)
+    for (unsigned int i = 1; i != _dataManager->GetNumberOfColors(); i++)
         _opacityfunction->AddPoint(i, 0.1);
 
     // volume property

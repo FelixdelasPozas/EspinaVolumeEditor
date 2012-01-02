@@ -19,6 +19,7 @@
 #include "ui_QtColorPicker.h"
 
 // project includes
+#include "DataManager.h"
 #include "VectorSpaceAlgebra.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -33,7 +34,7 @@ class QtColorPicker: public QDialog, private Ui_ColorPicker
         ~QtColorPicker();
 
         // set initial options
-        void SetInitialOptions(vtkSmartPointer<vtkLookupTable>);
+        void SetInitialOptions(DataManager *);
 
         // returns true if the user clicked the Ok button instead the Cancel or Close.
         bool ModifiedData();
@@ -54,13 +55,13 @@ class QtColorPicker: public QDialog, private Ui_ColorPicker
         void MakeColor();
         
         // i prefer this way instead returning data
-        bool _modified;
+        bool 			_modified;
         
-        // color table
-        vtkSmartPointer<vtkLookupTable> _colors;
+        // pointer to the datamanager containing the color table
+        DataManager 	*_data;
         
         // rgb of selected color to be returned
-        Vector3d _rgb;
+        Vector3d 		_rgb;
 };
 
 #endif // _QTLABELEDITOR_H_

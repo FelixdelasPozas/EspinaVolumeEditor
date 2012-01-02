@@ -247,10 +247,10 @@ void DataManager::SetVoxelScalarRaw(unsigned int x, unsigned int y, unsigned int
     _structuredPoints->Modified();
 }
 
-vtkSmartPointer<vtkLookupTable> DataManager::GetLookupTable()
-{
-    return _lookupTable;
-}
+//vtkSmartPointer<vtkLookupTable> DataManager::GetLookupTable()
+//{
+//    return _lookupTable;
+//}
 
 unsigned short DataManager::SetLabel(Vector3d rgb)
 {
@@ -592,4 +592,103 @@ Vector3ui DataManager::GetBoundingBoxMax(unsigned short label)
 unsigned int DataManager::GetNumberOfLabels(void)
 {
 	return ObjectVector.size();
+}
+
+void DataManager::ColorHighlight(const unsigned short label)
+{
+	if (_highlightedLabels.find(label) == _highlightedLabels.end())
+	{
+		double rgba[4];
+
+		this->_lookupTable->GetTableValue(label, rgba);
+		this->_lookupTable->SetTableValue(label, rgba[0], rgba[1], rgba[2], 1);
+
+		_highlightedLabels.insert(label);
+		this->_lookupTable->Modified();
+	}
+}
+
+void DataManager::ColorDim(const unsigned short label)
+{
+	if (_highlightedLabels.find(label) != _highlightedLabels.end())
+	{
+		double rgba[4];
+
+		this->_lookupTable->GetTableValue(label, rgba);
+		this->_lookupTable->SetTableValue(label, rgba[0], rgba[1], rgba[2], 0.4);
+
+		_highlightedLabels.erase(label);
+		this->_lookupTable->Modified();
+	}
+}
+
+void DataManager::ColorHighlightExclusive(const unsigned short label)
+{
+	std::set<unsigned short>::iterator it;
+	for (it = _highlightedLabels.begin(); it != _highlightedLabels.end(); it++)
+	{
+		if ((*it) == label)
+			continue;
+
+		double rgba[4];
+
+		this->_lookupTable->GetTableValue(*it, rgba);
+		this->_lookupTable->SetTableValue(*it, rgba[0], rgba[1], rgba[2], 0.4);
+		_highlightedLabels.erase(*it);
+	}
+
+	if (_highlightedLabels.find(label) == _highlightedLabels.end())
+		ColorHighlight(label);
+
+	this->_lookupTable->Modified();
+}
+
+void DataManager::ColorDimAll()
+{
+	std::set<unsigned short>::iterator it;
+	for (it = _highlightedLabels.begin(); it != _highlightedLabels.end(); it++)
+	{
+		double rgba[4];
+
+		this->_lookupTable->GetTableValue((*it), rgba);
+		this->_lookupTable->SetTableValue((*it), rgba[0], rgba[1], rgba[2], 0.4);
+
+		_highlightedLabels.erase(*it);
+	}
+	this->_lookupTable->Modified();
+}
+
+bool DataManager::ColorIsInUse(double* color)
+{
+	double rgba[4];
+
+    for (int i = 0; i < this->_lookupTable->GetNumberOfTableValues(); i++)
+    {
+        this->_lookupTable->GetTableValue(i, rgba);
+        if ((rgba[0] == color[0]) && (rgba[1] == color[1]) && (rgba[2] == color[2]))
+            return true;
+    }
+
+    return false;
+}
+
+unsigned int DataManager::GetNumberOfColors()
+{
+	return this->_lookupTable->GetNumberOfTableValues();
+}
+
+void DataManager::GetColorComponents(unsigned short label, double* rgba)
+{
+	this->_lookupTable->GetTableValue(label, rgba);
+}
+
+void DataManager::SetColorComponents(unsigned short label, double* rgba)
+{
+	this->_lookupTable->SetTableValue(label, rgba);
+	this->_lookupTable->Modified();
+}
+
+vtkSmartPointer<vtkLookupTable> DataManager::GetLookupTable()
+{
+	return this->_lookupTable;
 }

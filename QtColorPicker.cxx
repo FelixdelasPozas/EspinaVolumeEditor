@@ -17,7 +17,7 @@ QtColorPicker::QtColorPicker(QWidget *p, Qt::WindowFlags f) : QDialog(p,f)
 {
     setupUi(this); // this sets up GUI
     _modified = false;
-    _colors = NULL;
+    _data = NULL;
     _rgb = Vector3d(0.5,0.5,0.5);
     
     Rslider->setSliderPosition(static_cast<int>(_rgb[0]*255.0));
@@ -36,9 +36,9 @@ QtColorPicker::~QtColorPicker()
     // empty, nothing to be freed
 }
 
-void QtColorPicker::SetInitialOptions(vtkSmartPointer<vtkLookupTable> colors)
+void QtColorPicker::SetInitialOptions(DataManager *data)
 {
-    _colors = colors;
+    _data = data;
     MakeColor();
 }
 
@@ -90,9 +90,9 @@ void QtColorPicker::MakeColor()
     temptable->SetTableValue(0, _rgb[0], _rgb[1], _rgb[2], 1.0);
     temptable->GetTableValue(0, temprgba);
     
-    for (int i = 0; i < _colors->GetNumberOfTableValues(); i++)
+    for (int i = 0; i < _data->GetNumberOfColors(); i++)
     {
-        _colors->GetTableValue(i, rgba);
+        _data->GetColorComponents(i, rgba);
         if ((rgba[0] == temprgba[0]) && (rgba[1] == temprgba[1]) && (rgba[2] == temprgba[2])) 
             match = true;
     }

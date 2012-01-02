@@ -105,58 +105,58 @@ class SliceVisualization
         
         // attributes
         //
-        OrientationType                 _orientation;
-        Vector3d                        _spacing;
-        Vector3d                        _max;
-        Vector3ui                       _size;
+        OrientationType                 		_orientation;
+        Vector3d                        		_spacing;
+        Vector3d                        		_max;
+        Vector3ui                       		_size;
         //
         // used to not redraw the viewport if slider is already in the correct position
-        Vector3ui                       _point;
+        Vector3ui                       		_point;
         //
         // reslice axes pointer, used for updating slice
-        vtkSmartPointer<vtkMatrix4x4>   _axesMatrix;
+        vtkSmartPointer<vtkMatrix4x4>   		_axesMatrix;
         //
         // crosshair lines pointers, used for updating crosshair
-        vtkSmartPointer<vtkPolyData>    _POIHorizontalLine;
-        vtkSmartPointer<vtkPolyData>    _POIVerticalLine;
+        vtkSmartPointer<vtkPolyData>   		 	_POIHorizontalLine;
+        vtkSmartPointer<vtkPolyData>    		_POIVerticalLine;
         //
         // for picking
-        vtkSmartPointer<vtkPropPicker>  _picker;
-        vtkSmartPointer<vtkRenderer>    _renderer;
+        vtkSmartPointer<vtkPropPicker>  		_picker;
+        vtkSmartPointer<vtkRenderer>    		_renderer;
         //
         // text legend
         std::string _textbuffer;
-        vtkSmartPointer<vtkTextActor>   _text;
+        vtkSmartPointer<vtkTextActor>   		_text;
         //
         // selection actors & planesource
-        vtkSmartPointer<vtkActor>       _actor;
-        vtkSmartPointer<vtkPlaneSource> _selectionPlane;
-        Vector3ui                       _maxSelection;
-        Vector3ui                       _minSelection;
+        vtkSmartPointer<vtkActor>       		_actor;
+        vtkSmartPointer<vtkPlaneSource> 		_selectionPlane;
+        Vector3ui                       		_maxSelection;
+        Vector3ui                       		_minSelection;
         //
         // blender
-        vtkSmartPointer<vtkImageBlend>  _blendimages;
+        vtkSmartPointer<vtkImageBlend>  		_blendimages;
         // 
         // actors
-        vtkSmartPointer<vtkImageActor>  _imageactor;
-        vtkSmartPointer<vtkImageActor>  _blendactor;
-        vtkSmartPointer<vtkActor>       _horiactor;
-        vtkSmartPointer<vtkActor>       _vertactor;
-        vtkSmartPointer<vtkActor>		_squareActor;
-        vtkSmartPointer<vtkActor> 		_sliceActor;
+        vtkSmartPointer<vtkImageActor>  		_imageactor;
+        vtkSmartPointer<vtkImageActor>  		_blendactor;
+        vtkSmartPointer<vtkActor>       		_horiactor;
+        vtkSmartPointer<vtkActor>       		_vertactor;
+        vtkSmartPointer<vtkActor>				_squareActor;
+        vtkSmartPointer<vtkActor> 				_sliceActor;
         //
         // source for imageactors
-        vtkSmartPointer<vtkImageMapToColors> _segmentationcolors;
+        vtkSmartPointer<vtkImageMapToColors> 	_segmentationcolors;
         //
         // for thumbnail rendering
-        vtkSmartPointer<vtkRenderer>    _thumbRenderer;
-        double                          _boundsX;
-        double                          _boundsY;
-        vtkSmartPointer<vtkPolyData>    _square;
+        vtkSmartPointer<vtkRenderer>    		_thumbRenderer;
+        double                          		_boundsX;
+        double                          		_boundsY;
+        vtkSmartPointer<vtkPolyData>    		_square;
         //
         // configuration options
-        unsigned int 					_segmentationOpacity;
-        bool							_segmentationHidden;
+        unsigned int 							_segmentationOpacity;
+        bool									_segmentationHidden;
 };
 
 #endif // _SLICEVISUALIZATION_H_

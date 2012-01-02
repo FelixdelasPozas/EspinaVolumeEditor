@@ -646,7 +646,6 @@ void SliceVisualization::SetReferenceImage(vtkSmartPointer<vtkStructuredPoints> 
 	_blendimages->SetOpacity(1, static_cast<double>(_segmentationOpacity/100.0));
 	_blendimages->SetBlendModeToNormal();
 	_blendimages->Update();
-	
 
 	_blendactor = vtkSmartPointer<vtkImageActor>::New();
 	_blendactor->SetInput(_blendimages->GetOutput());

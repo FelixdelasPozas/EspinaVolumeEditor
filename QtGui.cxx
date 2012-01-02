@@ -118,6 +118,7 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
     connect(cutbutton, SIGNAL(clicked(bool)), this, SLOT(EditorCut()));
     connect(relabelbutton, SIGNAL(clicked(bool)), this, SLOT(EditorRelabel()));
     connect(pickerbutton, SIGNAL(clicked(bool)), this, SLOT(EditorSelectionEnd(bool)));
+    connect(wandButton, SIGNAL(clicked(bool)), this, SLOT(EditorSelectionEnd(bool)));
 
     connect(axialresetbutton, SIGNAL(clicked(bool)), this, SLOT(ViewReset()));
     connect(coronalresetbutton, SIGNAL(clicked(bool)), this, SLOT(ViewReset()));
@@ -790,8 +791,7 @@ void EspinaVolumeEditor::LoadReferenceFile(QString filename)
 
     // now that we have a reference image make the background of the segmentation completely transparent
     double rgba[4] = { 0.0, 0.0, 0.0, 0.0 };
-    _dataManager->GetLookupTable()->SetTableValue(0,rgba);
-    _dataManager->GetLookupTable()->Modified();
+    _dataManager->SetColorComponents(0,rgba);
     
     // pass reference image to slice visualization
     _axialSliceVisualization->SetReferenceImage(structuredPoints);
@@ -1023,7 +1023,7 @@ void EspinaVolumeEditor::GetPointLabel()
 
     // point with label selected
     double rgba[4];
-    _dataManager->GetLookupTable()->GetTableValue(_pointScalar, rgba);
+    _dataManager->GetColorComponents(_pointScalar, rgba);
     
     // we need to use double vales to build icon as some colours are too close
     // and could get identical if we use the values converted to int.
@@ -1049,7 +1049,7 @@ void EspinaVolumeEditor::FillColorLabels()
     if (labelselector->count() != 0)
     	labelselector->clear();
 
-    unsigned int num_colors = _dataManager->GetLookupTable()->GetNumberOfTableValues();
+    unsigned int num_colors = _dataManager->GetNumberOfColors();
     labelselector->insertItem(0, "Background");
     
     // color 0 is black, so we will start from 1
@@ -1059,7 +1059,7 @@ void EspinaVolumeEditor::FillColorLabels()
         QPixmap icon(16,16);
         QColor color;
 
-    	_dataManager->GetLookupTable()->GetTableValue(i, rgba);
+    	_dataManager->GetColorComponents(i, rgba);
         color.setRgbF(rgba[0], rgba[1], rgba[2], 1);
         icon.fill(color);
         std::stringstream out;
@@ -1074,30 +1074,16 @@ void EspinaVolumeEditor::FillColorLabels()
 
 void EspinaVolumeEditor::LabelSelectionChanged(int value)
 {
-	static unsigned short previousValue = 0;
-    double rgba[4];
-
-    if (!labelselector->isEnabled() || (value == -1) || (previousValue == value))
+    if (!labelselector->isEnabled() || (value == -1))
         return;
     
-    // first dim the previously selected label, if any
-    // BEWARE: we could have changed the lookuptable and previous value could refer a label that no longer exists
-    if ((previousValue > 0) && (previousValue < _dataManager->GetLookupTable()->GetNumberOfTableValues()))
-    {
-    	_dataManager->GetLookupTable()->GetTableValue(previousValue, rgba);
-    	_dataManager->GetLookupTable()->SetTableValue(previousValue, rgba[0], rgba[1], rgba[2], 0.4);
-    }
-    
-    previousValue = value;
     _selectedLabel = value;
 
     // if actual value != 0 (background) highlight it with an alpha of 1
     if(value != 0)
-    {
-    	_dataManager->GetLookupTable()->GetTableValue(value, rgba);
-    	_dataManager->GetLookupTable()->SetTableValue(value, rgba[0], rgba[1], rgba[2], 1);
-    }
-    _dataManager->GetLookupTable()->Modified();
+    	_dataManager->ColorHighlightExclusive(value);
+    else
+    	_dataManager->ColorDimAll();
 
     // focus volume renderer and reset switch render button
   	_volumeRender->UpdateFocus(value);
@@ -1349,7 +1335,7 @@ void EspinaVolumeEditor::EditorRelabel()
 {
 	QMutexLocker locker(actionLock);
 
-    if (_editorOperations->Relabel(this, _selectedLabel, _dataManager->GetLookupTable(), _fileMetadata))
+    if (_editorOperations->Relabel(this, _selectedLabel, _fileMetadata))
     {
         FillColorLabels();
 
@@ -1511,10 +1497,12 @@ void EspinaVolumeEditor::OperationUndo()
     _dataManager->DoUndoOperation();
     
     // update UI
-    if (_selectedLabel > _dataManager->GetLookupTable()->GetNumberOfTableValues()-1)
+    if (_selectedLabel > _dataManager->GetNumberOfColors())
+    {
         _selectedLabel = 0;
-        
-    LabelSelectionChanged(_selectedLabel);
+        LabelSelectionChanged(_selectedLabel);
+    }
+
     GetPointLabel();
     FillColorLabels();
     UpdateUndoRedoMenu();
@@ -1532,10 +1520,12 @@ void EspinaVolumeEditor::OperationRedo()
     _dataManager->DoRedoOperation();
     
     // update UI
-    if (_selectedLabel > _dataManager->GetLookupTable()->GetNumberOfTableValues()-1)
+    if (_selectedLabel > _dataManager->GetNumberOfColors())
+    {
         _selectedLabel = 0;
-        
-    LabelSelectionChanged(_selectedLabel);
+        LabelSelectionChanged(_selectedLabel);
+    }
+
     GetPointLabel();
     FillColorLabels();
     UpdateUndoRedoMenu();
@@ -1766,6 +1756,7 @@ void EspinaVolumeEditor::AxialXYPick(const unsigned long event)
 
     // we need to know first if we are picking something from the view
     actualPick = _axialSliceVisualization->GetPickData(&X, &Y);
+
     if (SliceVisualization::None == actualPick)
     {
       	// fix a glitch in rendering when the user picks a zone out of the slice
@@ -1854,6 +1845,14 @@ void EspinaVolumeEditor::AxialXYPick(const unsigned long event)
             _coronalSliceVisualization->SetSelection(_editorOperations->GetSelection());
             _sagittalSliceVisualization->SetSelection(_editorOperations->GetSelection());
     	}
+
+        if (wandButton->isChecked())
+        {
+        	QMutexLocker locker(actionLock);
+
+        	if (_pointScalar != 0)
+        		_editorOperations->AreaSelection(_POI,_pointScalar);
+        }
     }
         
     // we will render the viewports as rendersliceviews == false now
@@ -1876,6 +1875,7 @@ void EspinaVolumeEditor::CoronalXYPick(const unsigned long event)
 
     // we need to know first if we are picking something from the view
     actualPick = _coronalSliceVisualization->GetPickData(&X, &Y);
+
     if (SliceVisualization::None == actualPick)
     {
       	// fix a glitch in rendering when the user picks a zone out of the slice
@@ -1986,6 +1986,7 @@ void EspinaVolumeEditor::SagittalXYPick(const unsigned long event)
 
     // we need to know first if we are picking something from the view
     actualPick = _sagittalSliceVisualization->GetPickData(&X, &Y);
+
     if (SliceVisualization::None == actualPick)
     {
       	// fix a glitch in rendering when the user picks a zone out of the slice
@@ -2449,7 +2450,6 @@ void EspinaVolumeEditor::RestoreSavedSession(void)
 		infile.read(reinterpret_cast<char*>(&selected), sizeof(unsigned int));
 		_fileMetadata->AddObject(scalar, segment, selected);
 	}
-	std::cout << std::endl;
 
 	infile.read(reinterpret_cast<char*>(&size), sizeof(unsigned short int));
 	for (unsigned int i = 0; i < size; i++)
@@ -2655,6 +2655,7 @@ void EspinaVolumeEditor::InitializeGUI(void)
     paintbutton->setEnabled(true);
     erasebutton->setEnabled(true);
     pickerbutton->setEnabled(true);
+    wandButton->setEnabled(true);
     selectbutton->setEnabled(true);
     axialresetbutton->setEnabled(true);
     coronalresetbutton->setEnabled(true);

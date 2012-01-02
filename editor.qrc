@@ -1,5 +1,6 @@
 <RCC>
   <qresource prefix="newPrefix">
+    <file>icons/wand.png</file>
     <file>icons/eyeoff.svg</file>
     <file>icons/eyeon.svg</file>
     <file>icons/eraser.png</file>

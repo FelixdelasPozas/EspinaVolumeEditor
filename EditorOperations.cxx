@@ -37,6 +37,7 @@
 #include <itkChangeInformationImageFilter.h>
 #include <itkChangeLabelLabelMapFilter.h>
 #include <itkLabelMapToLabelImageFilter.h>
+#include <itkConnectedThresholdImageFilter.h>
 
 // vtk includes
 #include <vtkPolyDataMapper.h>
@@ -47,6 +48,15 @@
 #include <vtkImageExport.h>
 #include <vtkImageCast.h>
 #include <vtkMetaImageWriter.h>
+#include <vtkImageToImageStencil.h>
+#include <vtkDiscreteMarchingCubes.h>
+#include <vtkDecimatePro.h>
+#include <vtkVolumeTextureMapper3D.h>
+#include <vtkColorTransferFunction.h>
+#include <vtkPiecewiseFunction.h>
+#include <vtkVolumeProperty.h>
+#include <vtkTextureMapToPlane.h>
+#include <vtkTransformTextureCoords.h>
 
 // project includes
 #include "Coordinates.h"
@@ -69,42 +79,42 @@ typedef itk::LabelMap< LabelObjectType > LabelMapType;
 //
 EditorOperations::EditorOperations(DataManager *data)
 {
-    _dataManager = data;
-    _renderer = NULL;
-    _orientation = NULL;
-    _progress = NULL;
-    _min = _max = _size = Vector3ui(0,0,0);
+    this->_dataManager = data;
+    this->_renderer = NULL;
+    this->_orientation = NULL;
+    this->_progress = NULL;
+    this->_min = this->_max = this->_size = Vector3ui(0,0,0);
     
     // default options for filters
-    _filtersRadius = 1;
-    _watershedLevel = 0.5;
+    this->_filtersRadius = 1;
+    this->_watershedLevel = 0.5;
 }
 
 EditorOperations::~EditorOperations()
 {
-    if (_actor != NULL)
-        _renderer->RemoveActor(_actor);
+    if (this->_actor != NULL)
+    	this->_renderer->RemoveActor(_actor);
 }
 
 void EditorOperations::Initialize(vtkSmartPointer<vtkRenderer> renderer, Coordinates *orientation, ProgressAccumulator *progress)
 {
-    _renderer = renderer;
-    _orientation = orientation;
-    _progress = progress;
-    _size = orientation->GetTransformedSize() - Vector3ui(1,1,1);
-    _min = Vector3ui(0,0,0);
-    _max = _size;
+	this->_renderer = renderer;
+	this->_orientation = orientation;
+	this->_progress = progress;
+	this->_size = orientation->GetTransformedSize() - Vector3ui(1,1,1);
+	this->_min = Vector3ui(0,0,0);
+	this->_max = _size;
     
     // initial selection cube is invisible
-    _selectionCube = vtkSmartPointer<vtkCubeSource>::New();
-    _selectionCube->SetBounds(0,1,0,1,0,1);
+	this->_selectionCube = vtkSmartPointer<vtkCubeSource>::New();
+	this->_selectionCube->SetBounds(0,1,0,1,0,1);
     
     // create texture
     vtkSmartPointer<vtkImageCanvasSource2D> image = vtkSmartPointer<vtkImageCanvasSource2D>::New();
     image->SetScalarTypeToUnsignedChar();
     image->SetExtent(0, 15, 0, 15, 0, 0);
     image->SetNumberOfScalarComponents(4);
-    image->SetDrawColor(0,0,0,0);             // transparent color 
+    image->SetDrawColor(0,0,0,0);             // transparent color
     image->FillBox(0,15,0,15);
     image->SetDrawColor(255,255,255,150);     // "somewhat transparent" white
     image->DrawSegment(0, 0, 15, 15);
@@ -121,11 +131,11 @@ void EditorOperations::Initialize(vtkSmartPointer<vtkRenderer> renderer, Coordin
     texture->InterpolateOn();
     texture->ReleaseDataFlagOn();
       
-    vtkSmartPointer<vtkPolyDataMapper> mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-    mapper->SetInputConnection(_selectionCube->GetOutputPort());
+    vtkSmartPointer<vtkPolyDataMapper> cubeMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    cubeMapper->SetInputConnection(_selectionCube->GetOutputPort());
     
     _actor = vtkSmartPointer<vtkActor>::New();
-    _actor->SetMapper(mapper);
+    _actor->SetMapper(cubeMapper);
     _actor->SetTexture(texture);
     _actor->GetProperty()->SetOpacity(1);
     _actor->SetVisibility(false);
@@ -325,13 +335,13 @@ void EditorOperations::Cut(const unsigned short label)
     _dataManager->OperationEnd();
 }
 
-bool EditorOperations::Relabel(QWidget *parent, const unsigned short label, vtkSmartPointer<vtkLookupTable> colors, Metadata *data)
+bool EditorOperations::Relabel(QWidget *parent, const unsigned short label, Metadata *data)
 {
     Vector3d color;
     bool newcolor = false;
     
     QtRelabel configdialog(parent);
-    configdialog.SetInitialOptions(label, colors, data, _dataManager);
+    configdialog.SetInitialOptions(label, data, _dataManager);
     configdialog.exec();
     
     if (!configdialog.ModifiedData())
@@ -346,7 +356,7 @@ bool EditorOperations::Relabel(QWidget *parent, const unsigned short label, vtkS
     else
     {
         QtColorPicker colorpicker(parent);
-        colorpicker.SetInitialOptions(colors);
+        colorpicker.SetInitialOptions(_dataManager);
         colorpicker.exec();
 
         if (!colorpicker.ModifiedData())
@@ -385,7 +395,8 @@ void EditorOperations::Erode(const unsigned short label)
     image = GetItkImageFromSelection(label, _filtersRadius);
     
     // BEWARE: radius on erode is _filtersRadius-1 because erode seems to be too strong. it seems to work fine with that value.
-    //		   the less it can be is 0 as _filterRadius >= 1 always.
+    //		   the less it can be is 0 as _filterRadius >= 1 always. It erodes the volume with a value of 0, although using 0
+    //         with dilate produces no dilate effect.
     StructuringElementType structuringElement;
     structuringElement.SetRadius(_filtersRadius-1);
     structuringElement.CreateStructuringElement();
@@ -624,21 +635,14 @@ void EditorOperations::Watershed(const unsigned short label)
         // create a random color and make sure it's a new one (very small probability but we have to check anyways...)
         while (found == false)
         {
-            Vector3d color = Vector3d(((double)rand()/(double)RAND_MAX),((double)rand()/(double)RAND_MAX),((double)rand()/(double)RAND_MAX));
+            double color[3];
+            color[0] = ((double)rand()/(double)RAND_MAX);
+            color[1] = ((double)rand()/(double)RAND_MAX);
+            color[2] = ((double)rand()/(double)RAND_MAX);
 
-            double rgba[4];
-            bool match = false;
-            
-            for (int i = 0; i < _dataManager->GetLookupTable()->GetNumberOfTableValues(); i++)
+            if (false == _dataManager->ColorIsInUse(color))
             {
-                _dataManager->GetLookupTable()->GetTableValue(i, rgba);
-                if ((rgba[0] == color[0]) && (rgba[1] == color[1]) && (rgba[2] == color[2])) 
-                    match = true;
-            }
-
-            if (match == false)
-            {
-                newlabel = _dataManager->SetLabel(color);
+                newlabel = _dataManager->SetLabel(Vector3d(color[0], color[1], color[2]));
                 found = true;
             }
         }
@@ -710,7 +714,7 @@ void EditorOperations::EditorError(itk::ExceptionObject &excp)
 
 // originally the image was saved directly from the vtkStructuredPoints in memory but, although the
 // segmha file saved was correct, the orientation of the image was saved as ???, this doen't happen
-// with itk::ImageFileWriter as the orientation is saved as RAI.
+// with itk::ImageFileWriter as the orientation is saved correctly as RAI.
 void EditorOperations::SaveImage(const std::string filename)
 {
     _progress->ManualSet("Save Image");
@@ -884,4 +888,98 @@ const double EditorOperations::GetWatershedLevel(void)
 void EditorOperations::SetWatershedLevel(const double value)
 {
 	_watershedLevel = value;
+}
+
+void EditorOperations::AreaSelection(Vector3ui point, const unsigned short label)
+{
+	_progress->ManualSet("Threshold");
+
+	itk::Index<3> seed;
+	seed[0] = point[0];
+	seed[1] = point[1];
+	seed[2] = point[2];
+
+    itk::SmartPointer<ImageType> image = ImageType::New();
+    image = GetItkImageFromSelection(label,0);
+
+    typedef itk::ConnectedThresholdImageFilter<ImageType, ImageType> ConnectedThresholdFilterType;
+    itk::SmartPointer<ConnectedThresholdFilterType> connectThreshold = ConnectedThresholdFilterType::New();
+    connectThreshold->SetInput(image);
+    connectThreshold->AddSeed(seed);
+    connectThreshold->ReleaseDataFlagOn();
+    connectThreshold->SetLower(label);
+    connectThreshold->SetUpper(label);
+    connectThreshold->SetReplaceValue(255);
+    connectThreshold->SetConnectivity(ConnectedThresholdFilterType::FullConnectivity);
+    _progress->Observe(connectThreshold, "Threshold", 0.16);
+
+	try
+	{
+		connectThreshold->UpdateLargestPossibleRegion();
+	}
+	catch (itk::ExceptionObject &excp)
+	{
+	    QMessageBox msgBox;
+	    msgBox.setIcon(QMessageBox::Critical);
+		msgBox.setText("An error occurred in connection thresholding.\nThe operation has been aborted.");
+		msgBox.setDetailedText(excp.what());
+		msgBox.exec();
+		return;
+	}
+	_progress->Ignore(connectThreshold);
+
+	typedef itk::VTKImageExport<ImageType> ITKExport;
+	itk::SmartPointer<ITKExport> itkExporter = ITKExport::New();
+	vtkSmartPointer<vtkImageImport> vtkImporter = vtkSmartPointer<vtkImageImport>::New();
+	itkExporter->SetInput(connectThreshold->GetOutput());
+	ConnectPipelines(itkExporter, vtkImporter);
+	_progress->Observe(itkExporter,"Export", 0.16);
+	_progress->Observe(vtkImporter,"Import", 0.16);
+	vtkImporter->Update();
+	_progress->Ignore(itkExporter);
+	_progress->Ignore(vtkImporter);
+
+    // generate iso surface
+    vtkSmartPointer<vtkDiscreteMarchingCubes> march = vtkSmartPointer<vtkDiscreteMarchingCubes>::New();
+	march->SetInput(vtkImporter->GetOutput());
+	march->ReleaseDataFlagOn();
+	march->SetNumberOfContours(1);
+	march->GenerateValues(1, 255, 255);
+	march->ComputeScalarsOff();
+	march->ComputeNormalsOn();
+	march->ComputeGradientsOn();
+	_progress->Observe(march, "March", 0.16);
+	march->Update();
+	_progress->Ignore(march);
+
+	// decimate surface
+    vtkSmartPointer<vtkDecimatePro> decimate = vtkSmartPointer<vtkDecimatePro>::New();
+	decimate->SetInputConnection(march->GetOutputPort());
+	decimate->ReleaseDataFlagOn();
+	decimate->SetGlobalWarningDisplay(false);
+	decimate->SetTargetReduction(0.95);
+	decimate->PreserveTopologyOn();
+	decimate->BoundaryVertexDeletionOn();
+	decimate->SplittingOff();
+	_progress->Observe(decimate, "Decimate", 0.16);
+	decimate->Update();
+	_progress->Ignore(decimate);
+
+    vtkSmartPointer<vtkTextureMapToPlane> textureMapper = vtkSmartPointer<vtkTextureMapToPlane>::New();
+    textureMapper->SetInputConnection(decimate->GetOutputPort());
+    textureMapper->AutomaticPlaneGenerationOn();
+
+    vtkSmartPointer<vtkTransformTextureCoords> textureTrans = vtkSmartPointer<vtkTransformTextureCoords>::New();
+    textureTrans->SetInputConnection(textureMapper->GetOutputPort());
+    textureTrans->SetScale(_size[0], _size[1], _size[2]);
+
+	// model mapper
+    vtkSmartPointer<vtkPolyDataMapper> mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+	mapper->SetInputConnection(textureTrans->GetOutputPort());
+	mapper->SetResolveCoincidentTopologyToOff();
+
+    _actor->SetMapper(mapper);
+	_actor->SetVisibility(true);
+
+   	_progress->ManualReset();
 }

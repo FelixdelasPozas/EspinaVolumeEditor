@@ -62,7 +62,7 @@ class EditorOperations
         void Cut(const unsigned short);
         
         // changes label of selected voxels to a different one
-        bool Relabel(QWidget *parent, const unsigned short, vtkSmartPointer<vtkLookupTable>, Metadata*);
+        bool Relabel(QWidget *parent, const unsigned short, Metadata*);
 
         // save volume as an GIPL image on disk
         void SaveImage(const std::string);
@@ -85,6 +85,9 @@ class EditorOperations
         void Close(const unsigned short);
         void Open(const unsigned short);
         void Watershed(const unsigned short);
+
+        // contiguous area selection with the wand
+        void AreaSelection(Vector3ui, const unsigned short);
 
         friend class SaveSessionThread;
     private:
