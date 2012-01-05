@@ -26,6 +26,7 @@
 #include "ProgressAccumulator.h"
 #include "DataManager.h"
 #include "Metadata.h"
+#include "Selection.h"
 
 // qt includes
 #include <QtGui>
@@ -48,9 +49,6 @@ class EditorOperations
         
         // modifies selection area with this point
         void AddSelectionPoint(const Vector3ui point);
-        
-        // computes selection area
-        void ComputeSelectionCube();
         
         // deletes points and actor
         void ClearSelection();
@@ -97,33 +95,12 @@ class EditorOperations
         // temp description
         void CleanImage(itk::SmartPointer<ImageType>, const unsigned short);
 
-        // get a itk image from selected region to use it with filters
-        itk::SmartPointer<ImageType> GetItkImageFromSelection(const unsigned short, const unsigned int);
-
         // dump a itk::image back to vtkstructuredpoints
         void ItkImageToPoints(itk::SmartPointer<ImageType>);
         
-        // pointer to renderer
-        vtkSmartPointer<vtkRenderer> 						_renderer;
-        
-        // pointer to orienation data
+        // pointer to orientation data
         Coordinates 										*_orientation;
 
-        // selection bounds
-        Vector3ui 											_max, _min;
-        
-        // maximum bounds
-        Vector3ui 											_size;
-
-        // selection points
-        std::vector< Vector3ui > 							_selectedPoints;
-        
-        // representation of the selection
-        vtkSmartPointer<vtkCubeSource> 						_selectionCube;
-        
-        // box actor
-        vtkSmartPointer<vtkActor> 							_actor;
-        
         // pointer to data
         DataManager 										*_dataManager;
         
@@ -135,6 +112,9 @@ class EditorOperations
         
         // configuration option for watershed filter (flood level)
         double 												_watershedLevel;
+
+        // selected area
+        Selection											*_selection;
 };
 
 #endif // _EDITOROPERATIONS_H_

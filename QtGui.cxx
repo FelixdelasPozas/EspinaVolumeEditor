@@ -118,6 +118,7 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
     connect(cutbutton, SIGNAL(clicked(bool)), this, SLOT(EditorCut()));
     connect(relabelbutton, SIGNAL(clicked(bool)), this, SLOT(EditorRelabel()));
     connect(pickerbutton, SIGNAL(clicked(bool)), this, SLOT(EditorSelectionEnd(bool)));
+    connect(selectbutton, SIGNAL(clicked(bool)), this, SLOT(EditorSelectionEnd(bool)));
     connect(wandButton, SIGNAL(clicked(bool)), this, SLOT(EditorSelectionEnd(bool)));
 
     connect(axialresetbutton, SIGNAL(clicked(bool)), this, SLOT(ViewReset()));
@@ -1086,7 +1087,10 @@ void EspinaVolumeEditor::LabelSelectionChanged(int value)
     	_dataManager->ColorDimAll();
 
     // focus volume renderer and reset switch render button
-  	_volumeRender->UpdateFocus(value);
+  	_volumeRender->FocusSegmentation(value);
+  	if (!pickerbutton->isChecked())
+  		_volumeRender->CenterSegmentation(value);
+
     renderIsAVolume = true;
     _volumeRender->ViewAsVolume();
     rendertypebutton->setIcon(QIcon(":/newPrefix/icons/mesh.png"));
@@ -1101,10 +1105,13 @@ void EspinaVolumeEditor::LabelSelectionChanged(int value)
     		openoperation->setEnabled(false);
     		closeoperation->setEnabled(false);
     		watershedoperation->setEnabled(false);
-    		cutbutton->setEnabled(false);
-    		relabelbutton->setEnabled(false);
     	    if (pickerbutton->isChecked())
     	    	viewbutton->setChecked(true);
+    	    if (!wandButton->isChecked())
+    		{
+				cutbutton->setEnabled(false);
+				relabelbutton->setEnabled(false);
+    		}
     	    rendertypebutton->setEnabled(false);
     	    UpdateViewports(All);
     		return;
@@ -1315,6 +1322,7 @@ void EspinaVolumeEditor::EditorSelectionEnd(bool value)
         return;
     
     _editorOperations->ClearSelection();
+    _dataManager->ColorHighlightExclusive(_selectedLabel);
     _axialSliceVisualization->ClearSelection();
     _coronalSliceVisualization->ClearSelection();
     _sagittalSliceVisualization->ClearSelection();
@@ -1342,7 +1350,7 @@ void EspinaVolumeEditor::EditorRelabel()
         // not faster but easier
     	delete _volumeRender;
     	_volumeRender = new VoxelVolumeRender(_dataManager, _voxelViewRenderer, _progress);
-    	_volumeRender->UpdateFocus(_selectedLabel);
+    	_volumeRender->FocusSegmentation(_selectedLabel);
     }
 
     GetPointLabel();
@@ -1459,7 +1467,7 @@ void EspinaVolumeEditor::WatershedVolume()
     // not faster but easier
 	delete _volumeRender;
 	_volumeRender = new VoxelVolumeRender(_dataManager, _voxelViewRenderer, _progress);
-	_volumeRender->UpdateFocus(_selectedLabel);
+	_volumeRender->FocusSegmentation(_selectedLabel);
 
     GetPointLabel();
     UpdateUndoRedoMenu();
@@ -1491,13 +1499,13 @@ void EspinaVolumeEditor::OperationUndo()
 {
 	QMutexLocker locker(actionLock);
 
-    std::string text = std::string("Undo ") + _dataManager->GetUndoActionString();
+	std::string text = std::string("Undo ") + _dataManager->GetUndoActionString();
     _progress->ManualSet(text);
 
     _dataManager->DoUndoOperation();
     
-    // update UI
-    if (_selectedLabel > _dataManager->GetNumberOfColors())
+    // update UI if the selected label has disappeared from the labels list
+    if (_selectedLabel >= _dataManager->GetNumberOfColors())
     {
         _selectedLabel = 0;
         LabelSelectionChanged(_selectedLabel);
@@ -1519,8 +1527,8 @@ void EspinaVolumeEditor::OperationRedo()
     
     _dataManager->DoRedoOperation();
     
-    // update UI
-    if (_selectedLabel > _dataManager->GetNumberOfColors())
+    // update UI if the selected label has disappeared from the labels list
+    if (_selectedLabel >= _dataManager->GetNumberOfColors())
     {
         _selectedLabel = 0;
         LabelSelectionChanged(_selectedLabel);
@@ -1850,8 +1858,14 @@ void EspinaVolumeEditor::AxialXYPick(const unsigned long event)
         {
         	QMutexLocker locker(actionLock);
 
+            cutbutton->setEnabled(true);
+            relabelbutton->setEnabled(true);
+
         	if (_pointScalar != 0)
+        	{
         		_editorOperations->AreaSelection(_POI,_pointScalar);
+        		_dataManager->ColorHighlight(_pointScalar);
+        	}
         }
     }
         

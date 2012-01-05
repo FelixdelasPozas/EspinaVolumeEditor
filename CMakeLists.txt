@@ -48,7 +48,7 @@ SET(Libraries
   ${QT_LIBRARIES}
 )
 
-SET(CurrentFiles "Editor" "SliceVisualization" "UndoRedoSystem" "EditorOperations" "ProgressAccumulator" "Coordinates" "VoxelVolumeRender" "DataManager" "AxesRender" "Metadata" "SaveSession")
+SET(CurrentFiles "Editor" "SliceVisualization" "UndoRedoSystem" "EditorOperations" "ProgressAccumulator" "Coordinates" "VoxelVolumeRender" "DataManager" "AxesRender" "Metadata" "SaveSession" "Selection")
 ADD_EXECUTABLE(Editor ${CurrentFiles}.cxx ${QtSrcs} ${MOCSrcs} ${QtResources_CXX})
 TARGET_LINK_LIBRARIES(Editor ${Libraries})
 SET_TARGET_PROPERTIES(Editor PROPERTIES OUTPUT_NAME EspinaEditor)

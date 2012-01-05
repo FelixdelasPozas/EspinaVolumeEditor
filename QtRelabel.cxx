@@ -34,7 +34,7 @@ QtRelabel::~QtRelabel()
     // empty
 }
 
-void QtRelabel::SetInitialOptions(unsigned short label, Metadata* data, DataManager* dataManager)
+void QtRelabel::SetInitialOptions(unsigned short label, Metadata* data, DataManager* dataManager, bool multipleLabels)
 {
     double rgba[4];
     QPixmap icon(16,16);
@@ -42,44 +42,66 @@ void QtRelabel::SetInitialOptions(unsigned short label, Metadata* data, DataMana
 
     _selectedLabel = label;
     _maxcolors = dataManager->GetNumberOfLabels();
+    _multipleLabels = multipleLabels;
 
-     assert(label < _maxcolors);
+    assert(label < _maxcolors);
 
-    // generate items
-    if (label != 0)
-    {
-        newlabelbox->insertItem(0, "Background");
-        dataManager->GetColorComponents(label, rgba);
-        color.setRgbF(rgba[0], rgba[1], rgba[2], 1);
-        icon.fill(color);
-        std::stringstream out;
-        out << data->GetObjectSegmentName(label) << " " << dataManager->GetScalarForLabel(label) << " voxels";
-        std::string text = out.str();
-        colorlabel->setPixmap(icon);
-        selectionlabel->setText(QString(text.c_str()));
-    }
+    if (multipleLabels)
+	{
+		selectionlabel->setText("Area with multiple labels");
+		newlabelbox->insertItem(0, "Background");
+
+		// color 0 is black, so we will start from 1
+		for (unsigned int i = 1; i < _maxcolors; i++)
+		{
+			dataManager->GetColorComponents(i, rgba);
+			color.setRgbF(rgba[0], rgba[1], rgba[2], 1);
+			icon.fill(color);
+			std::stringstream out;
+			out << data->GetObjectSegmentName(i) << " " << dataManager->GetScalarForLabel(i);
+			std::string text = out.str();
+			QListWidgetItem *item = new QListWidgetItem(QIcon(icon), QString(text.c_str()));
+			newlabelbox->addItem(item);
+		}
+		newlabelbox->addItem("New label");
+		newlabelbox->setCurrentRow(_maxcolors);
+	}
     else
-        selectionlabel->setText("Background voxels");
-
-    // color 0 is black, so we will start from 1
-    for (unsigned int i = 1; i < _maxcolors; i++)
     {
-        if (i == static_cast<unsigned int>(label))
-            continue;
-        
-        dataManager->GetColorComponents(i, rgba);
-        color.setRgbF(rgba[0], rgba[1], rgba[2], 1);
-        icon.fill(color);
-        std::stringstream out;
-        out << data->GetObjectSegmentName(i) << " " << dataManager->GetScalarForLabel(i);
-        std::string text = out.str();
-        QListWidgetItem *item = new QListWidgetItem(QIcon(icon), QString(text.c_str()));
-        newlabelbox->addItem(item);
-    }
-    newlabelbox->addItem("New label");
+		// generate items
+		if (label != 0)
+		{
+			newlabelbox->insertItem(0, "Background");
+			dataManager->GetColorComponents(label, rgba);
+			color.setRgbF(rgba[0], rgba[1], rgba[2], 1);
+			icon.fill(color);
+			std::stringstream out;
+			out << data->GetObjectSegmentName(label) << " " << dataManager->GetScalarForLabel(label) << " voxels";
+			std::string text = out.str();
+			colorlabel->setPixmap(icon);
+			selectionlabel->setText(QString(text.c_str()));
+		}
+		else
+			selectionlabel->setText("Background voxels");
 
-    // configure widgets
-    newlabelbox->setCurrentRow(_maxcolors-1);
+		// color 0 is black, so we will start from 1
+		for (unsigned int i = 1; i < _maxcolors; i++)
+		{
+			if (i == static_cast<unsigned int>(label))
+				continue;
+
+			dataManager->GetColorComponents(i, rgba);
+			color.setRgbF(rgba[0], rgba[1], rgba[2], 1);
+			icon.fill(color);
+			std::stringstream out;
+			out << data->GetObjectSegmentName(i) << " " << dataManager->GetScalarForLabel(i);
+			std::string text = out.str();
+			QListWidgetItem *item = new QListWidgetItem(QIcon(icon), QString(text.c_str()));
+			newlabelbox->addItem(item);
+		}
+		newlabelbox->addItem("New label");
+		newlabelbox->setCurrentRow(_maxcolors-1);
+	}
     
     connect(acceptbutton, SIGNAL(accepted()), this, SLOT(AcceptedData()));
 }
@@ -96,15 +118,22 @@ unsigned short QtRelabel::GetSelectedLabel()
 
 void QtRelabel::AcceptedData()
 {
-    int label = newlabelbox->currentRow();
-    
-    if (label < _selectedLabel)
-        _selectedLabel = newlabelbox->currentRow();
+    if (_multipleLabels)
+    {
+    	_selectedLabel = newlabelbox->currentRow();
+    	if (_selectedLabel == _maxcolors)
+    		_newlabel = true;
+    }
     else
-        _selectedLabel = newlabelbox->currentRow() + 1;
-    
-    if (_selectedLabel == _maxcolors)
-        _newlabel = true;
+    {
+		if (newlabelbox->currentRow() < _selectedLabel)
+			_selectedLabel = newlabelbox->currentRow();
+		else
+			_selectedLabel = newlabelbox->currentRow() + 1;
+
+	    if (_selectedLabel == _maxcolors)
+	        _newlabel = true;
+    }
 
     _modified = true;
 }

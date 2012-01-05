@@ -92,7 +92,7 @@ int SaveSessionThread::exec()
 		}
 
     itk::SmartPointer<ImageType> image = ImageType::New();
-    image = _editorOperations->GetItkImageFromSelection(0,0);
+    image = _editorOperations->_selection->GetItkImage();
 
     // save as an mha
     typedef itk::ImageFileWriter<ImageType> WriterType;

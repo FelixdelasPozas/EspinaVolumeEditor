@@ -91,7 +91,7 @@ void DataManager::Initialize(itk::SmartPointer<LabelMapType> labelMap, Coordinat
         object->centroid = Vector3d(centroid[0]/spacing[0],centroid[1]/spacing[1],centroid[2]/spacing[2]);
         object->sizeInVoxels = labelObject->Size();
         object->min = Vector3ui(regionOrigin[0], regionOrigin[1], regionOrigin[2]);
-        object->max = Vector3ui(regionSize[0]+regionOrigin[0], regionSize[1]+regionOrigin[1], regionSize[2]+regionOrigin[2]);
+        object->max = Vector3ui(regionSize[0]+regionOrigin[0], regionSize[1]+regionOrigin[1], regionSize[2]+regionOrigin[2]) - Vector3ui(1,1,1);
 
         ObjectVector.insert(std::pair<unsigned short, ObjectInformation*>(i,object));
 
@@ -596,6 +596,9 @@ unsigned int DataManager::GetNumberOfLabels(void)
 
 void DataManager::ColorHighlight(const unsigned short label)
 {
+	if (0 == label)
+		return;
+
 	if (_highlightedLabels.find(label) == _highlightedLabels.end())
 	{
 		double rgba[4];

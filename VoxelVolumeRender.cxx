@@ -168,6 +168,7 @@ void VoxelVolumeRender::ComputeRayCastVolume()
     vtkSmartPointer<vtkVolumeProperty> volumeproperty = vtkSmartPointer<vtkVolumeProperty>::New();
     volumeproperty->SetColor(_colorfunction);
     volumeproperty->SetScalarOpacity(_opacityfunction);
+    volumeproperty->DisableGradientOpacityOn();
     volumeproperty->SetSpecular(0);
     volumeproperty->ShadeOn();
     volumeproperty->SetInterpolationTypeToNearest();
@@ -238,31 +239,9 @@ void VoxelVolumeRender::UpdateColorTable(int value, double alpha)
     _opacityfunction->Modified();
 }
 
-// update focus but don't move camera of the renderer
+// update focus
 void VoxelVolumeRender::UpdateFocusExtent(void)
 {
-	Vector3d spacing = _dataManager->GetOrientationData()->GetImageSpacing();
-	Vector3ui min = _dataManager->GetBoundingBoxMin(_objectLabel);
-	Vector3ui max = _dataManager->GetBoundingBoxMax(_objectLabel);
-
-	_volumemapper->SetCroppingRegionPlanes(
-			(min[0]-1.5)*spacing[0], (max[0]+0.5)*spacing[0],
-			(min[1]-1.5)*spacing[1], (max[1]+0.5)*spacing[1],
-			(min[2]-1.5)*spacing[2], (max[2]+0.5)*spacing[2]);
-	_volumemapper->CroppingOn();
-	_volumemapper->SetCroppingRegionFlagsToSubVolume();
-	_volumemapper->Update();
-}
-void VoxelVolumeRender::UpdateFocus(unsigned short label)
-{
-	// dim previous label
-	if (0 != _objectLabel)
-		UpdateColorTable(_objectLabel, 0.1);
-
-	_objectLabel = label;
-
-	ViewAsVolume();
-
 	Vector3d spacing = _dataManager->GetOrientationData()->GetImageSpacing();
 	Vector3ui min = _dataManager->GetBoundingBoxMin(_objectLabel);
 	Vector3ui max = _dataManager->GetBoundingBoxMax(_objectLabel);
@@ -277,10 +256,27 @@ void VoxelVolumeRender::UpdateFocus(unsigned short label)
 	_volumemapper->CroppingOn();
 	_volumemapper->SetCroppingRegionFlagsToSubVolume();
 	_volumemapper->Update();
+}
 
+void VoxelVolumeRender::FocusSegmentation(unsigned short label)
+{
+	// dim previous label
+	if (0 != _objectLabel)
+		UpdateColorTable(_objectLabel, 0.1);
+
+	_objectLabel = label;
+
+	ViewAsVolume();
+	UpdateFocusExtent();
+}
+
+void VoxelVolumeRender::CenterSegmentation(unsigned short label)
+{
     // if the selected label has no voxels it has no centroid
     if ((0LL == _dataManager->GetNumberOfVoxelsForLabel(label)) || (0 == label))
     	return;
+
+	Vector3d spacing = _dataManager->GetOrientationData()->GetImageSpacing();
 
     // change voxel renderer to move around new POI
     Vector3d centroid = _dataManager->GetCentroidForObject(label);

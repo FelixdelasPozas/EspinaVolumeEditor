@@ -80,10 +80,9 @@ typedef itk::LabelMap< LabelObjectType > LabelMapType;
 EditorOperations::EditorOperations(DataManager *data)
 {
     this->_dataManager = data;
-    this->_renderer = NULL;
     this->_orientation = NULL;
     this->_progress = NULL;
-    this->_min = this->_max = this->_size = Vector3ui(0,0,0);
+    this->_selection = NULL;
     
     // default options for filters
     this->_filtersRadius = 1;
@@ -92,210 +91,32 @@ EditorOperations::EditorOperations(DataManager *data)
 
 EditorOperations::~EditorOperations()
 {
-    if (this->_actor != NULL)
-    	this->_renderer->RemoveActor(_actor);
+	delete this->_selection;
 }
 
 void EditorOperations::Initialize(vtkSmartPointer<vtkRenderer> renderer, Coordinates *orientation, ProgressAccumulator *progress)
 {
-	this->_renderer = renderer;
 	this->_orientation = orientation;
 	this->_progress = progress;
-	this->_size = orientation->GetTransformedSize() - Vector3ui(1,1,1);
-	this->_min = Vector3ui(0,0,0);
-	this->_max = _size;
     
     // initial selection cube is invisible
-	this->_selectionCube = vtkSmartPointer<vtkCubeSource>::New();
-	this->_selectionCube->SetBounds(0,1,0,1,0,1);
-    
-    // create texture
-    vtkSmartPointer<vtkImageCanvasSource2D> image = vtkSmartPointer<vtkImageCanvasSource2D>::New();
-    image->SetScalarTypeToUnsignedChar();
-    image->SetExtent(0, 15, 0, 15, 0, 0);
-    image->SetNumberOfScalarComponents(4);
-    image->SetDrawColor(0,0,0,0);             // transparent color
-    image->FillBox(0,15,0,15);
-    image->SetDrawColor(255,255,255,150);     // "somewhat transparent" white
-    image->DrawSegment(0, 0, 15, 15);
-    image->DrawSegment(1, 0, 15, 14);
-    image->DrawSegment(0, 1, 14, 15);
-    image->DrawSegment(15, 0, 15, 0);
-    image->DrawSegment(0, 15, 0, 15);
-    image->Update();
-    
-    // apply texture
-    vtkSmartPointer<vtkTexture> texture = vtkSmartPointer<vtkTexture>::New();
-    texture->SetInputConnection(image->GetOutputPort());
-    texture->RepeatOn();
-    texture->InterpolateOn();
-    texture->ReleaseDataFlagOn();
-      
-    vtkSmartPointer<vtkPolyDataMapper> cubeMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-    cubeMapper->SetInputConnection(_selectionCube->GetOutputPort());
-    
-    _actor = vtkSmartPointer<vtkActor>::New();
-    _actor->SetMapper(cubeMapper);
-    _actor->SetTexture(texture);
-    _actor->GetProperty()->SetOpacity(1);
-    _actor->SetVisibility(false);
-    
-    _renderer->AddActor(_actor);
-}
-
-void EditorOperations::ComputeSelectionCube()
-{
-    std::vector < Vector3ui >::iterator it;
-    
-    // initialize with first point
-    _max = _min = _selectedPoints[0];
-    
-    // get selection bounds    
-    for (it = _selectedPoints.begin(); it != _selectedPoints.end(); it++)
-    {
-        if ((*it)[0] < _min[0])
-            _min[0] = (*it)[0];
-
-        if ((*it)[1] < _min[1])
-            _min[1] = (*it)[1];
-
-        if ((*it)[2] < _min[2])
-            _min[2] = (*it)[2];
-
-        if ((*it)[0] > _max[0])
-            _max[0] = (*it)[0];
-
-        if ((*it)[1] > _max[1])
-            _max[1] = (*it)[1];
-
-        if ((*it)[2] > _max[2])
-            _max[2] = (*it)[2];
-    }
-    
-    Vector3d spacing = _orientation->GetImageSpacing();
-    
-    // we must select voxel boundaries
-    _selectionCube->SetBounds(
-            static_cast<double>((_min[0])-0.5)*spacing[0], 
-            static_cast<double>((_max[0])+0.5)*spacing[0], 
-            static_cast<double>((_min[1])-0.5)*spacing[1],
-            static_cast<double>((_max[1])+0.5)*spacing[1],
-            static_cast<double>((_min[2])-0.5)*spacing[2],
-            static_cast<double>((_max[2])+0.5)*spacing[2]);
-    _selectionCube->Modified();
+	this->_selection = new Selection();
+	this->_selection->Initialize(orientation, renderer, this->_dataManager);
 }
 
 void EditorOperations::AddSelectionPoint(const Vector3ui point)
 {
-    // how many points do we have?
-    switch (_selectedPoints.size())
-    {
-        case 2:
-            _selectedPoints.pop_back();
-            _selectedPoints.push_back(point);
-            break;
-        case 0:
-            _actor->SetVisibility(true);
-            _selectedPoints.push_back(point);
-            break;
-        default:
-            _selectedPoints.push_back(point);
-            break;
-    }
-    ComputeSelectionCube();
+	this->_selection->AddSelectionPoint(point);
 }
 
 void EditorOperations::ClearSelection()
 {
-    _selectedPoints.clear();
-    _min = Vector3ui(0,0,0);
-    _max = _size;
-    
-    // make the actor invisible again
-    _actor->SetVisibility(false);
+	this->_selection->ClearSelection();
 }
 
 const std::vector<Vector3ui> EditorOperations::GetSelection()
 {
-    return _selectedPoints;
-}
-
-itk::SmartPointer<ImageType> EditorOperations::GetItkImageFromSelection(const unsigned short label, const unsigned int boundsGrow)
-{
-	Vector3ui resultMin = _min;
-	Vector3ui resultMax = _max;
-	Vector3ui objectMin, objectMax;
-
-	// first crop the region and then use the vtk-itk pipeline to get a
-	// itk::Image of the region so we can apply a itk filter to it. 
-	vtkSmartPointer<vtkImageClip> imageClip = vtkSmartPointer<vtkImageClip>::New();
-	imageClip->SetInput(_dataManager->GetStructuredPoints());
-
-	// if the operation involves the background label we will want the whole image.
-	if (0 != label)
-	{
-		// get the smallest image possible for operation if there is not a selected area
-		if ((Vector3ui(0,0,0) == _min) && (_max == _size))
-		{
-			objectMin = _dataManager->GetBoundingBoxMin(label);
-			objectMax = _dataManager->GetBoundingBoxMax(label);
-
-			if (objectMin[0] < boundsGrow)
-				resultMin[0] = 0;
-			else
-				resultMin[0] = objectMin[0] - boundsGrow;
-
-			if (objectMin[1] < boundsGrow)
-				resultMin[1] = 0;
-			else
-				resultMin[1] = objectMin[1] - boundsGrow;
-
-			if (objectMin[2] < boundsGrow)
-				resultMin[2] = 0;
-			else
-				resultMin[2] = objectMin[2] - boundsGrow;
-
-			if ((objectMax[0] + boundsGrow) > _size[0])
-				resultMax[0] = _size[0];
-			else
-				resultMax[0] = objectMax[0] + boundsGrow;
-
-			if ((objectMax[1] + boundsGrow) > _size[1])
-				resultMax[1] = _size[1];
-			else
-				resultMax[1] = objectMax[1] + boundsGrow;
-
-			if ((objectMax[2] + boundsGrow) > _size[2])
-				resultMax[2] = _size[2];
-			else
-				resultMax[2] = objectMax[2] + boundsGrow;
-
-		}
-	}
-
-	imageClip->SetOutputWholeExtent(resultMin[0], resultMax[0], resultMin[1], resultMax[1], resultMin[2], resultMax[2]);
-	imageClip->ClipDataOn();
-	imageClip->Update();
-	
-    typedef itk::VTKImageImport<ImageType> ITKImport;
-    itk::SmartPointer<ITKImport> itkImport = ITKImport::New();
-    vtkSmartPointer<vtkImageExport> vtkExport = vtkSmartPointer<vtkImageExport>::New();
-    vtkExport->SetInput(imageClip->GetOutput());
-    ConnectPipelines(vtkExport, itkImport);
-    itkImport->Update();
-    
-    // need to duplicate the output, or it will be destroyed when the pipeline goes
-    // out of scope, and register it to increase the reference count to return the image.
-    typedef itk::ImageDuplicator< ImageType > DuplicatorType;
-    itk::SmartPointer<DuplicatorType> duplicator = DuplicatorType::New();
-    duplicator->SetInputImage(itkImport->GetOutput());
-    duplicator->Update();
-        
-    itk::SmartPointer<ImageType> image = ImageType::New();
-    image = duplicator->GetOutput();
-    image->Register();
-
-    return image;
+    return this->_selection->GetSelectionPoints();
 }
 
 void EditorOperations::ItkImageToPoints(itk::SmartPointer<ImageType> image)
@@ -319,17 +140,42 @@ void EditorOperations::ItkImageToPoints(itk::SmartPointer<ImageType> image)
 
 void EditorOperations::Cut(const unsigned short label)
 {
-    if (label == 0)
-    	return;
-
     _progress->ManualSet("Cut");
     _dataManager->OperationStart("Cut");
     
-    for (unsigned int z = _min[2]; z <= _max[2]; z++)
-        for (unsigned int x = _min[0]; x <= _max[0]; x++)
-            for (unsigned int y = _min[1]; y <= _max[1]; y++)
-				if (label == _dataManager->GetVoxelScalar(x, y, z))
-					_dataManager->SetVoxelScalar(x, y, z, 0);
+    Vector3ui min;
+    Vector3ui max;
+    Selection::SelectionType type = this->_selection->GetSelectionType();
+
+    if (Selection::Empty != type)
+    {
+		min = this->_selection->GetSelectedMinimumBouds();
+		max = this->_selection->GetSelectedMaximumBouds();
+    }
+    else
+    {
+    	// cutting background label is an absurd operation
+        if (label == 0)
+        	return;
+
+    	min = this->_dataManager->GetBoundingBoxMin(label);
+    	max = this->_dataManager->GetBoundingBoxMax(label);
+    }
+
+    for (unsigned int x = min[0]; x <= max[0]; x++)
+		for (unsigned int y = min[1]; y <= max[1]; y++)
+			for (unsigned int z = min[2]; z <= max[2]; z++)
+				switch(type)
+				{
+					case Selection::Area:
+						if (this->_selection->VoxelIsInsideSelection(x, y, z))
+							_dataManager->SetVoxelScalar(x, y, z, 0);
+						break;
+					default:
+						if (label == _dataManager->GetVoxelScalar(x, y, z))
+							_dataManager->SetVoxelScalar(x, y, z, 0);
+						break;
+				}
     
     _progress->ManualReset();
     _dataManager->OperationEnd();
@@ -341,7 +187,7 @@ bool EditorOperations::Relabel(QWidget *parent, const unsigned short label, Meta
     bool newcolor = false;
     
     QtRelabel configdialog(parent);
-    configdialog.SetInitialOptions(label, data, _dataManager);
+    configdialog.SetInitialOptions(label, data, _dataManager, Selection::Area == _selection->GetSelectionType());
     configdialog.exec();
     
     if (!configdialog.ModifiedData())
@@ -370,11 +216,35 @@ bool EditorOperations::Relabel(QWidget *parent, const unsigned short label, Meta
 
     _progress->ManualSet("Relabel");
     
-    for (unsigned int z = _min[2]; z <= _max[2]; z++)
-        for (unsigned int x = _min[0]; x <= _max[0]; x++)
-            for (unsigned int y = _min[1]; y <= _max[1]; y++)
-				if (label == _dataManager->GetVoxelScalar(x, y, z))
-					_dataManager->SetVoxelScalar(x, y, z, newlabel);
+    Vector3ui min;
+    Vector3ui max;
+    Selection::SelectionType type = this->_selection->GetSelectionType();
+
+    if (Selection::Empty != this->_selection->GetSelectionType())
+    {
+		min = this->_selection->GetSelectedMinimumBouds();
+		max = this->_selection->GetSelectedMaximumBouds();
+    }
+    else
+    {
+    	min = this->_dataManager->GetBoundingBoxMin(label);
+    	max = this->_dataManager->GetBoundingBoxMax(label);
+    }
+
+    for (unsigned int z = min[2]; z <= max[2]; z++)
+        for (unsigned int x = min[0]; x <= max[0]; x++)
+            for (unsigned int y = min[1]; y <= max[1]; y++)
+				switch(type)
+				{
+					case Selection::Area:
+						if (this->_selection->VoxelIsInsideSelection(x, y, z))
+							_dataManager->SetVoxelScalar(x, y, z, newlabel);
+						break;
+					default:
+						if (label == _dataManager->GetVoxelScalar(x, y, z))
+							_dataManager->SetVoxelScalar(x, y, z, newlabel);
+						break;
+				}
     
     _progress->ManualReset();
     _dataManager->OperationEnd();
@@ -392,7 +262,7 @@ void EditorOperations::Erode(const unsigned short label)
     _progress->Observe(erodeFilter, "Erode", 1.0);
 
     itk::SmartPointer<ImageType> image = ImageType::New();
-    image = GetItkImageFromSelection(label, _filtersRadius);
+    image = this->_selection->GetSelectionItkImage(_filtersRadius);
     
     // BEWARE: radius on erode is _filtersRadius-1 because erode seems to be too strong. it seems to work fine with that value.
     //		   the less it can be is 0 as _filterRadius >= 1 always. It erodes the volume with a value of 0, although using 0
@@ -435,7 +305,7 @@ void EditorOperations::Dilate(const unsigned short label)
     _progress->Observe(dilateFilter, "Dilate", 1.0);
     
     itk::SmartPointer<ImageType> image = ImageType::New();
-    image = GetItkImageFromSelection(label, _filtersRadius);
+    image = this->_selection->GetSelectionItkImage(_filtersRadius);
 
     StructuringElementType structuringElement;
     structuringElement.SetRadius(_filtersRadius);
@@ -475,7 +345,7 @@ void EditorOperations::Open(const unsigned short label)
     _progress->Observe(openFilter, "Open", 1.0);
     
     itk::SmartPointer<ImageType> image = ImageType::New();
-    image = GetItkImageFromSelection(label, _filtersRadius);
+    image = this->_selection->GetSelectionItkImage(_filtersRadius);
 
     StructuringElementType structuringElement;
     structuringElement.SetRadius(_filtersRadius); 
@@ -515,7 +385,7 @@ void EditorOperations::Close(const unsigned short label)
     _progress->Observe(closeFilter, "Close", 1.0);
     
     itk::SmartPointer<ImageType> image = ImageType::New();
-    image = GetItkImageFromSelection(label, _filtersRadius);
+    image = this->_selection->GetSelectionItkImage(_filtersRadius);
 
     StructuringElementType structuringElement;
     structuringElement.SetRadius(_filtersRadius);
@@ -553,7 +423,7 @@ void EditorOperations::Watershed(const unsigned short label)
     typedef itk::SignedDanielssonDistanceMapImageFilter<ImageType, FloatImageType> DanielssonFilterType;
     
     itk::SmartPointer<ImageType> image = ImageType::New();
-    image = GetItkImageFromSelection(label, 0);
+    image = this->_selection->GetSelectionItkImage(0);
     
     itk::SmartPointer<DanielssonFilterType> danielssonFilter = DanielssonFilterType::New();
     _progress->Observe(danielssonFilter, "Danielsson", (1.0/3.0));
@@ -720,7 +590,7 @@ void EditorOperations::SaveImage(const std::string filename)
     _progress->ManualSet("Save Image");
     
     itk::SmartPointer<ImageType> image = ImageType::New();
-    image = GetItkImageFromSelection(0,0);
+    image = this->_selection->GetItkImage();
     
     // must restore the image origin before writing
     Vector3d point = _orientation->GetImageOrigin();
@@ -831,20 +701,12 @@ void EditorOperations::SaveImage(const std::string filename)
 
 itk::SmartPointer<LabelMapType> EditorOperations::GetImageLabelMap()
 {
-    Vector3ui temp_min = _min;
-    Vector3ui temp_max = _max;
-    _max = _size;
-    _min = Vector3ui(0,0,0);
-    
     itk::SmartPointer<ImageType> image = ImageType::New();
-    image = GetItkImageFromSelection(0,0);
-
-    _max = temp_max;
-    _min = temp_min;
+    image = this->_selection->GetItkImage();
 
     typedef itk::LabelImageToLabelMapFilter<ImageType, LabelMapType> ConverterType;
     itk::SmartPointer<ConverterType> converter = ConverterType::New();
-    _progress->Observe(converter, "Convert", (1.0/1.0));
+    this->_progress->Observe(converter, "Convert", (1.0/1.0));
     converter->SetInput(image);
     
     try
@@ -853,12 +715,12 @@ itk::SmartPointer<LabelMapType> EditorOperations::GetImageLabelMap()
     } 
     catch (itk::ExceptionObject & excp)
     {
-        _progress->Ignore(converter);
+    	this->_progress->Ignore(converter);
         EditorError(excp);
         return NULL;
     }
     
-    _progress->Ignore(converter);
+    this->_progress->Ignore(converter);
     itk::SmartPointer<LabelMapType> outputLabelMap = converter->GetOutput();
     outputLabelMap->Register();
     
@@ -867,17 +729,17 @@ itk::SmartPointer<LabelMapType> EditorOperations::GetImageLabelMap()
 
 void EditorOperations::SetFirstFreeValue(const unsigned short value)
 {
-    _dataManager->SetFirstFreeValue(value);
+    this->_dataManager->SetFirstFreeValue(value);
 }
 
 const unsigned int EditorOperations::GetFiltersRadius(void)
 {
-	return _filtersRadius;
+	return this->_filtersRadius;
 }
 
 void EditorOperations::SetFiltersRadius(const unsigned int value)
 {
-	_filtersRadius = value;
+	this->_filtersRadius = value;
 }
 
 const double EditorOperations::GetWatershedLevel(void)
@@ -887,99 +749,12 @@ const double EditorOperations::GetWatershedLevel(void)
 
 void EditorOperations::SetWatershedLevel(const double value)
 {
-	_watershedLevel = value;
+	this->_watershedLevel = value;
 }
 
 void EditorOperations::AreaSelection(Vector3ui point, const unsigned short label)
 {
-	_progress->ManualSet("Threshold");
-
-	itk::Index<3> seed;
-	seed[0] = point[0];
-	seed[1] = point[1];
-	seed[2] = point[2];
-
-    itk::SmartPointer<ImageType> image = ImageType::New();
-    image = GetItkImageFromSelection(label,0);
-
-    typedef itk::ConnectedThresholdImageFilter<ImageType, ImageType> ConnectedThresholdFilterType;
-    itk::SmartPointer<ConnectedThresholdFilterType> connectThreshold = ConnectedThresholdFilterType::New();
-    connectThreshold->SetInput(image);
-    connectThreshold->AddSeed(seed);
-    connectThreshold->ReleaseDataFlagOn();
-    connectThreshold->SetLower(label);
-    connectThreshold->SetUpper(label);
-    connectThreshold->SetReplaceValue(255);
-    connectThreshold->SetConnectivity(ConnectedThresholdFilterType::FullConnectivity);
-    _progress->Observe(connectThreshold, "Threshold", 0.16);
-
-	try
-	{
-		connectThreshold->UpdateLargestPossibleRegion();
-	}
-	catch (itk::ExceptionObject &excp)
-	{
-	    QMessageBox msgBox;
-	    msgBox.setIcon(QMessageBox::Critical);
-		msgBox.setText("An error occurred in connection thresholding.\nThe operation has been aborted.");
-		msgBox.setDetailedText(excp.what());
-		msgBox.exec();
-		return;
-	}
-	_progress->Ignore(connectThreshold);
-
-	typedef itk::VTKImageExport<ImageType> ITKExport;
-	itk::SmartPointer<ITKExport> itkExporter = ITKExport::New();
-	vtkSmartPointer<vtkImageImport> vtkImporter = vtkSmartPointer<vtkImageImport>::New();
-	itkExporter->SetInput(connectThreshold->GetOutput());
-	ConnectPipelines(itkExporter, vtkImporter);
-	_progress->Observe(itkExporter,"Export", 0.16);
-	_progress->Observe(vtkImporter,"Import", 0.16);
-	vtkImporter->Update();
-	_progress->Ignore(itkExporter);
-	_progress->Ignore(vtkImporter);
-
-    // generate iso surface
-    vtkSmartPointer<vtkDiscreteMarchingCubes> march = vtkSmartPointer<vtkDiscreteMarchingCubes>::New();
-	march->SetInput(vtkImporter->GetOutput());
-	march->ReleaseDataFlagOn();
-	march->SetNumberOfContours(1);
-	march->GenerateValues(1, 255, 255);
-	march->ComputeScalarsOff();
-	march->ComputeNormalsOn();
-	march->ComputeGradientsOn();
-	_progress->Observe(march, "March", 0.16);
-	march->Update();
-	_progress->Ignore(march);
-
-	// decimate surface
-    vtkSmartPointer<vtkDecimatePro> decimate = vtkSmartPointer<vtkDecimatePro>::New();
-	decimate->SetInputConnection(march->GetOutputPort());
-	decimate->ReleaseDataFlagOn();
-	decimate->SetGlobalWarningDisplay(false);
-	decimate->SetTargetReduction(0.95);
-	decimate->PreserveTopologyOn();
-	decimate->BoundaryVertexDeletionOn();
-	decimate->SplittingOff();
-	_progress->Observe(decimate, "Decimate", 0.16);
-	decimate->Update();
-	_progress->Ignore(decimate);
-
-    vtkSmartPointer<vtkTextureMapToPlane> textureMapper = vtkSmartPointer<vtkTextureMapToPlane>::New();
-    textureMapper->SetInputConnection(decimate->GetOutputPort());
-    textureMapper->AutomaticPlaneGenerationOn();
-
-    vtkSmartPointer<vtkTransformTextureCoords> textureTrans = vtkSmartPointer<vtkTransformTextureCoords>::New();
-    textureTrans->SetInputConnection(textureMapper->GetOutputPort());
-    textureTrans->SetScale(_size[0], _size[1], _size[2]);
-
-	// model mapper
-    vtkSmartPointer<vtkPolyDataMapper> mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-	mapper->SetInputConnection(textureTrans->GetOutputPort());
-	mapper->SetResolveCoincidentTopologyToOff();
-
-    _actor->SetMapper(mapper);
-	_actor->SetVisibility(true);
-
-   	_progress->ManualReset();
+	this->_progress->ManualSet("Threshold");
+	this->_selection->AddArea(point, label);
+   	this->_progress->ManualReset();
 }

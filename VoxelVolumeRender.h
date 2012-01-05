@@ -41,7 +41,10 @@ class VoxelVolumeRender
         void UpdateColorTable(int, double);
 
         // update focus extent for renderers clipping planes
-        void UpdateFocus(unsigned short);
+        void FocusSegmentation(unsigned short);
+
+        // center POI in segmentation centroid
+        void CenterSegmentation(unsigned short);
 
         // update extent of focused object without moving the camera
         void UpdateFocusExtent(void);
