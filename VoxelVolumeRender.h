@@ -21,6 +21,7 @@
 //#include <vtkSmartVolumeMapper.h>
 
 // c++ includes
+#include <set>
 #include <map>
 
 // project includes
@@ -37,9 +38,6 @@ class VoxelVolumeRender
 		VoxelVolumeRender(DataManager*, vtkSmartPointer<vtkRenderer>, ProgressAccumulator*);
 		~VoxelVolumeRender();
 
-        // update color table with new alpha component
-        void UpdateColorTable(int, double);
-
         // update focus extent for renderers clipping planes
         void FocusSegmentation(unsigned short);
 
@@ -54,7 +52,16 @@ class VoxelVolumeRender
 
         // render volume as a raycasted volume
         void ViewAsVolume();
+
+        // color management
+        void ColorHighlight(const unsigned short);
+        void ColorDim(const unsigned short, float = 0.1);
+        void ColorHighlightExclusive(unsigned short);
+        void ColorDimAll(void);
     private:
+        // update color table with new alpha component
+        void UpdateColorTable(int, double);
+
         // delete all actors from renderer reset class
         void DeleteActors();
 
@@ -85,9 +92,11 @@ class VoxelVolumeRender
         // actual object label
         unsigned short 								_objectLabel;
 
-        // software saycast volume mapper
+        // software raycast volume mapper
         vtkSmartPointer<vtkVolumeRayCastMapper> 	_volumemapper;
-//        vtkSmartPointer<vtkSmartVolumeMapper>  	_GPUmapper;
+
+        // set of highlighted labels
+        std::set<unsigned short> 					_highlightedLabels;
 };
 
 #endif

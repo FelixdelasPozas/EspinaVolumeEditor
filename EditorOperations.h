@@ -55,7 +55,7 @@ class EditorOperations
         
         // get selection points
         const std::vector<Vector3ui> GetSelection();
-        
+
         // deletes voxels depending on selected label
         void Cut(const unsigned short);
         

@@ -218,9 +218,9 @@ bool EditorOperations::Relabel(QWidget *parent, const unsigned short label, Meta
     
     Vector3ui min;
     Vector3ui max;
-    Selection::SelectionType type = this->_selection->GetSelectionType();
+    Selection::SelectionType selectedAreaType = this->_selection->GetSelectionType();
 
-    if (Selection::Empty != this->_selection->GetSelectionType())
+    if (Selection::Empty != selectedAreaType)
     {
 		min = this->_selection->GetSelectedMinimumBouds();
 		max = this->_selection->GetSelectedMaximumBouds();
@@ -234,7 +234,7 @@ bool EditorOperations::Relabel(QWidget *parent, const unsigned short label, Meta
     for (unsigned int z = min[2]; z <= max[2]; z++)
         for (unsigned int x = min[0]; x <= max[0]; x++)
             for (unsigned int y = min[1]; y <= max[1]; y++)
-				switch(type)
+				switch(selectedAreaType)
 				{
 					case Selection::Area:
 						if (this->_selection->VoxelIsInsideSelection(x, y, z))
@@ -618,11 +618,21 @@ void EditorOperations::SaveImage(const std::string filename)
 	converter->Update();
 	_progress->Ignore(converter);
 	converter->GetOutput()->Optimize();
-	assert(0 != converter->GetOutput()->GetNumberOfLabelObjects());
+
+	if(0 == converter->GetOutput()->GetNumberOfLabelObjects())
+	{
+		QMessageBox msgBox;
+		msgBox.setIcon(QMessageBox::Warning);
+		msgBox.setText("There are no segmentations in the image. Not saving an empty image.");
+		msgBox.exec();
+		_progress->ManualReset();
+		return;
+	}
 
     typedef itk::ChangeLabelLabelMapFilter<LabelMapType> ChangeType;
     itk::SmartPointer<ChangeType> labelChanger = ChangeType::New();
     labelChanger->SetInput(converter->GetOutput());
+    labelChanger->ReleaseDataFlagOn();
     if (labelChanger->CanRunInPlace() == true)
     	labelChanger->SetInPlace(true);
 
@@ -635,15 +645,15 @@ void EditorOperations::SaveImage(const std::string filename)
 
 	// itklabelmap->itkimage
 	typedef itk::LabelMapToLabelImageFilter<LabelMapType, ImageType> LabelMapToImageFilterType;
-	itk::SmartPointer<LabelMapToImageFilterType> labelconverter = LabelMapToImageFilterType::New();
+	itk::SmartPointer<LabelMapToImageFilterType> labelConverter = LabelMapToImageFilterType::New();
 
-	labelconverter->SetInput(labelChanger->GetOutput());
-	labelconverter->SetNumberOfThreads(1);
-	labelconverter->ReleaseDataFlagOn();
+	labelConverter->SetInput(labelChanger->GetOutput());
+	labelConverter->SetNumberOfThreads(1);
+	labelConverter->ReleaseDataFlagOn();
 
-	_progress->Observe(labelconverter, "Convert Image", 0.2);
-	labelconverter->Update();
-	_progress->Ignore(labelconverter);
+	_progress->Observe(labelConverter, "Convert Image", 0.2);
+	labelConverter->Update();
+	_progress->Ignore(labelConverter);
 
     // save as an mha and rename
     std::string tempfilename = filename + std::string(".mha");
@@ -653,7 +663,7 @@ void EditorOperations::SaveImage(const std::string filename)
     itk::SmartPointer<WriterType> writer = WriterType::New();
     writer->SetImageIO(io);
     writer->SetFileName(tempfilename.c_str());
-    writer->SetInput(labelconverter->GetOutput());
+    writer->SetInput(labelConverter->GetOutput());
     writer->UseCompressionOn();
     _progress->Observe(writer, "Write", 0.2);
     

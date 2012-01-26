@@ -596,6 +596,7 @@ void EspinaVolumeEditor::EditorOpen(void)
 		{
 			out << unusedLabels.at(i);
 			details += out.str();
+			out.str(std::string());					// clears stringstream
 			if ((i+1) < unusedLabels.size())
 				details += std::string(", label ");
 		}
@@ -640,7 +641,7 @@ void EspinaVolumeEditor::EditorOpen(void)
 	_dataManager->SetStructuredPoints(convert->GetStructuredPointsOutput());
 
 	// gui setup
-	InitializeGUI();
+	InitiateSessionGUI();
 
     // initially without a reference image
     _hasReferenceImage = false;
@@ -1034,9 +1035,9 @@ void EspinaVolumeEditor::GetPointLabel()
     icon.fill(color);
 
     unsigned short labelindex = _dataManager->GetScalarForLabel(_pointScalar);
-    std::stringstream out1;
-    out1 << labelindex;
-    pointlabelnumber->setText(out1.str().c_str());
+    std::stringstream out;
+    out << labelindex;
+    pointlabelnumber->setText(out.str().c_str());
     pointlabelcolor->setPixmap(icon);
 
     pointlabelname->setText(_fileMetadata->GetObjectSegmentName(_pointScalar).c_str());
@@ -1078,13 +1079,25 @@ void EspinaVolumeEditor::LabelSelectionChanged(int value)
     if (!labelselector->isEnabled() || (value == -1))
         return;
     
+    // labels are selected individually, so we must cancel all selected areas and operations
+    _editorOperations->ClearSelection();
+    _axialSliceVisualization->ClearSelection();
+    _coronalSliceVisualization->ClearSelection();
+    _sagittalSliceVisualization->ClearSelection();
+
     _selectedLabel = value;
 
     // if actual value != 0 (background) highlight it with an alpha of 1
     if(value != 0)
+    {
     	_dataManager->ColorHighlightExclusive(value);
+    	_volumeRender->ColorHighlightExclusive(value);
+    }
     else
+    {
     	_dataManager->ColorDimAll();
+    	_volumeRender->ColorDimAll();
+    }
 
     // focus volume renderer and reset switch render button
   	_volumeRender->FocusSegmentation(value);
@@ -1323,6 +1336,7 @@ void EspinaVolumeEditor::EditorSelectionEnd(bool value)
     
     _editorOperations->ClearSelection();
     _dataManager->ColorHighlightExclusive(_selectedLabel);
+    _volumeRender->ColorHighlightExclusive(_selectedLabel);
     _axialSliceVisualization->ClearSelection();
     _coronalSliceVisualization->ClearSelection();
     _sagittalSliceVisualization->ClearSelection();
@@ -1865,6 +1879,7 @@ void EspinaVolumeEditor::AxialXYPick(const unsigned long event)
         	{
         		_editorOperations->AreaSelection(_POI,_pointScalar);
         		_dataManager->ColorHighlight(_pointScalar);
+        		_volumeRender->ColorHighlight(_pointScalar);
         	}
         }
     }
@@ -2566,7 +2581,7 @@ void EspinaVolumeEditor::RestoreSavedSession(void)
 	_dataManager->SetStructuredPoints(convert->GetStructuredPointsOutput());
 
 	// initialize the GUI
-	InitializeGUI();
+	InitiateSessionGUI();
 
     // initially without a reference image
     if (_hasReferenceImage)
@@ -2611,7 +2626,7 @@ void EspinaVolumeEditor::RemoveSessionFiles(void)
 		}
 }
 
-void EspinaVolumeEditor::InitializeGUI(void)
+void EspinaVolumeEditor::InitiateSessionGUI(void)
 {
 	// set POI (point of interest)
 	Vector3ui imageSize = _orientationData->GetTransformedSize();
@@ -2669,7 +2684,7 @@ void EspinaVolumeEditor::InitializeGUI(void)
     paintbutton->setEnabled(true);
     erasebutton->setEnabled(true);
     pickerbutton->setEnabled(true);
-    wandButton->setEnabled(true);
+    // wandButton->setEnabled(true);
     selectbutton->setEnabled(true);
     axialresetbutton->setEnabled(true);
     coronalresetbutton->setEnabled(true);

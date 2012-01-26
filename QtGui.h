@@ -125,7 +125,7 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         void RestoreSavedSession();
         void RemoveSessionFiles();
         void LoadReferenceFile(QString);
-        void InitializeGUI();
+        void InitiateSessionGUI();
         
         // four renderers for four QVTKWidget viewports
         vtkSmartPointer<vtkRenderer>           _voxelViewRenderer;

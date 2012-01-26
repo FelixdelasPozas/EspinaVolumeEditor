@@ -24,6 +24,7 @@
 #include <vtkVolumeProperty.h>
 #include <vtkVolumeRayCastCompositeFunction.h>
 #include <vtkCamera.h>
+#include <vtkImageClip.h>
 
 // project includes
 #include "DataManager.h"
@@ -34,18 +35,16 @@
 //
 VoxelVolumeRender::VoxelVolumeRender(DataManager *data, vtkSmartPointer<vtkRenderer> renderer, ProgressAccumulator *progress)
 {
-    _dataManager = data;
-    _renderer = renderer;
-    _progress = progress;
-    _meshActor = NULL;
-    _volume = NULL;
-    _volumemapper = NULL;
-//    _GPUmapper = NULL;
-    _objectLabel = 0;
+    this->_dataManager = data;
+    this->_renderer = renderer;
+    this->_progress = progress;
+    this->_meshActor = NULL;
+    this->_volume = NULL;
+    this->_volumemapper = NULL;
+    this->_objectLabel = 0;
 
     // the raycasted volume is always present
     ComputeRayCastVolume();
-//    ComputeGPURender();
 }
 
 VoxelVolumeRender::~VoxelVolumeRender()
@@ -53,11 +52,11 @@ VoxelVolumeRender::~VoxelVolumeRender()
     // using smartpointers
     
     // delete actors from renderers before leaving;
-	_renderer->RemoveActor(_volume);
-	_renderer->RemoveActor(_meshActor);
+	this->_renderer->RemoveActor(_volume);
+	this->_renderer->RemoveActor(_meshActor);
 }
 
-// note: some filters make use of SetGlobalWarningDisplay(false) because if we delete
+// NOTE: some filters make use of SetGlobalWarningDisplay(false) because if we delete
 //       one object completely on the editor those filters will print an error during
 //       pipeline update that I don't want to see. i already know that there is not
 //       data to decimate or smooth if there is no voxel! as a matter of fact, it's
@@ -65,6 +64,11 @@ VoxelVolumeRender::~VoxelVolumeRender()
 void VoxelVolumeRender::ComputeMesh(unsigned short label)
 {
     double rgba[4];
+
+    // TRIED: we need to generate the actor from the whole image to be updated accordingly to
+    // the modifications made to the volume. If we create an actor from a smaller subimage then
+    // updates to the volume that falls out of actor bounds will show a clipped actor and the
+    // chages outside bounding box won't be shown. There is no way to expand actor bounds.
 
     // generate iso surface
     vtkSmartPointer<vtkDiscreteMarchingCubes> marcher = vtkSmartPointer<vtkDiscreteMarchingCubes>::New();
@@ -75,9 +79,9 @@ void VoxelVolumeRender::ComputeMesh(unsigned short label)
 	marcher->ComputeScalarsOff();
 	marcher->ComputeNormalsOff();
 	marcher->ComputeGradientsOff();
-	_progress->Observe(marcher, "March", 1.0/3.0);
+	this->_progress->Observe(marcher, "March", 1.0/3.0);
 	marcher->Update();
-	_progress->Ignore(marcher);
+	this->_progress->Ignore(marcher);
 
 	// decimate surface
     vtkSmartPointer<vtkDecimatePro> decimator = vtkSmartPointer<vtkDecimatePro>::New();
@@ -88,9 +92,9 @@ void VoxelVolumeRender::ComputeMesh(unsigned short label)
 	decimator->PreserveTopologyOn();
 	decimator->BoundaryVertexDeletionOn();
 	decimator->SplittingOff();
-	_progress->Observe(decimator, "Decimate", 1.0/3.0);
+	this->_progress->Observe(decimator, "Decimate", 1.0/3.0);
 	decimator->Update();
-	_progress->Ignore(decimator);
+	this->_progress->Ignore(decimator);
 
 	// surface smoothing
     vtkSmartPointer<vtkWindowedSincPolyDataFilter> smoother = vtkSmartPointer<vtkWindowedSincPolyDataFilter>::New();
@@ -111,29 +115,32 @@ void VoxelVolumeRender::ComputeMesh(unsigned short label)
 
 	// model mapper
     vtkSmartPointer<vtkPolyDataMapper> isoMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-	_progress->Observe(isoMapper, "Map", 1.0/3.0);
+    this->_progress->Observe(isoMapper, "Map", 1.0/3.0);
 	isoMapper->SetInputConnection(normals->GetOutputPort());
 	isoMapper->ReleaseDataFlagOn();
 	isoMapper->ImmediateModeRenderingOn();
 	isoMapper->ScalarVisibilityOff();
 	isoMapper->Update();
-	_progress->Ignore(isoMapper);
+	this->_progress->Ignore(isoMapper);
 
-	// create the actor a assign a color to it
-	if (NULL != _meshActor)
-		_renderer->RemoveActor(_meshActor);
+	// create the actor a assign a color to it but before remove previous, if exists
+	if (NULL != this->_meshActor)
+	{
+		this->_renderer->RemoveActor(_meshActor);
+		this->_meshActor = NULL;
+	}
 
-    _meshActor = vtkSmartPointer<vtkActor>::New();
-    _meshActor->SetMapper(isoMapper);
-	_dataManager->GetColorComponents(label, rgba);
-	_meshActor->GetProperty()->SetColor(rgba[0], rgba[1], rgba[2]);
-	_meshActor->GetProperty()->SetOpacity(1);
-	_meshActor->GetProperty()->SetSpecular(0.2);
+	this->_meshActor = vtkSmartPointer<vtkActor>::New();
+	this->_meshActor->SetMapper(isoMapper);
+	this->_dataManager->GetColorComponents(label, rgba);
+	this->_meshActor->GetProperty()->SetColor(rgba[0], rgba[1], rgba[2]);
+	this->_meshActor->GetProperty()->SetOpacity(1);
+	this->_meshActor->GetProperty()->SetSpecular(0.2);
 
 	// add the actor to the renderer
-	_renderer->AddActor(_meshActor);
+	this->_renderer->AddActor(this->_meshActor);
 
-    _progress->Reset();
+	this->_progress->Reset();
 }
 
 void VoxelVolumeRender::ComputeRayCastVolume()
@@ -141,130 +148,87 @@ void VoxelVolumeRender::ComputeRayCastVolume()
     double rgba[4];
 
     // model mapper
-    _volumemapper = vtkSmartPointer<vtkVolumeRayCastMapper>::New();
-    _volumemapper->SetInput(_dataManager->GetStructuredPoints());
-    _volumemapper->IntermixIntersectingGeometryOn();
+    this->_volumemapper = vtkSmartPointer<vtkVolumeRayCastMapper>::New();
+    this->_volumemapper->SetInput(this->_dataManager->GetStructuredPoints());
+    this->_volumemapper->IntermixIntersectingGeometryOn();
 
     // standard composite function
     vtkSmartPointer<vtkVolumeRayCastCompositeFunction> volumefunction = vtkSmartPointer<vtkVolumeRayCastCompositeFunction>::New();
-    _volumemapper->SetVolumeRayCastFunction(volumefunction);
+    this->_volumemapper->SetVolumeRayCastFunction(volumefunction);
 
     // assign label colors
-    _colorfunction = vtkSmartPointer<vtkColorTransferFunction>::New();
-    _colorfunction->AllowDuplicateScalarsOff();
-    for (unsigned short int i = 0; i != _dataManager->GetNumberOfColors(); i++)
+    this->_colorfunction = vtkSmartPointer<vtkColorTransferFunction>::New();
+    this->_colorfunction->AllowDuplicateScalarsOff();
+    for (unsigned short int i = 0; i != this->_dataManager->GetNumberOfColors(); i++)
     {
-        _dataManager->GetColorComponents(i, rgba);
-        _colorfunction->AddRGBPoint(i,rgba[0], rgba[1], rgba[2]);
+    	this->_dataManager->GetColorComponents(i, rgba);
+    	this->_colorfunction->AddRGBPoint(i,rgba[0], rgba[1], rgba[2]);
     }
 
     // we need to set all labels to an opacity of 0.1
-    _opacityfunction = vtkSmartPointer<vtkPiecewiseFunction>::New();
-    _opacityfunction->AddPoint(0, 0.0);
-    for (unsigned int i = 1; i != _dataManager->GetNumberOfColors(); i++)
-        _opacityfunction->AddPoint(i, 0.1);
+    this->_opacityfunction = vtkSmartPointer<vtkPiecewiseFunction>::New();
+    this->_opacityfunction->AddPoint(0, 0.0);
+    for (unsigned int i = 1; i != this->_dataManager->GetNumberOfColors(); i++)
+    	this->_opacityfunction->AddPoint(i, 0.1);
 
     // volume property
     vtkSmartPointer<vtkVolumeProperty> volumeproperty = vtkSmartPointer<vtkVolumeProperty>::New();
-    volumeproperty->SetColor(_colorfunction);
-    volumeproperty->SetScalarOpacity(_opacityfunction);
+    volumeproperty->SetColor(this->_colorfunction);
+    volumeproperty->SetScalarOpacity(this->_opacityfunction);
     volumeproperty->DisableGradientOpacityOn();
     volumeproperty->SetSpecular(0);
     volumeproperty->ShadeOn();
     volumeproperty->SetInterpolationTypeToNearest();
 
     // create volume and add to render
-    if (NULL != _volume)
-    	_renderer->RemoveActor(_volume);
+    if (NULL != this->_volume)
+    	this->_renderer->RemoveActor(this->_volume);
 
-    _volume = vtkSmartPointer<vtkVolume>::New();
-    _volume->SetMapper(_volumemapper);
-    _volume->SetProperty(volumeproperty);
+    this->_volume = vtkSmartPointer<vtkVolume>::New();
+    this->_volume->SetMapper(this->_volumemapper);
+    this->_volume->SetProperty(volumeproperty);
 
-    _renderer->AddVolume(_volume);
+    this->_renderer->AddVolume(_volume);
 }
-
-// TODO: check vtkSmartVolumeMapper on the next library release
-//
-//	// this renderer is unused by default, as it renders fast but still has errors updating
-//	// volume colors and it hasn't the precision of the software renderer
-//	void VoxelVolumeRender::ComputeGPURender()
-//	{
-//		double rgba[4];
-//		vtkSmartPointer<vtkLookupTable> table = _dataManager->GetLookupTable();
-//
-//		// GPU mapper
-//		_GPUmapper = vtkSmartPointer<vtkSmartVolumeMapper>::New();
-//		_GPUmapper->SetInput(_dataManager->GetStructuredPoints());
-//		_GPUmapper->SetRequestedRenderMode(vtkSmartVolumeMapper::GPURenderMode);
-//		_GPUmapper->SetInterpolationModeToNearestNeighbor();
-//
-//		// assign label colors
-//		_colorfunction = vtkSmartPointer<vtkColorTransferFunction>::New();
-//		_colorfunction->AllowDuplicateScalarsOff();
-//		for (unsigned short int i = 0; i != table->GetNumberOfTableValues(); i++)
-//		{
-//			table->GetTableValue(i, rgba);
-//			_colorfunction->AddRGBPoint(i,rgba[0], rgba[1], rgba[2]);
-//		}
-//
-//		// we need to set all labels to an opacity of 0.1
-//		_opacityfunction = vtkSmartPointer<vtkPiecewiseFunction>::New();
-//		_opacityfunction->AddPoint(0, 0.0);
-//		for (int i=1; i != table->GetNumberOfTableValues(); i++)
-//			_opacityfunction->AddPoint(i, 0.1);
-//
-//		// volume property
-//		vtkSmartPointer<vtkVolumeProperty> volumeproperty = vtkSmartPointer<vtkVolumeProperty>::New();
-//		volumeproperty->SetColor(_colorfunction);
-//		volumeproperty->SetScalarOpacity(_opacityfunction);
-//		volumeproperty->SetSpecular(0.2);
-//		volumeproperty->ShadeOn();
-//		volumeproperty->SetInterpolationTypeToNearest();
-//
-//		// create volume and add to render
-//		if (NULL != _volume)
-//			_renderer->RemoveActor(_volume);
-//
-//		_volume = vtkSmartPointer<vtkVolume>::New();
-//		_volume->SetMapper(_GPUmapper);
-//		_volume->SetProperty(volumeproperty);
-//
-//		_renderer->AddVolume(_volume);
-//	}
 
 void VoxelVolumeRender::UpdateColorTable(int value, double alpha)
 {
-	_opacityfunction->AddPoint(value, alpha);
-    _opacityfunction->Modified();
+	this->_opacityfunction->AddPoint(value, alpha);
+	this->_opacityfunction->Modified();
 }
 
 // update focus
 void VoxelVolumeRender::UpdateFocusExtent(void)
 {
-	Vector3d spacing = _dataManager->GetOrientationData()->GetImageSpacing();
-	Vector3ui min = _dataManager->GetBoundingBoxMin(_objectLabel);
-	Vector3ui max = _dataManager->GetBoundingBoxMax(_objectLabel);
+    // if the selected label has no voxels it has no centroid
+    if (0LL == this->_dataManager->GetNumberOfVoxelsForLabel(this->_objectLabel))
+    	this->_volumemapper->SetCroppingRegionPlanes(0,0,0,0,0,0);
+    else
+    {
+    	Vector3d spacing = this->_dataManager->GetOrientationData()->GetImageSpacing();
+    	Vector3ui min = this->_dataManager->GetBoundingBoxMin(this->_objectLabel);
+    	Vector3ui max = this->_dataManager->GetBoundingBoxMax(this->_objectLabel);
 
-	// it should really be (origin-0.5) and (origin+size+0.5) for rendering the
-	// correct bounding box for the object, but if we do it that way thin
-	// objects aren't rendered correctly, so 1.5 corrects this.
-	_volumemapper->SetCroppingRegionPlanes(
-			(min[0]-1.5)*spacing[0], (max[0]+0.5)*spacing[0],
-			(min[1]-1.5)*spacing[1], (max[1]+0.5)*spacing[1],
-			(min[2]-1.5)*spacing[2], (max[2]+0.5)*spacing[2]);
-	_volumemapper->CroppingOn();
-	_volumemapper->SetCroppingRegionFlagsToSubVolume();
-	_volumemapper->Update();
+    	// it should really be (origin-0.5) and (origin+size+0.5) for rendering the
+    	// correct bounding box for the object, but if we do it that way thin
+    	// objects aren't rendered correctly, so 1.5 corrects this.
+    	this->_volumemapper->SetCroppingRegionPlanes(
+    			(min[0]-1.5)*spacing[0], (max[0]+0.5)*spacing[0],
+    			(min[1]-1.5)*spacing[1], (max[1]+0.5)*spacing[1],
+    			(min[2]-1.5)*spacing[2], (max[2]+0.5)*spacing[2]);
+    }
+
+    this->_volumemapper->CroppingOn();
+    this->_volumemapper->SetCroppingRegionFlagsToSubVolume();
+    this->_volumemapper->Update();
 }
 
 void VoxelVolumeRender::FocusSegmentation(unsigned short label)
 {
 	// dim previous label
-	if (0 != _objectLabel)
-		UpdateColorTable(_objectLabel, 0.1);
+	ColorDim(this->_objectLabel);
 
-	_objectLabel = label;
+	this->_objectLabel = label;
 
 	ViewAsVolume();
 	UpdateFocusExtent();
@@ -273,30 +237,78 @@ void VoxelVolumeRender::FocusSegmentation(unsigned short label)
 void VoxelVolumeRender::CenterSegmentation(unsigned short label)
 {
     // if the selected label has no voxels it has no centroid
-    if ((0LL == _dataManager->GetNumberOfVoxelsForLabel(label)) || (0 == label))
+    if ((0LL == this->_dataManager->GetNumberOfVoxelsForLabel(label)) || (0 == label))
     	return;
 
-	Vector3d spacing = _dataManager->GetOrientationData()->GetImageSpacing();
+	Vector3d spacing = this->_dataManager->GetOrientationData()->GetImageSpacing();
 
     // change voxel renderer to move around new POI
-    Vector3d centroid = _dataManager->GetCentroidForObject(label);
-    _renderer->GetActiveCamera()->SetFocalPoint(centroid[0]*spacing[0],centroid[1]*spacing[1],centroid[2]*spacing[2]);
+    Vector3d centroid = this->_dataManager->GetCentroidForObject(label);
+    this->_renderer->GetActiveCamera()->SetFocalPoint(centroid[0]*spacing[0],centroid[1]*spacing[1],centroid[2]*spacing[2]);
 }
 
 void VoxelVolumeRender::ViewAsMesh(void)
 {
-	if (0 != _objectLabel)
+	if (0 != this->_objectLabel)
 	{
-		UpdateColorTable(_objectLabel, 0.0);
-		ComputeMesh(_objectLabel);
+		// hide color completely instead of dimming it
+		ColorDim(this->_objectLabel, 0.0);
+		ComputeMesh(this->_objectLabel);
 	}
 }
 
 void VoxelVolumeRender::ViewAsVolume(void)
 {
-	if (NULL != _meshActor)
-		_renderer->RemoveActor(_meshActor);
+	if (NULL != this->_meshActor)
+	{
+		this->_renderer->RemoveActor(this->_meshActor);
+		this->_meshActor = NULL;
+	}
 
-	if (0 != _objectLabel)
-		UpdateColorTable(_objectLabel, 1.0);
+	if (0 != this->_objectLabel)
+		ColorHighlightExclusive(this->_objectLabel);
+}
+
+void VoxelVolumeRender::ColorHighlight(const unsigned short label)
+{
+	if (0 == label)
+		return;
+
+	if (this->_highlightedLabels.find(label) == this->_highlightedLabels.end())
+	{
+		UpdateColorTable(label, 1.0);
+		this->_highlightedLabels.insert(label);
+	}
+}
+
+void VoxelVolumeRender::ColorDim(const unsigned short label, float value)
+{
+	if (this->_highlightedLabels.find(label) != this->_highlightedLabels.end())
+	{
+		UpdateColorTable(label, value);
+		this->_highlightedLabels.erase(label);
+	}
+}
+
+void VoxelVolumeRender::ColorHighlightExclusive(unsigned short label)
+{
+	std::set<unsigned short>::iterator it;
+	for (it = this->_highlightedLabels.begin(); it != this->_highlightedLabels.end(); it++)
+	{
+		if ((*it) == label)
+			continue;
+
+		ColorDim(*it);
+	}
+
+	// do not highlight color if we are rendering as a mesh
+	if ((this->_highlightedLabels.find(label) == this->_highlightedLabels.end()) && (NULL == this->_meshActor))
+		ColorHighlight(label);
+}
+
+void VoxelVolumeRender::ColorDimAll(void)
+{
+	std::set<unsigned short>::iterator it;
+	for (it = this->_highlightedLabels.begin(); it != this->_highlightedLabels.end(); it++)
+		ColorDim(*it);
 }

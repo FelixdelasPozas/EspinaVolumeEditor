@@ -6,19 +6,13 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>477</width>
-    <height>418</height>
+    <width>566</width>
+    <height>417</height>
    </rect>
-  </property>
-  <property name="minimumSize">
-   <size>
-    <width>477</width>
-    <height>418</height>
-   </size>
   </property>
   <property name="maximumSize">
    <size>
-    <width>477</width>
+    <width>569</width>
     <height>418</height>
    </size>
   </property>
@@ -35,9 +29,9 @@
   <widget class="QDialogButtonBox" name="buttonBox">
    <property name="geometry">
     <rect>
-     <x>10</x>
-     <y>385</y>
-     <width>461</width>
+     <x>0</x>
+     <y>380</y>
+     <width>561</width>
      <height>32</height>
     </rect>
    </property>
@@ -56,13 +50,25 @@
     <rect>
      <x>5</x>
      <y>5</y>
-     <width>466</width>
-     <height>160</height>
+     <width>561</width>
+     <height>168</height>
     </rect>
    </property>
    <layout class="QVBoxLayout" name="verticalLayout">
     <item>
      <widget class="QLabel" name="label_4">
+      <property name="minimumSize">
+       <size>
+        <width>0</width>
+        <height>20</height>
+       </size>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>16777215</width>
+        <height>20</height>
+       </size>
+      </property>
       <property name="font">
        <font>
         <family>Sans Serif</family>
@@ -82,6 +88,18 @@
     </item>
     <item>
      <widget class="QLabel" name="label_6">
+      <property name="minimumSize">
+       <size>
+        <width>0</width>
+        <height>20</height>
+       </size>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>16777215</width>
+        <height>20</height>
+       </size>
+      </property>
       <property name="font">
        <font>
         <weight>75</weight>
@@ -109,6 +127,18 @@
     </item>
     <item>
      <widget class="QLabel" name="label_8">
+      <property name="minimumSize">
+       <size>
+        <width>0</width>
+        <height>20</height>
+       </size>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>16777215</width>
+        <height>20</height>
+       </size>
+      </property>
       <property name="font">
        <font>
         <weight>75</weight>
@@ -170,7 +200,7 @@
     <rect>
      <x>5</x>
      <y>160</y>
-     <width>508</width>
+     <width>561</width>
      <height>111</height>
     </rect>
    </property>
@@ -299,7 +329,7 @@
     <rect>
      <x>5</x>
      <y>280</y>
-     <width>471</width>
+     <width>561</width>
      <height>102</height>
     </rect>
    </property>
