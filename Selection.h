@@ -71,11 +71,8 @@ class Selection
         // get maximum selected bounds
         const Vector3ui GetSelectedMaximumBouds();
 
-        // get a itk image from selected region to use it with filters
-        itk::SmartPointer<ImageType> GetSelectionItkImage(const unsigned int);
-
-        // get a itk image from the segmentation, as small as the bounding box that contains it
-        itk::SmartPointer<ImageType> GetSegmentationItkImage(const unsigned short);
+        // get a itk image from the segmentation or selection, as small as the bounding box that contains it
+        itk::SmartPointer<ImageType> GetSelectionItkImage(const unsigned short, const unsigned int = 0);
 
         // get a itk image from the whole data
         itk::SmartPointer<ImageType> GetItkImage(void);

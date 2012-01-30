@@ -47,21 +47,18 @@ class VoxelVolumeRender
         // update extent of focused object without moving the camera
         void UpdateFocusExtent(void);
 
-        // render volume as a mesh
+        // volume rendering switchers and status
         void ViewAsMesh();
-
-        // render volume as a raycasted volume
         void ViewAsVolume();
+        bool RenderingAsMesh();
 
         // color management
         void ColorHighlight(const unsigned short);
-        void ColorDim(const unsigned short, float = 0.1);
+        void ColorDim(const unsigned short, float = 0.0);
         void ColorHighlightExclusive(unsigned short);
         void ColorDimAll(void);
+        void UpdateColorTable(void);
     private:
-        // update color table with new alpha component
-        void UpdateColorTable(int, double);
-
         // delete all actors from renderer reset class
         void DeleteActors();
 
@@ -69,7 +66,7 @@ class VoxelVolumeRender
         void ComputeRayCastVolume();
 
         // compute mesh for a label
-        void ComputeMesh(unsigned short label);
+        void ComputeMesh(const unsigned short label);
 
         // compute volume using meshes (slower because require more filters)
         void ComputeGPURender();

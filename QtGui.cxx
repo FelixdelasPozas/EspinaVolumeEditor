@@ -1101,8 +1101,7 @@ void EspinaVolumeEditor::LabelSelectionChanged(int value)
 
     // focus volume renderer and reset switch render button
   	_volumeRender->FocusSegmentation(value);
-  	if (!pickerbutton->isChecked())
-  		_volumeRender->CenterSegmentation(value);
+	_volumeRender->CenterSegmentation(value);
 
     renderIsAVolume = true;
     _volumeRender->ViewAsVolume();
@@ -1880,6 +1879,7 @@ void EspinaVolumeEditor::AxialXYPick(const unsigned long event)
         		_editorOperations->AreaSelection(_POI,_pointScalar);
         		_dataManager->ColorHighlight(_pointScalar);
         		_volumeRender->ColorHighlight(_pointScalar);
+        		_volumeRender->UpdateColorTable();
         	}
         }
     }

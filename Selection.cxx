@@ -251,7 +251,7 @@ void Selection::AddArea(Vector3ui point, const unsigned short label)
 	seed[2] = point[2];
 
     itk::SmartPointer<ImageType> image = ImageType::New();
-    image = GetSegmentationItkImage(label);
+    image = GetSelectionItkImage(label);
 
     typedef itk::ConnectedThresholdImageFilter<ImageType, ImageTypeUC> ConnectedThresholdFilterType;
     itk::SmartPointer<ConnectedThresholdFilterType> connectThreshold = ConnectedThresholdFilterType::New();
@@ -327,52 +327,27 @@ void Selection::AddArea(Vector3ui point, const unsigned short label)
 	this->_actor->SetVisibility(true);
 }
 
-itk::SmartPointer<ImageType> Selection::GetSegmentationItkImage(const unsigned short label)
+// label must be specified always, but it's only used when there's nothing selected
+itk::SmartPointer<ImageType> Selection::GetSelectionItkImage(const unsigned short label, const unsigned int boundsGrow)
 {
+	Vector3ui objectMin, objectMax;
 	// first crop the region and then use the vtk-itk pipeline to get a
 	// itk::Image of the region
 	vtkSmartPointer<vtkImageClip> imageClip = vtkSmartPointer<vtkImageClip>::New();
 	imageClip->SetInput(this->_dataManager->GetStructuredPoints());
 
-	Vector3ui objectMin = _dataManager->GetBoundingBoxMin(label);
-	Vector3ui objectMax = _dataManager->GetBoundingBoxMax(label);
-
-	imageClip->SetOutputWholeExtent(objectMin[0], objectMax[0], objectMin[1], objectMax[1], objectMin[2], objectMax[2]);
-	imageClip->ClipDataOn();
-	imageClip->Update();
-
-    typedef itk::VTKImageImport<ImageType> ITKImport;
-    itk::SmartPointer<ITKImport> itkImport = ITKImport::New();
-    vtkSmartPointer<vtkImageExport> vtkExport = vtkSmartPointer<vtkImageExport>::New();
-    vtkExport->SetInput(imageClip->GetOutput());
-    ConnectPipelines(vtkExport, itkImport);
-    itkImport->Update();
-
-    // need to duplicate the output, or it will be destroyed when the pipeline goes
-    // out of scope, and register it to increase the reference count to return the image.
-    typedef itk::ImageDuplicator< ImageType > DuplicatorType;
-    itk::SmartPointer<DuplicatorType> duplicator = DuplicatorType::New();
-    duplicator->SetInputImage(itkImport->GetOutput());
-    duplicator->Update();
-
-    itk::SmartPointer<ImageType> image = ImageType::New();
-    image = duplicator->GetOutput();
-    image->Register();
-
-    return image;
-}
-
-itk::SmartPointer<ImageType> Selection::GetSelectionItkImage(const unsigned int boundsGrow)
-{
-	// first crop the region and then use the vtk-itk pipeline to get a
-	// itk::Image of the region so we can apply a itk filter to it.
-	vtkSmartPointer<vtkImageClip> imageClip = vtkSmartPointer<vtkImageClip>::New();
-	imageClip->SetInput(this->_dataManager->GetStructuredPoints());
+	if (Empty == this->_selectionType)
+	{
+		objectMin = _dataManager->GetBoundingBoxMin(label);
+		objectMax = _dataManager->GetBoundingBoxMax(label);
+	}
+	else
+	{
+		Vector3ui objectMin = this->_min;
+		Vector3ui objectMax = this->_max;
+	}
 
 	// take care of the limits of the image when growing
-	Vector3ui objectMin = this->_min;
-	Vector3ui objectMax = this->_max;
-
 	if (objectMin[0] < boundsGrow)
 		objectMin[0] = 0;
 	else

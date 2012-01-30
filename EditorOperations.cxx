@@ -262,7 +262,7 @@ void EditorOperations::Erode(const unsigned short label)
     _progress->Observe(erodeFilter, "Erode", 1.0);
 
     itk::SmartPointer<ImageType> image = ImageType::New();
-    image = this->_selection->GetSelectionItkImage(_filtersRadius);
+    image = this->_selection->GetSelectionItkImage(label, _filtersRadius);
     
     // BEWARE: radius on erode is _filtersRadius-1 because erode seems to be too strong. it seems to work fine with that value.
     //		   the less it can be is 0 as _filterRadius >= 1 always. It erodes the volume with a value of 0, although using 0
@@ -305,7 +305,7 @@ void EditorOperations::Dilate(const unsigned short label)
     _progress->Observe(dilateFilter, "Dilate", 1.0);
     
     itk::SmartPointer<ImageType> image = ImageType::New();
-    image = this->_selection->GetSelectionItkImage(_filtersRadius);
+    image = this->_selection->GetSelectionItkImage(label, _filtersRadius);
 
     StructuringElementType structuringElement;
     structuringElement.SetRadius(_filtersRadius);
@@ -345,7 +345,7 @@ void EditorOperations::Open(const unsigned short label)
     _progress->Observe(openFilter, "Open", 1.0);
     
     itk::SmartPointer<ImageType> image = ImageType::New();
-    image = this->_selection->GetSelectionItkImage(_filtersRadius);
+    image = this->_selection->GetSelectionItkImage(label, _filtersRadius);
 
     StructuringElementType structuringElement;
     structuringElement.SetRadius(_filtersRadius); 
@@ -385,7 +385,7 @@ void EditorOperations::Close(const unsigned short label)
     _progress->Observe(closeFilter, "Close", 1.0);
     
     itk::SmartPointer<ImageType> image = ImageType::New();
-    image = this->_selection->GetSelectionItkImage(_filtersRadius);
+    image = this->_selection->GetSelectionItkImage(label, _filtersRadius);
 
     StructuringElementType structuringElement;
     structuringElement.SetRadius(_filtersRadius);
@@ -423,7 +423,7 @@ void EditorOperations::Watershed(const unsigned short label)
     typedef itk::SignedDanielssonDistanceMapImageFilter<ImageType, FloatImageType> DanielssonFilterType;
     
     itk::SmartPointer<ImageType> image = ImageType::New();
-    image = this->_selection->GetSelectionItkImage(0);
+    image = this->_selection->GetSelectionItkImage(label, 0);
     
     itk::SmartPointer<DanielssonFilterType> danielssonFilter = DanielssonFilterType::New();
     _progress->Observe(danielssonFilter, "Danielsson", (1.0/3.0));
