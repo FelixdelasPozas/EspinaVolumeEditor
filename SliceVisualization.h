@@ -68,7 +68,7 @@ class SliceVisualization
         // updates slice
         void UpdateSlice(Vector3ui);
         
-        // returns true if the prop has been picked and the picked coords by reference
+        // returns true if the prop has been picked, and the picked coords are returned by reference
         SliceVisualization::PickingType GetPickData(int*, int*);
         
         // set selection
@@ -83,28 +83,25 @@ class SliceVisualization
         // segmentation reference image 
         void SetReferenceImage(vtkSmartPointer<vtkStructuredPoints> image);
         
-        // get segmentation opacity
+        // segmentation opacity get/set
         unsigned int GetSegmentationOpacity();
-        
-        // set segmentation opacity
         void SetSegmentationOpacity(unsigned int);
 
         // toggle segmentation view (switches from 0 opacity to previously set opacity and viceversa)
         void ToggleSegmentationView(void);
     private:
+        // private methods
+        //
         // generate imageactor and adds it to renderer
-        void GenerateSlice(
-                vtkSmartPointer<vtkStructuredPoints>, 
-                vtkSmartPointer<vtkLookupTable>);
-        
+        void GenerateSlice(vtkSmartPointer<vtkStructuredPoints>,vtkSmartPointer<vtkLookupTable>);
+        //
         // generate crosshairs actors and adds them to renderer
         void GenerateCrosshair();
-        
+        //
         // generate thumbnail actors and adds them to thumbnail renderer
         void GenerateThumbnail();
         
         // attributes
-        //
         OrientationType                 		_orientation;
         Vector3d                        		_spacing;
         Vector3d                        		_max;
@@ -120,7 +117,7 @@ class SliceVisualization
         vtkSmartPointer<vtkPolyData>   		 	_POIHorizontalLine;
         vtkSmartPointer<vtkPolyData>    		_POIVerticalLine;
         //
-        // for picking
+        // picking
         vtkSmartPointer<vtkPropPicker>  		_picker;
         vtkSmartPointer<vtkRenderer>    		_renderer;
         //

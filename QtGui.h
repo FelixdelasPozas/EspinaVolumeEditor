@@ -89,7 +89,6 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         virtual void ViewReset();
         virtual void SwitchAxesView();
         virtual void SwitchVoxelRender();
-        virtual void EditorSelectionEnd(bool);
         virtual void EditorCut();
         virtual void EditorRelabel();
         virtual void ErodeVolume();
@@ -105,6 +104,8 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         virtual void SaveSessionStart();
         virtual void SaveSessionEnd();
         virtual void SaveSessionProgress(int);
+        virtual void ToggleWandButton(bool);
+        virtual void ToggleDefaultButton(bool);
     private:
         typedef enum { All, Slices, Voxel, Axial, Coronal, Sagittal } VIEWPORTSENUM;
         

@@ -99,7 +99,7 @@ void EditorOperations::Initialize(vtkSmartPointer<vtkRenderer> renderer, Coordin
 	this->_orientation = orientation;
 	this->_progress = progress;
     
-    // initial selection cube is invisible
+    // initial selection actor is invisible
 	this->_selection = new Selection();
 	this->_selection->Initialize(orientation, renderer, this->_dataManager);
 }
@@ -109,12 +109,12 @@ void EditorOperations::AddSelectionPoint(const Vector3ui point)
 	this->_selection->AddSelectionPoint(point);
 }
 
-void EditorOperations::ClearSelection()
+void EditorOperations::ClearSelectionPoints()
 {
 	this->_selection->ClearSelection();
 }
 
-const std::vector<Vector3ui> EditorOperations::GetSelection()
+const std::vector<Vector3ui> EditorOperations::GetSelectionPoints()
 {
     return this->_selection->GetSelectionPoints();
 }
@@ -181,13 +181,14 @@ void EditorOperations::Cut(const unsigned short label)
     _dataManager->OperationEnd();
 }
 
-bool EditorOperations::Relabel(QWidget *parent, const unsigned short label, Metadata *data)
+// BEWARE: new label scalar and boolean indicating if it's a new color returned by reference
+// (i like this better than returning a struct, but who cares...)
+bool EditorOperations::Relabel(QWidget *parent, Metadata *data, unsigned short *label, bool *isANewColor)
 {
     Vector3d color;
-    bool newcolor = false;
     
     QtRelabel configdialog(parent);
-    configdialog.SetInitialOptions(label, data, _dataManager, Selection::Area == _selection->GetSelectionType());
+    configdialog.SetInitialOptions(*label, data, _dataManager, Selection::Area == _selection->GetSelectionType());
     configdialog.exec();
     
     if (!configdialog.ModifiedData())
@@ -211,7 +212,7 @@ bool EditorOperations::Relabel(QWidget *parent, const unsigned short label, Meta
         color = colorpicker.GetColor();
 
         newlabel = _dataManager->SetLabel(color);
-        newcolor = true;
+        *isANewColor = true;
     }
 
     _progress->ManualSet("Relabel");
@@ -227,8 +228,8 @@ bool EditorOperations::Relabel(QWidget *parent, const unsigned short label, Meta
     }
     else
     {
-    	min = this->_dataManager->GetBoundingBoxMin(label);
-    	max = this->_dataManager->GetBoundingBoxMax(label);
+    	min = this->_dataManager->GetBoundingBoxMin(*label);
+    	max = this->_dataManager->GetBoundingBoxMax(*label);
     }
 
     for (unsigned int z = min[2]; z <= max[2]; z++)
@@ -241,14 +242,16 @@ bool EditorOperations::Relabel(QWidget *parent, const unsigned short label, Meta
 							_dataManager->SetVoxelScalar(x, y, z, newlabel);
 						break;
 					default:
-						if (label == _dataManager->GetVoxelScalar(x, y, z))
+						if (*label == _dataManager->GetVoxelScalar(x, y, z))
 							_dataManager->SetVoxelScalar(x, y, z, newlabel);
 						break;
 				}
     
+
+    *label = newlabel;
     _progress->ManualReset();
     _dataManager->OperationEnd();
-    return newcolor;
+    return true;
 }
 
 void EditorOperations::Erode(const unsigned short label)
@@ -762,9 +765,24 @@ void EditorOperations::SetWatershedLevel(const double value)
 	this->_watershedLevel = value;
 }
 
-void EditorOperations::AreaSelection(Vector3ui point, const unsigned short label)
+void EditorOperations::ContiguousAreaSelection(Vector3ui point, const unsigned short label)
 {
 	this->_progress->ManualSet("Threshold");
 	this->_selection->AddArea(point, label);
    	this->_progress->ManualReset();
+}
+
+const Vector3ui EditorOperations::GetSelectedMinimumBouds()
+{
+	return this->_selection->GetSelectedMinimumBouds();
+}
+
+const Vector3ui EditorOperations::GetSelectedMaximumBouds()
+{
+	return this->_selection->GetSelectedMaximumBouds();
+}
+
+const bool EditorOperations::IsFirstColorSelected()
+{
+	return (Selection::Empty == this->_selection->GetSelectionType());
 }

@@ -675,6 +675,21 @@ bool DataManager::ColorIsInUse(double* color)
     return false;
 }
 
+void DataManager::ResetHighlightedLabels(void)
+{
+	double rgba[4];
+
+	_highlightedLabels.clear();
+
+	for (int i = 1; i < this->_lookupTable->GetNumberOfTableValues(); i++)
+	{
+		this->_lookupTable->GetTableValue(i, rgba);
+		this->_lookupTable->SetTableValue(i, rgba[0], rgba[1], rgba[2], 0.4);
+	}
+
+	this->_lookupTable->Modified();
+}
+
 unsigned int DataManager::GetNumberOfColors()
 {
 	return this->_lookupTable->GetNumberOfTableValues();

@@ -949,10 +949,10 @@ QGroupBox::title {
             </size>
            </property>
            <property name="toolTip">
-            <string>Select one or various contiguous areas</string>
+            <string>Select one or various contiguous volumes</string>
            </property>
            <property name="statusTip">
-            <string>Select one or various contiguous areas</string>
+            <string>Select one or various contiguous volumes</string>
            </property>
            <property name="text">
             <string/>

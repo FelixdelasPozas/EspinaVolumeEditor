@@ -68,20 +68,19 @@ void VoxelVolumeRender::ComputeMesh(const unsigned short label)
 {
     double rgba[4];
 
-    // this allows to recompute actor when object bounds change just by calling ComputeMesh() again
+    // recompute actor when object bounds change just by calling ComputeMesh() again
     if (this->_meshActor != NULL)
     {
 		this->_renderer->RemoveActor(this->_meshActor);
 		this->_meshActor = NULL;
     }
 
-	// first crop the region and then use the vtk-itk pipeline to get a
-	// itk::Image of the region
+	// first crop the region and then use the vtk-itk pipeline to get a itk::Image of the region
 	Vector3ui objectMin = _dataManager->GetBoundingBoxMin(label);
 	Vector3ui objectMax = _dataManager->GetBoundingBoxMax(label);
 	Vector3ui size = _dataManager->GetOrientationData()->GetTransformedSize();
 
-	// take care of the limits of the image when growing
+	// the object bounds collide with the object, we must add one not to clip the mesh at the borders
 	if (objectMin[0] > 0)
 		objectMin[0]--;
 
@@ -100,6 +99,7 @@ void VoxelVolumeRender::ComputeMesh(const unsigned short label)
 	if (objectMax[2] < size[2])
 		objectMax[2]++;
 
+	// image clipping
 	vtkSmartPointer<vtkImageClip> imageClip = vtkSmartPointer<vtkImageClip>::New();
 	imageClip->SetInput(this->_dataManager->GetStructuredPoints());
 	imageClip->SetOutputWholeExtent(objectMin[0], objectMax[0], objectMin[1], objectMax[1], objectMin[2], objectMax[2]);
@@ -197,7 +197,7 @@ void VoxelVolumeRender::ComputeRayCastVolume()
     	this->_colorfunction->AddRGBPoint(i,rgba[0], rgba[1], rgba[2]);
     }
 
-    // we need to set all labels to an opacity of 0.1
+    // set all labels to an opacity of 0.0
     this->_opacityfunction = vtkSmartPointer<vtkPiecewiseFunction>::New();
     for (unsigned int i = 0; i != this->_dataManager->GetNumberOfColors(); i++)
     	this->_opacityfunction->AddPoint(i, 0.0);
@@ -215,7 +215,10 @@ void VoxelVolumeRender::ComputeRayCastVolume()
 
     // create volume and add to render
     if (NULL != this->_volume)
+    {
     	this->_renderer->RemoveActor(this->_volume);
+    	this->_volume = NULL;
+    }
 
     this->_volume = vtkSmartPointer<vtkVolume>::New();
     this->_volume->SetMapper(this->_volumemapper);
@@ -224,10 +227,10 @@ void VoxelVolumeRender::ComputeRayCastVolume()
     this->_renderer->AddVolume(_volume);
 }
 
-// update focus
+// update object focus extent
 void VoxelVolumeRender::UpdateFocusExtent(void)
 {
-    // if the selected label has no voxels it has no centroid
+    // if the selected label has no voxels it has no centroid, don't show anything
     if (0LL == this->_dataManager->GetNumberOfVoxelsForLabel(this->_objectLabel) || (0 == this->_objectLabel))
     	this->_volumemapper->SetCroppingRegionPlanes(0,0,0,0,0,0);
     else
@@ -249,8 +252,8 @@ void VoxelVolumeRender::UpdateFocusExtent(void)
     this->_volumemapper->SetCroppingRegionFlagsToSubVolume();
     this->_volumemapper->Update();
 
-    // if we are rendering as mesh then recompute mesh (if not, old mesh will get clipped against
-    // old mesh obundaries if the object grows outside old bounding box)
+    // if we are rendering as mesh then recompute mesh (if not, mesh will get clipped against
+    // boundaries set at the time of creation if the object grows outside old bounding box)
     if (NULL != this->_meshActor)
     	this->ViewAsMesh();
 }
@@ -264,18 +267,19 @@ void VoxelVolumeRender::FocusSegmentation(unsigned short label)
 
 	ViewAsVolume();
 	UpdateFocusExtent();
-	UpdateColorTable();
+	this->_opacityfunction->Modified();
 }
 
 void VoxelVolumeRender::CenterSegmentation(unsigned short label)
 {
-    // if the selected label has no voxels it has no centroid
+    // if the selected label has no voxels it has no centroid, also don't want to center
+	// the background label
     if ((0LL == this->_dataManager->GetNumberOfVoxelsForLabel(label)) || (0 == label))
     	return;
 
 	Vector3d spacing = this->_dataManager->GetOrientationData()->GetImageSpacing();
 
-    // change voxel renderer to move around new POI
+    // change voxel renderer to move around the centroid of the object
     Vector3d centroid = this->_dataManager->GetCentroidForObject(label);
     this->_renderer->GetActiveCamera()->SetFocalPoint(centroid[0]*spacing[0],centroid[1]*spacing[1],centroid[2]*spacing[2]);
 }
@@ -284,9 +288,9 @@ void VoxelVolumeRender::ViewAsMesh(void)
 {
 	if (0 != this->_objectLabel)
 	{
-		// hide color completely instead of dimming it
+		// hide color as we only want to show the mesh
 		ColorDim(this->_objectLabel);
-		UpdateColorTable();
+		this->_opacityfunction->Modified();
 		ComputeMesh(this->_objectLabel);
 	}
 }
@@ -303,7 +307,8 @@ void VoxelVolumeRender::ViewAsVolume(void)
 		ColorHighlightExclusive(this->_objectLabel);
 }
 
-// NOTE: this->_opacityfunction->Modified() not signaled
+// NOTE: this->_opacityfunction->Modified() not signaled. need to use UpdateColorTable() after
+// calling this one to signal changes to pipeline
 void VoxelVolumeRender::ColorHighlight(const unsigned short label)
 {
 	if (0 == label)
@@ -316,7 +321,9 @@ void VoxelVolumeRender::ColorHighlight(const unsigned short label)
 	}
 }
 
-// NOTE: this->_opacityfunction->Modified() not signaled
+// NOTE: this->_opacityfunction->Modified() not signaled. need to use UpdateColorTable() after
+// calling this one to signal changes to pipeline.
+// NOTE: alpha parameter defaults to 0.0, see .h
 void VoxelVolumeRender::ColorDim(const unsigned short label, float alpha)
 {
 	if (0 == label)
@@ -344,7 +351,7 @@ void VoxelVolumeRender::ColorHighlightExclusive(unsigned short label)
 	if ((this->_highlightedLabels.find(label) == this->_highlightedLabels.end()) && (NULL == this->_meshActor))
 		ColorHighlight(label);
 
-	UpdateColorTable();
+	this->_opacityfunction->Modified();
 }
 
 void VoxelVolumeRender::ColorDimAll(void)
@@ -353,10 +360,38 @@ void VoxelVolumeRender::ColorDimAll(void)
 	for (it = this->_highlightedLabels.begin(); it != this->_highlightedLabels.end(); it++)
 		ColorDim(*it);
 
-	UpdateColorTable();
+	this->_opacityfunction->Modified();
 }
 
+// needed to be public as a method so we can signal changes to the opacity function
 void VoxelVolumeRender::UpdateColorTable(void)
 {
 	this->_opacityfunction->Modified();
+}
+
+void VoxelVolumeRender::ResetHighlightedLabels(void)
+{
+	this->_highlightedLabels.clear();
+
+	for (unsigned int i = 1; i < _dataManager->GetNumberOfColors(); i++)
+		this->_opacityfunction->AddPoint(i, 0.0);
+
+	this->_opacityfunction->Modified();
+}
+
+void VoxelVolumeRender::FocusSelection(Vector3ui min, Vector3ui max)
+{
+   	Vector3d spacing = this->_dataManager->GetOrientationData()->GetImageSpacing();
+
+   	// it should really be (origin-0.5) and (origin+object_size+0.5) for rendering the
+   	// correct bounding box for the object, but if we do it that way very thin
+   	// objects aren't rendered correctly, so 1.5 corrects this.
+   	this->_volumemapper->SetCroppingRegionPlanes(
+    			(min[0]-1.5)*spacing[0], (max[0]+1.5)*spacing[0],
+    			(min[1]-1.5)*spacing[1], (max[1]+1.5)*spacing[1],
+    			(min[2]-1.5)*spacing[2], (max[2]+1.5)*spacing[2]);
+
+    this->_volumemapper->CroppingOn();
+    this->_volumemapper->SetCroppingRegionFlagsToSubVolume();
+    this->_volumemapper->Update();
 }

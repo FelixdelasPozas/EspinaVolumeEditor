@@ -47,25 +47,16 @@ class EditorOperations
         // initializes class
         void Initialize(vtkSmartPointer<vtkRenderer>, Coordinates *, ProgressAccumulator *);
         
-        // modifies selection area with this point
-        void AddSelectionPoint(const Vector3ui point);
-        
-        // deletes points and actor
-        void ClearSelection();
-        
-        // get selection points
-        const std::vector<Vector3ui> GetSelection();
-
         // deletes voxels depending on selected label
         void Cut(const unsigned short);
         
         // changes label of selected voxels to a different one
-        bool Relabel(QWidget *parent, const unsigned short, Metadata*);
+        bool Relabel(QWidget *parent, Metadata*, unsigned short*, bool*);
 
-        // save volume as an GIPL image on disk
+        // save volume to disk in MHA format
         void SaveImage(const std::string);
         
-        // get the labelmap out of data
+        // get the labelmap representation of the volume
         itk::SmartPointer<LabelMapType> GetImageLabelMap();
         
         // set the first scalar value that is free to assign a label (it's NOT the label number)
@@ -77,42 +68,54 @@ class EditorOperations
         const double GetWatershedLevel(void);
         void SetWatershedLevel(const double);
         
-        // filters, operates on selection or, if there is not a selection, on the whole dataset
+        // filters, operates on selected area if set, if not set operates on the whole segmentation
+        // selected clipping the volume first (for speed)
         void Erode(const unsigned short);
         void Dilate(const unsigned short);
         void Close(const unsigned short);
         void Open(const unsigned short);
         void Watershed(const unsigned short);
 
-        // contiguous area selection with the wand
-        void AreaSelection(Vector3ui, const unsigned short);
+        // Selection class methods, see Selection.* for details
+        void AddSelectionPoint(const Vector3ui point);
+        void ClearSelectionPoints();
+        const std::vector<Vector3ui> GetSelectionPoints();
+        void ContiguousAreaSelection(Vector3ui, const unsigned short);
+        const Vector3ui GetSelectedMinimumBouds();
+        const Vector3ui GetSelectedMaximumBouds();
+        const bool IsFirstColorSelected(void);
 
+        // SaveSessionThread need to touch private attributes
         friend class SaveSessionThread;
     private:
+        // private methods
+        //
         // shows a message and gives the details of the exception error
         void EditorError(itk::ExceptionObject &);
-        
-        // temp description
+        //
+        // ereses all points in the image that are not from the label
         void CleanImage(itk::SmartPointer<ImageType>, const unsigned short);
-
+        //
         // dump a itk::image back to vtkstructuredpoints
         void ItkImageToPoints(itk::SmartPointer<ImageType>);
         
+        // attributes
+        //
         // pointer to orientation data
         Coordinates 										*_orientation;
-
+        //
         // pointer to data
         DataManager 										*_dataManager;
-        
+        //
         // progress accumulator
         ProgressAccumulator 								*_progress;
-        
+        //
         // configuration option for erode/dilate/open/close filters (structuring element radius)
         unsigned int 										_filtersRadius;
-        
+        //
         // configuration option for watershed filter (flood level)
         double 												_watershedLevel;
-
+        //
         // selected area
         Selection											*_selection;
 };

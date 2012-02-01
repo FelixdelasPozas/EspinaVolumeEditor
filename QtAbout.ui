@@ -79,7 +79,7 @@
        </font>
       </property>
       <property name="text">
-       <string>Espina Volume Editor 1.0.3</string>
+       <string>Espina Volume Editor 1.0.4</string>
       </property>
       <property name="alignment">
        <set>Qt::AlignCenter</set>

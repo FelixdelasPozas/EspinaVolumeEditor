@@ -71,8 +71,12 @@ class Selection
         // get maximum selected bounds
         const Vector3ui GetSelectedMaximumBouds();
 
-        // get a itk image from the segmentation or selection, as small as the bounding box that contains it
+        // get a itk image from the selection, or the segmentation if there is nothing selected. the image bounds
+        // are adjusted for filter radius
         itk::SmartPointer<ImageType> GetSelectionItkImage(const unsigned short, const unsigned int = 0);
+
+        // get a itk image from the segmentation
+        itk::SmartPointer<ImageType> GetSegmentationItkImage(const unsigned short);
 
         // get a itk image from the whole data
         itk::SmartPointer<ImageType> GetItkImage(void);
@@ -80,9 +84,11 @@ class Selection
         // returns true if the voxel coordinates refer to a selected voxel
         bool VoxelIsInsideSelection(unsigned int, unsigned int, unsigned int);
     private:
+        // private methods
+        //
         // computes selection area
         void ComputeSelectionCube(void);
-
+        //
         // clears selection cube
         void FillSelectionCube(unsigned char);
 

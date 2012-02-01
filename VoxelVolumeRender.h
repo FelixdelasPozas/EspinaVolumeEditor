@@ -38,10 +38,13 @@ class VoxelVolumeRender
 		VoxelVolumeRender(DataManager*, vtkSmartPointer<vtkRenderer>, ProgressAccumulator*);
 		~VoxelVolumeRender();
 
-        // update focus extent for renderers clipping planes
+        // update focus extent for renderers clipping planes and highlights label
         void FocusSegmentation(unsigned short);
 
-        // center POI in segmentation centroid
+        // update focus extent for renderers using selection bounds
+        void FocusSelection(Vector3ui, Vector3ui);
+
+        // center render view in segmentation centroid
         void CenterSegmentation(unsigned short);
 
         // update extent of focused object without moving the camera
@@ -50,7 +53,6 @@ class VoxelVolumeRender
         // volume rendering switchers and status
         void ViewAsMesh();
         void ViewAsVolume();
-        bool RenderingAsMesh();
 
         // color management
         void ColorHighlight(const unsigned short);
@@ -58,40 +60,37 @@ class VoxelVolumeRender
         void ColorHighlightExclusive(unsigned short);
         void ColorDimAll(void);
         void UpdateColorTable(void);
+        void ResetHighlightedLabels(void);
     private:
-        // delete all actors from renderer reset class
-        void DeleteActors();
-
+        // private methods
+        //
         // compute volume using raycast
         void ComputeRayCastVolume();
-
+        //
         // compute mesh for a label
         void ComputeMesh(const unsigned short label);
-
-        // compute volume using meshes (slower because require more filters)
-        void ComputeGPURender();
 
         // attributes
         vtkSmartPointer<vtkRenderer>         		_renderer;
         ProgressAccumulator                 	   *_progress;
         DataManager                         	   *_dataManager;
-
+        //
         // to update color table
         vtkSmartPointer<vtkPiecewiseFunction>      	_opacityfunction;
         vtkSmartPointer<vtkColorTransferFunction>  	_colorfunction;
-
+        //
         // actor for the mesh representation of the volume
         vtkSmartPointer<vtkActor> 					_meshActor;
-
+        //
         // actors for the volume
         vtkSmartPointer<vtkVolume> 					_volume;
-
+        //
         // actual object label
         unsigned short 								_objectLabel;
-
+        //
         // software raycast volume mapper
         vtkSmartPointer<vtkVolumeRayCastMapper> 	_volumemapper;
-
+        //
         // set of highlighted labels
         std::set<unsigned short> 					_highlightedLabels;
 };
