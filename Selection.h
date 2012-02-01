@@ -91,6 +91,9 @@ class Selection
         //
         // clears selection cube
         void FillSelectionCube(unsigned char);
+        //
+        // computes actor from selected volume
+        void ComputeActor(void);
 
         // pointer to renderer
         vtkSmartPointer<vtkRenderer> 						_renderer;

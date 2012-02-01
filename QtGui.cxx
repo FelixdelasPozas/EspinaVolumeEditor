@@ -2719,7 +2719,7 @@ void EspinaVolumeEditor::InitiateSessionGUI(void)
     paintbutton->setEnabled(true);
     erasebutton->setEnabled(true);
     pickerbutton->setEnabled(true);
-//    wandButton->setEnabled(true);
+    wandButton->setEnabled(true);
     selectbutton->setEnabled(true);
     axialresetbutton->setEnabled(true);
     coronalresetbutton->setEnabled(true);
@@ -2784,6 +2784,8 @@ void EspinaVolumeEditor::ToggleWandButton(bool value)
 	switch(value)
 	{
 		case true:
+			if (!renderIsAVolume)
+				SwitchVoxelRender();
 			rendertypebutton->setEnabled(false);
 		    _editorOperations->ClearSelectionPoints();
 		    _dataManager->ColorHighlightExclusive(_selectedLabel);

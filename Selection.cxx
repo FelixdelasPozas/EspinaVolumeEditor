@@ -75,68 +75,6 @@ void Selection::Initialize(Coordinates *orientation, vtkSmartPointer<vtkRenderer
 	this->_volume->SetExtent(0, this->_size[0], 0, this->_size[1], 0, this->_size[2]);
 	this->_volume->AllocateScalars();
 	this->_volume->Update();
-
-	// create and setup actor for selection area... some parts of the pipeline have SetGlobalWarningDisplay(false)
-	// because i don't want to generate a warning when used with empty input data (no user selection)
-
-    // generate iso surface, selected points in the volume have a value of 255
-    vtkSmartPointer<vtkDiscreteMarchingCubes> marcher = vtkSmartPointer<vtkDiscreteMarchingCubes>::New();
-	marcher->SetInput(this->_volume);
-	marcher->ReleaseDataFlagOn();
-	marcher->SetGlobalWarningDisplay(false);
-	marcher->SetNumberOfContours(1);
-	marcher->GenerateValues(1, 255, 255);
-	marcher->ComputeScalarsOff();
-	marcher->ComputeNormalsOff();
-	marcher->ComputeGradientsOff();
-
-	// NOTE: not using normals to render the selection because we need to represent as many voxels as possible, also
-	// we don't decimate our mesh for the same reason. Because the segmentations used are usually very small there
-	// shouldn't be any rendering/performance problems.
-
-    vtkSmartPointer<vtkTextureMapToPlane> textureMapper = vtkSmartPointer<vtkTextureMapToPlane>::New();
-    textureMapper->SetInputConnection(marcher->GetOutputPort());
-	textureMapper->SetGlobalWarningDisplay(false);
-    textureMapper->AutomaticPlaneGenerationOn();
-
-    vtkSmartPointer<vtkTransformTextureCoords> textureTrans = vtkSmartPointer<vtkTransformTextureCoords>::New();
-    textureTrans->SetInputConnection(textureMapper->GetOutputPort());
-    textureTrans->SetGlobalWarningDisplay(false);
-    textureTrans->SetScale(_size[0], _size[1], _size[2]);
-
-	// model mapper
-    vtkSmartPointer<vtkPolyDataMapper> polydataMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-	polydataMapper->SetInputConnection(textureTrans->GetOutputPort());
-	polydataMapper->SetResolveCoincidentTopologyToOff();
-
-	// create and apply striped texture
-    vtkSmartPointer<vtkImageCanvasSource2D> image2D = vtkSmartPointer<vtkImageCanvasSource2D>::New();
-    image2D->SetScalarTypeToUnsignedChar();
-    image2D->SetExtent(0, 15, 0, 15, 0, 0);
-    image2D->SetNumberOfScalarComponents(4);
-    image2D->SetDrawColor(0,0,0,0);             // transparent color
-    image2D->FillBox(0,15,0,15);
-    image2D->SetDrawColor(255,255,255,150);     // "somewhat transparent" white
-    image2D->DrawSegment(0, 0, 15, 15);
-    image2D->DrawSegment(1, 0, 15, 14);
-    image2D->DrawSegment(0, 1, 14, 15);
-    image2D->DrawSegment(15, 0, 15, 0);
-    image2D->DrawSegment(0, 15, 0, 15);
-
-    vtkSmartPointer<vtkTexture> texture = vtkSmartPointer<vtkTexture>::New();
-    texture->SetInputConnection(image2D->GetOutputPort());
-    texture->RepeatOn();
-    texture->InterpolateOn();
-    texture->ReleaseDataFlagOn();
-
-    this->_actor = vtkSmartPointer<vtkActor>::New();
-    this->_actor->SetMapper(polydataMapper);
-    this->_actor->SetTexture(texture);
-    this->_actor->GetProperty()->SetOpacity(1);
-    this->_actor->SetVisibility(false);
-
-    this->_renderer->AddActor(this->_actor);
-
 }
 
 void Selection::AddSelectionPoint(const Vector3ui point)
@@ -146,7 +84,6 @@ void Selection::AddSelectionPoint(const Vector3ui point)
     {
         case 0:
         	this->_selectionType = Cube;
-        	this->_actor->SetVisibility(true);
         	this->_selectedPoints.push_back(point);
             break;
         case 2:
@@ -158,6 +95,7 @@ void Selection::AddSelectionPoint(const Vector3ui point)
             break;
     }
     ComputeSelectionCube();
+    ComputeActor();
 }
 
 void Selection::FillSelectionCube(unsigned char value)
@@ -204,10 +142,8 @@ void Selection::ComputeSelectionCube()
         	this->_max[2] = (*it)[2];
     }
 
-    // fill selected values in volume
+    // fill selected values in volume and update volume
     FillSelectionCube(255);
-
-    // make pipeline move and update actor
     this->_volume->Modified();
 }
 
@@ -227,8 +163,12 @@ void Selection::ClearSelection(void)
     this->_max = _size;
     this->_selectionType = Empty;
 
-    // make the actor invisible again
-    _actor->SetVisibility(false);
+    // remove the actor
+    if (NULL != this->_actor)
+    {
+    	this->_renderer->RemoveActor(this->_actor);
+    	this->_actor = NULL;
+    }
 
     this->_volume->Modified();
 }
@@ -324,7 +264,7 @@ void Selection::AddArea(Vector3ui point, const unsigned short label)
 
 	this->_selectionType = Area;
 	this->_volume->Modified();
-	this->_actor->SetVisibility(true);
+	ComputeActor();
 }
 
 itk::SmartPointer<ImageType> Selection::GetSegmentationItkImage(const unsigned short label)
@@ -483,4 +423,91 @@ void Selection::ClearSelectionBuffer(void)
 	unsigned char *pointer = static_cast<unsigned char *>(_volume->GetScalarPointer());
 	Vector3ui size = this->_size + Vector3ui(1,1,1);
 	memset(pointer, 0, size[0]*size[1]*size[2]);
+}
+
+void Selection::ComputeActor(void)
+{
+	// create and setup actor for selection area... some parts of the pipeline have SetGlobalWarningDisplay(false)
+	// because i don't want to generate a warning when used with empty input data (no user selection)
+	vtkSmartPointer<vtkImageClip> imageClip = vtkSmartPointer<vtkImageClip>::New();
+	imageClip->SetInput(this->_volume);
+
+	// expand extent so actor won't get clipped with the edges
+	Vector3ui minBounds = this->_min;
+	Vector3ui maxBounds = this->_max;
+
+	if (minBounds[0] > 0) minBounds[0]--;
+	if (minBounds[1] > 0) minBounds[1]--;
+	if (minBounds[2] > 0) minBounds[2]--;
+	if (maxBounds[0] < this->_size[0]) maxBounds[0]++;
+	if (maxBounds[1] < this->_size[1]) maxBounds[1]++;
+	if (maxBounds[2] < this->_size[2]) maxBounds[2]++;
+
+	imageClip->SetOutputWholeExtent(minBounds[0], maxBounds[0], minBounds[1], maxBounds[1], minBounds[2], maxBounds[2]);
+	imageClip->ClipDataOn();
+	imageClip->Update();
+
+    // generate iso surface, selected points in the volume have a value of 255
+    vtkSmartPointer<vtkDiscreteMarchingCubes> marcher = vtkSmartPointer<vtkDiscreteMarchingCubes>::New();
+	marcher->SetInput(imageClip->GetOutput());
+	marcher->ReleaseDataFlagOn();
+	marcher->SetGlobalWarningDisplay(false);
+	marcher->SetNumberOfContours(1);
+	marcher->GenerateValues(1, 255, 255);
+	marcher->ComputeScalarsOff();
+	marcher->ComputeNormalsOff();
+	marcher->ComputeGradientsOff();
+
+	// NOTE: not using normals to render the selection because we need to represent as many voxels as possible, also
+	// we don't decimate our mesh for the same reason. Because the segmentations used are usually very small there
+	// shouldn't be any rendering/performance problems.
+
+    vtkSmartPointer<vtkTextureMapToPlane> textureMapper = vtkSmartPointer<vtkTextureMapToPlane>::New();
+    textureMapper->SetInputConnection(marcher->GetOutputPort());
+	textureMapper->SetGlobalWarningDisplay(false);
+    textureMapper->AutomaticPlaneGenerationOn();
+
+    vtkSmartPointer<vtkTransformTextureCoords> textureTrans = vtkSmartPointer<vtkTransformTextureCoords>::New();
+    textureTrans->SetInputConnection(textureMapper->GetOutputPort());
+    textureTrans->SetGlobalWarningDisplay(false);
+    textureTrans->SetScale(_size[0], _size[1], _size[2]);
+
+	// model mapper
+    vtkSmartPointer<vtkPolyDataMapper> polydataMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+	polydataMapper->SetInputConnection(textureTrans->GetOutputPort());
+	polydataMapper->SetResolveCoincidentTopologyToOff();
+
+	// create and apply striped texture
+    vtkSmartPointer<vtkImageCanvasSource2D> image2D = vtkSmartPointer<vtkImageCanvasSource2D>::New();
+    image2D->SetScalarTypeToUnsignedChar();
+    image2D->SetExtent(0, 15, 0, 15, 0, 0);
+    image2D->SetNumberOfScalarComponents(4);
+    image2D->SetDrawColor(0,0,0,0);             // transparent color
+    image2D->FillBox(0,15,0,15);
+    image2D->SetDrawColor(255,255,255,150);     // "somewhat transparent" white
+    image2D->DrawSegment(0, 0, 15, 15);
+    image2D->DrawSegment(1, 0, 15, 14);
+    image2D->DrawSegment(0, 1, 14, 15);
+    image2D->DrawSegment(15, 0, 15, 0);
+    image2D->DrawSegment(0, 15, 0, 15);
+
+    vtkSmartPointer<vtkTexture> texture = vtkSmartPointer<vtkTexture>::New();
+    texture->SetInputConnection(image2D->GetOutputPort());
+    texture->RepeatOn();
+    texture->InterpolateOn();
+    texture->ReleaseDataFlagOn();
+
+    if (NULL != this->_actor)
+    {
+        this->_renderer->RemoveActor(this->_actor);
+        this->_actor = NULL;
+    }
+
+    this->_actor = vtkSmartPointer<vtkActor>::New();
+    this->_actor->SetMapper(polydataMapper);
+    this->_actor->SetTexture(texture);
+    this->_actor->GetProperty()->SetOpacity(1);
+    this->_actor->SetVisibility(true);
+
+    this->_renderer->AddActor(this->_actor);
 }
