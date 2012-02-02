@@ -25,6 +25,7 @@
 #include <vtkPlaneSource.h>
 #include <vtkImageActor.h>
 #include <vtkImageBlend.h>
+#include <vtkTexturedActor2D.h>
 
 // project includes
 #include "Coordinates.h"
@@ -126,8 +127,9 @@ class SliceVisualization
         vtkSmartPointer<vtkTextActor>   		_text;
         //
         // selection actors & planesource
-        vtkSmartPointer<vtkActor>       		_actor;
-        vtkSmartPointer<vtkPlaneSource> 		_selectionPlane;
+        vtkSmartPointer<vtkActor>				_iconActor;
+        vtkSmartPointer<vtkPoints> 				_slicePoints;
+        vtkSmartPointer<vtkIntArray> 			_indexArray;
         Vector3ui                       		_maxSelection;
         Vector3ui                       		_minSelection;
         //

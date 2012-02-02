@@ -180,7 +180,16 @@ const Selection::SelectionType Selection::GetSelectionType()
 
 const std::vector<Vector3ui> Selection::GetSelectionPoints()
 {
-	return this->_selectedPoints;
+	std::vector<Vector3ui> result;
+
+	if (this->_selectionType == Cube)
+	{
+
+		result.push_back(_min);
+		result.push_back(_max);
+	}
+
+	return result;
 }
 
 void Selection::AddArea(Vector3ui point, const unsigned short label)
@@ -318,8 +327,8 @@ itk::SmartPointer<ImageType> Selection::GetSelectionItkImage(const unsigned shor
 	}
 	else
 	{
-		Vector3ui objectMin = this->_min;
-		Vector3ui objectMax = this->_max;
+		objectMin = this->_min;
+		objectMax = this->_max;
 	}
 
 	// take care of the limits of the image when growing

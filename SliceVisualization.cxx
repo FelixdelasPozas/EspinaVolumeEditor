@@ -26,6 +26,16 @@
 #include <vtkRenderWindow.h>
 #include <vtkLine.h>
 
+#include <vtkDoubleArray.h>
+#include <vtkIntArray.h>
+#include <vtkIconGlyphFilter.h>
+#include <vtkTexturedActor2D.h>
+#include <vtkPointData.h>
+#include <vtkPolyDataMapper2D.h>
+
+#include <vtkTextureMapToPlane.h>
+#include <vtkTransformTextureCoords.h>
+
 // project includes
 #include "SliceVisualization.h"
 
@@ -40,6 +50,7 @@ SliceVisualization::SliceVisualization(OrientationType orientation)
 	_blendimages = NULL;
 	_thumbRenderer = NULL;
 	_renderer = NULL;
+	_iconActor = NULL;
 	
 	_orientation = orientation;
 }
@@ -216,13 +227,13 @@ void SliceVisualization::UpdateSlice(Vector3ui point)
             _axesMatrix->SetElement(0, 3, slice_point);
             _point[0] = point[0];
             out << point[0]+1 << " of " << _size[0];
-            if (_actor != NULL)
+            if (_iconActor != NULL)
             {
                 // we also have a selection
                 if ((_point[0] >= _minSelection[0]) && (_point[0] <= _maxSelection[0]))
-                    _actor->SetVisibility(true);
+                	_iconActor->SetVisibility(true);
                 else
-                    _actor->SetVisibility(false);
+                	_iconActor->SetVisibility(false);
             }
             break;
         case Coronal:
@@ -232,13 +243,13 @@ void SliceVisualization::UpdateSlice(Vector3ui point)
             _axesMatrix->SetElement(1, 3, slice_point);
             _point[1] = point[1];
             out << point[1]+1 << " of " << _size[1];
-            if (_actor != NULL)
+            if (_iconActor != NULL)
             {
                 // we also have a selection
                 if ((_point[1] >= _minSelection[1]) && (_point[1] <= _maxSelection[1]))
-                    _actor->SetVisibility(true);
+                	_iconActor->SetVisibility(true);
                 else
-                    _actor->SetVisibility(false);
+                	_iconActor->SetVisibility(false);
             }
             break;
         case Axial:
@@ -248,13 +259,13 @@ void SliceVisualization::UpdateSlice(Vector3ui point)
             _axesMatrix->SetElement(2, 3, slice_point);
             _point[2] = point[2];
             out << point[2]+1 << " of " << _size[2];
-            if (_actor != NULL)
+            if (_iconActor != NULL)
             {
                 // we also have a selection
                 if ((_point[2] >= _minSelection[2]) && (_point[2] <= _maxSelection[2]))
-                    _actor->SetVisibility(true);
+                	_iconActor->SetVisibility(true);
                 else
-                    _actor->SetVisibility(false);
+                	_iconActor->SetVisibility(false);
             }
             break;
         default:
@@ -378,94 +389,143 @@ SliceVisualization::PickingType SliceVisualization::GetPickData(int* X, int* Y)
 
 void SliceVisualization::SetSelection(std::vector< Vector3ui > points)
 {
-    std::vector < Vector3ui >::iterator it;
-    
-    // initialize with first point
-    _maxSelection = _minSelection = points[0];
-    
-    // get selection bounds    
-    for (it = points.begin(); it != points.end(); it++)
+	_minSelection = points[0];
+    _maxSelection = points[1];
+
+    // only executed the first time a selection is created
+    if (NULL == _iconActor)
     {
-        if ((*it)[0] < _minSelection[0])
-            _minSelection[0] = (*it)[0];
+        // create striped texture
+    	vtkSmartPointer<vtkImageCanvasSource2D> textureIcon = vtkSmartPointer<vtkImageCanvasSource2D>::New();
+    	textureIcon->SetScalarTypeToUnsignedChar();
+    	textureIcon->SetExtent(0, 7, 0, 7, 0, 0);
+    	textureIcon->SetNumberOfScalarComponents(4);
+    	textureIcon->SetDrawColor(0, 0, 0, 100);
+    	textureIcon->FillBox(0, 1, 0, 1);
+    	textureIcon->FillBox(2, 3, 2, 3);
+    	textureIcon->FillBox(4, 5, 0, 1);
+    	textureIcon->FillBox(6, 7, 2, 3);
+    	textureIcon->FillBox(0, 1, 4, 5);
+    	textureIcon->FillBox(2, 3, 6, 7);
+    	textureIcon->FillBox(4, 5, 4, 5);
+    	textureIcon->FillBox(6, 7, 6, 7);
 
-        if ((*it)[1] < _minSelection[1])
-            _minSelection[1] = (*it)[1];
+    	textureIcon->SetDrawColor(255, 255, 255, 100);
+    	textureIcon->FillBox(0, 1, 2, 3);
+    	textureIcon->FillBox(0, 1, 6, 7);
+    	textureIcon->FillBox(2, 3, 0, 1);
+    	textureIcon->FillBox(2, 3, 4, 5);
+    	textureIcon->FillBox(4, 5, 2, 3);
+    	textureIcon->FillBox(4, 5, 6, 7);
+    	textureIcon->FillBox(6, 7, 0, 1);
+    	textureIcon->FillBox(6, 7, 4, 5);
 
-        if ((*it)[2] < _minSelection[2])
-            _minSelection[2] = (*it)[2];
+    	// array of points coordinates
+        vtkSmartPointer<vtkDoubleArray> dataArray = vtkSmartPointer<vtkDoubleArray>::New();
+        dataArray->SetNumberOfComponents(3);
 
-        if ((*it)[0] > _maxSelection[0])
-            _maxSelection[0] = (*it)[0];
+        // vtkpoints representation
+        _slicePoints = vtkSmartPointer<vtkPoints>::New();
+        _slicePoints->SetDataTypeToDouble();
+        _slicePoints->SetData(dataArray);
 
-        if ((*it)[1] > _maxSelection[1])
-            _maxSelection[1] = (*it)[1];
+        // index set of every point in the set, right now all 0 as we have only one texture
+        _indexArray = vtkSmartPointer<vtkIntArray>::New();
+        _indexArray->SetNumberOfComponents(1);
 
-        if ((*it)[2] > _maxSelection[2])
-            _maxSelection[2] = (*it)[2];
-    }
+        // representation of points-indexes
+        vtkSmartPointer<vtkPolyData> pointData = vtkSmartPointer<vtkPolyData>::New();
+        pointData->SetPoints(_slicePoints);
+        pointData->GetPointData()->SetScalars(_indexArray);
 
-    if (_actor == NULL)
-    {
-        // dummpy plane, just for initialization. we will modify the size later
-        _selectionPlane = vtkSmartPointer<vtkPlaneSource>::New();
-        _selectionPlane->SetOrigin(0,0,0);
-        _selectionPlane->SetPoint1(0,1,0);
-        _selectionPlane->SetPoint2(1,0,0);
-          
+        // create filter to apply the same texture to every point in the set
+        vtkSmartPointer<vtkIconGlyphFilter> iconFilter = vtkSmartPointer<vtkIconGlyphFilter>::New();
+        iconFilter->SetInput(pointData);
+        iconFilter->SetIconSize(8,8);
+        iconFilter->SetUseIconSize(false);
+
+        // if spacing < 1, we're fucked, literally
+        switch (_orientation)
+        {
+            case Sagittal:
+            	iconFilter->SetDisplaySize(static_cast<int>(_spacing[1]),static_cast<int>(_spacing[2]));
+                break;
+            case Coronal:
+            	iconFilter->SetDisplaySize(static_cast<int>(_spacing[0]),static_cast<int>(_spacing[2]));
+                break;
+            case Axial:
+            	iconFilter->SetDisplaySize(static_cast<int>(_spacing[0]),static_cast<int>(_spacing[1]));
+                break;
+            default:
+                break;
+        }
+        iconFilter->SetIconSheetSize(8,8);
+        iconFilter->SetGravityToCenterCenter();
+
+        // actor mapper
         vtkSmartPointer<vtkPolyDataMapper> mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-        mapper->SetInputConnection(_selectionPlane->GetOutputPort());
-        
-        _actor = vtkSmartPointer<vtkActor>::New();
-        _actor->SetMapper(mapper);
-        _actor->GetProperty()->SetOpacity(0.4);
-        _actor->GetProperty()->SetColor(150,150,150);
-        
-        _renderer->AddActor(_actor);
+        mapper->SetInputConnection(iconFilter->GetOutputPort());
+
+        // vtk texture representation
+        vtkSmartPointer<vtkTexture> texture =  vtkSmartPointer<vtkTexture>::New();
+        texture->SetInputConnection(textureIcon->GetOutputPort());
+        texture->SetInterpolate(false);
+        texture->SetRepeat(false);
+        texture->SetEdgeClamp(true);
+
+        // create a new actor
+        _iconActor = vtkSmartPointer<vtkActor>::New();
+        _iconActor->SetMapper(mapper);
+        _iconActor->SetTexture(texture);
+
+        _renderer->AddActor(_iconActor);
     }
 
+    // clear point set and index before a new set is created
+    _slicePoints->Initialize();
+    _indexArray->Initialize();
+
+    // fill points
     switch (_orientation)
     {
         case Sagittal:
-            _selectionPlane->SetOrigin((static_cast<double>(_minSelection[1])-0.5)*_spacing[1],
-                                       (static_cast<double>(_minSelection[2])-0.5)*_spacing[2],0);
-            _selectionPlane->SetPoint1((static_cast<double>(_minSelection[1])-0.5)*_spacing[1],
-                                       (static_cast<double>(_maxSelection[2])+0.5)*_spacing[2],0);
-            _selectionPlane->SetPoint2((static_cast<double>(_maxSelection[1])+0.5)*_spacing[1],
-                                       (static_cast<double>(_minSelection[2])-0.5)*_spacing[2],0);
+        	for (unsigned int i = _minSelection[1]; i < _maxSelection[1]+1; i++)
+        		for (unsigned int j = _minSelection[2]; j < _maxSelection[2]+1; j++)
+        			_slicePoints->InsertNextPoint(i*_spacing[1], j*_spacing[2], 0.0);
             break;
         case Coronal:
-            _selectionPlane->SetOrigin((static_cast<double>(_minSelection[0])-0.5)*_spacing[0],
-                                       (static_cast<double>(_minSelection[2])-0.5)*_spacing[2],0);
-            _selectionPlane->SetPoint1((static_cast<double>(_minSelection[0])-0.5)*_spacing[0],
-                                       (static_cast<double>(_maxSelection[2])+0.5)*_spacing[2],0);
-            _selectionPlane->SetPoint2((static_cast<double>(_maxSelection[0])+0.5)*_spacing[0],
-                                       (static_cast<double>(_minSelection[2])-0.5)*_spacing[2],0);
+        	for (unsigned int i = _minSelection[0]; i < _maxSelection[0]+1; i++)
+        		for (unsigned int j = _minSelection[2]; j < _maxSelection[2]+1; j++)
+        			_slicePoints->InsertNextPoint(i*_spacing[0], j*_spacing[2], 0.0);
             break;
         case Axial:
-            _selectionPlane->SetOrigin((static_cast<double>(_minSelection[0])-0.5)*_spacing[0],
-                                       (static_cast<double>(_minSelection[1])-0.5)*_spacing[1],0);
-            _selectionPlane->SetPoint1((static_cast<double>(_minSelection[0])-0.5)*_spacing[0],
-                                       (static_cast<double>(_maxSelection[1])+0.5)*_spacing[1],0);
-            _selectionPlane->SetPoint2((static_cast<double>(_maxSelection[0])+0.5)*_spacing[0],
-                                       (static_cast<double>(_minSelection[1])-0.5)*_spacing[1],0);
+        	for (unsigned int i = _minSelection[0]; i < _maxSelection[0]+1; i++)
+        		for (unsigned int j = _minSelection[1]; j < _maxSelection[1]+1; j++)
+        			_slicePoints->InsertNextPoint(i*_spacing[0], j*_spacing[1], 0.0);
             break;
         default:
             break;
     }
 
+    // fill indexes
+	for (int i = 0; i < _slicePoints->GetNumberOfPoints(); i++)
+		_indexArray->InsertNextTuple1(0);
+
+	// make pipeline move
+	_slicePoints->Modified();
+    _indexArray->Modified();
+
     // need to set visibility again, as the user could have moved the slider
     // and we are now in a new slice and with a new selection point.
-    _actor->SetVisibility(true);
-    _selectionPlane->Update();
+    _iconActor->SetVisibility(true);
 }
 
 void SliceVisualization::ClearSelection()
 {
-    if (_actor != NULL)
+    if (_iconActor != NULL)
     {
-        _renderer->RemoveActor(_actor);
-        _actor = NULL;
+        _renderer->RemoveActor(_iconActor);
+        _iconActor = NULL;
     }
 }
 

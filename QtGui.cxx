@@ -2784,6 +2784,8 @@ void EspinaVolumeEditor::ToggleWandButton(bool value)
 	switch(value)
 	{
 		case true:
+			// don't want to create multiple meshes for multiple area selection, so we will disable meshes and use only
+			// the volume renderer.
 			if (!renderIsAVolume)
 				SwitchVoxelRender();
 			rendertypebutton->setEnabled(false);
