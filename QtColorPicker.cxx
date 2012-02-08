@@ -90,7 +90,7 @@ void QtColorPicker::MakeColor()
     temptable->SetTableValue(0, _rgb[0], _rgb[1], _rgb[2], 1.0);
     temptable->GetTableValue(0, temprgba);
     
-    for (int i = 0; i < _data->GetNumberOfColors(); i++)
+    for (unsigned int i = 0; i < _data->GetNumberOfColors(); i++)
     {
         _data->GetColorComponents(i, rgba);
         if ((rgba[0] == temprgba[0]) && (rgba[1] == temprgba[1]) && (rgba[2] == temprgba[2])) 

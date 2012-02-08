@@ -369,12 +369,22 @@ void VoxelVolumeRender::UpdateColorTable(void)
 	this->_opacityfunction->Modified();
 }
 
-void VoxelVolumeRender::ResetHighlightedLabels(void)
+void VoxelVolumeRender::RebuildHighlightedLabels(void)
 {
 	this->_highlightedLabels.clear();
 
 	for (unsigned int i = 1; i < _dataManager->GetNumberOfColors(); i++)
-		this->_opacityfunction->AddPoint(i, 0.0);
+	{
+		double rgba[4];
+		_dataManager->GetColorComponents(i, rgba);
+		if (1.0 == rgba[3])
+		{
+			this->_opacityfunction->AddPoint(i, 1.0);
+			this->_highlightedLabels.insert(i);
+		}
+		else
+			this->_opacityfunction->AddPoint(i, 0.0);
+	}
 
 	this->_opacityfunction->Modified();
 }

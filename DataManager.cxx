@@ -675,7 +675,7 @@ bool DataManager::ColorIsInUse(double* color)
     return false;
 }
 
-void DataManager::ResetHighlightedLabels(void)
+void DataManager::RebuildHighlightedLabels(void)
 {
 	double rgba[4];
 
@@ -684,7 +684,8 @@ void DataManager::ResetHighlightedLabels(void)
 	for (int i = 1; i < this->_lookupTable->GetNumberOfTableValues(); i++)
 	{
 		this->_lookupTable->GetTableValue(i, rgba);
-		this->_lookupTable->SetTableValue(i, rgba[0], rgba[1], rgba[2], 0.4);
+		if (1.0 == rgba[3])
+			this->_highlightedLabels.insert(i);
 	}
 
 	this->_lookupTable->Modified();

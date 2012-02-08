@@ -25,7 +25,6 @@
 #include <vtkPlaneSource.h>
 #include <vtkImageActor.h>
 #include <vtkImageBlend.h>
-#include <vtkTexturedActor2D.h>
 
 // project includes
 #include "Coordinates.h"
@@ -72,12 +71,6 @@ class SliceVisualization
         // returns true if the prop has been picked, and the picked coords are returned by reference
         SliceVisualization::PickingType GetPickData(int*, int*);
         
-        // set selection
-        void SetSelection(std::vector< Vector3ui >);
-        
-        // clear selection
-        void ClearSelection();
-        
         // manages thumbnail visibility
         void ZoomEvent();
         
@@ -90,6 +83,12 @@ class SliceVisualization
 
         // toggle segmentation view (switches from 0 opacity to previously set opacity and viceversa)
         void ToggleSegmentationView(void);
+
+        // set selection volume to reslice and create actos
+        void SetSelectionVolume(const vtkSmartPointer<vtkImageData>);
+
+        // clear selection
+        void ClearSelections();
     private:
         // private methods
         //
@@ -126,19 +125,12 @@ class SliceVisualization
         std::string _textbuffer;
         vtkSmartPointer<vtkTextActor>   		_text;
         //
-        // selection actors & planesource
-        vtkSmartPointer<vtkActor>				_iconActor;
-        vtkSmartPointer<vtkPoints> 				_slicePoints;
-        vtkSmartPointer<vtkIntArray> 			_indexArray;
-        Vector3ui                       		_maxSelection;
-        Vector3ui                       		_minSelection;
-        //
         // blender
         vtkSmartPointer<vtkImageBlend>  		_blendimages;
         // 
         // actors
-        vtkSmartPointer<vtkImageActor>  		_imageactor;
-        vtkSmartPointer<vtkImageActor>  		_blendactor;
+        vtkSmartPointer<vtkImageActor>  		_segmentationActor;
+        vtkSmartPointer<vtkImageActor>  		_blendActor;
         vtkSmartPointer<vtkActor>       		_horiactor;
         vtkSmartPointer<vtkActor>       		_vertactor;
         vtkSmartPointer<vtkActor>				_squareActor;
@@ -156,6 +148,24 @@ class SliceVisualization
         // configuration options
         unsigned int 							_segmentationOpacity;
         bool									_segmentationHidden;
+        //
+        // actor texture
+        vtkSmartPointer<vtkTexture>				_texture;
+
+        // actor data for selected volumes
+        struct ActorData
+        {
+        		vtkSmartPointer<vtkActor> actor;
+        		unsigned int minSlice;
+        		unsigned int maxSlice;
+        		ActorData(): minSlice(0), maxSlice(0) { actor = NULL; };
+        };
+        // selection volumes actors vector
+        std::vector<struct ActorData*>			_actorList;
+        //
+        // hides or shows actors depending on the visibility
+        void ModifyActorVisibility(struct ActorData*);
+
 };
 
 #endif // _SLICEVISUALIZATION_H_

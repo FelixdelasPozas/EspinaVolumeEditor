@@ -60,7 +60,7 @@ class VoxelVolumeRender
         void ColorHighlightExclusive(unsigned short);
         void ColorDimAll(void);
         void UpdateColorTable(void);
-        void ResetHighlightedLabels(void);
+        void RebuildHighlightedLabels(void);
     private:
         // private methods
         //

@@ -34,6 +34,9 @@
 // typedefs
 typedef itk::Image<unsigned short, 3> ImageType;
 
+// forward declarations
+class SliceVisualization;
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // EditorOperations class
 //
@@ -78,12 +81,12 @@ class EditorOperations
 
         // Selection class methods, see Selection.* for details
         void AddSelectionPoint(const Vector3ui point);
-        void ClearSelectionPoints();
-        const std::vector<Vector3ui> GetSelectionPoints();
         void ContiguousAreaSelection(Vector3ui, const unsigned short);
         const Vector3ui GetSelectedMinimumBouds();
         const Vector3ui GetSelectedMaximumBouds();
+        void ClearSelection();
         const bool IsFirstColorSelected(void);
+        void SetSliceViews(SliceVisualization*, SliceVisualization*, SliceVisualization*);
 
         // SaveSessionThread need to touch private attributes
         friend class SaveSessionThread;

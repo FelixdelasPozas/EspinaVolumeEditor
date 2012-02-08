@@ -28,6 +28,9 @@
 typedef itk::Image<unsigned short, 3> ImageType;
 typedef itk::Image<unsigned char, 3> ImageTypeUC;
 
+// forward declarations
+class SliceVisualization;
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Selection class
 //
@@ -41,7 +44,7 @@ class Selection
         // type of selections
         typedef enum
         {
-            Empty, Cube, Area
+            EMPTY, CUBE, VOLUME
         } SelectionType;
 
         // initilize class
@@ -62,9 +65,6 @@ class Selection
         // get selection type
         const SelectionType GetSelectionType(void);
 
-        // get selection points
-        const std::vector<Vector3ui> GetSelectionPoints(void);
-
         // get minimum selected bounds
         const Vector3ui GetSelectedMinimumBouds();
 
@@ -83,6 +83,17 @@ class Selection
 
         // returns true if the voxel coordinates refer to a selected voxel
         bool VoxelIsInsideSelection(unsigned int, unsigned int, unsigned int);
+
+        // set the views to pass selection volumes
+        void SetSliceViews(SliceVisualization*, SliceVisualization*, SliceVisualization*);
+
+        // values used in the selection buffer
+        enum SelectionValues
+        {
+        	VOXEL_UNSELECTED = 0,
+        	SELECTION_UNUSED_VALUE,
+        	VOXEL_SELECTED,
+        };
     private:
         // private methods
         //
@@ -118,6 +129,14 @@ class Selection
 
         // pointer to data
         DataManager 										*_dataManager;
+
+        // selection actor texture
+        vtkSmartPointer<vtkTexture> 						_texture;
+
+        // slice views
+        SliceVisualization*									_axialView;
+        SliceVisualization*									_coronalView;
+        SliceVisualization*									_sagittalView;
 };
 
 #endif // _SELECTION_H_

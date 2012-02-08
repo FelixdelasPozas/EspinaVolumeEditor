@@ -109,16 +109,6 @@ void EditorOperations::AddSelectionPoint(const Vector3ui point)
 	this->_selection->AddSelectionPoint(point);
 }
 
-void EditorOperations::ClearSelectionPoints()
-{
-	this->_selection->ClearSelection();
-}
-
-const std::vector<Vector3ui> EditorOperations::GetSelectionPoints()
-{
-    return this->_selection->GetSelectionPoints();
-}
-
 void EditorOperations::ItkImageToPoints(itk::SmartPointer<ImageType> image)
 {
 	// iterate over the itk image as fast as possible and just hope that the
@@ -140,6 +130,9 @@ void EditorOperations::ItkImageToPoints(itk::SmartPointer<ImageType> image)
 
 void EditorOperations::Cut(const unsigned short label)
 {
+	if (0 == label)
+		return;
+
     _progress->ManualSet("Cut");
     _dataManager->OperationStart("Cut");
     
@@ -147,17 +140,13 @@ void EditorOperations::Cut(const unsigned short label)
     Vector3ui max;
     Selection::SelectionType type = this->_selection->GetSelectionType();
 
-    if (Selection::Empty != type)
+    if (Selection::EMPTY != type)
     {
 		min = this->_selection->GetSelectedMinimumBouds();
 		max = this->_selection->GetSelectedMaximumBouds();
     }
     else
     {
-    	// cutting background label is an absurd operation
-        if (label == 0)
-        	return;
-
     	min = this->_dataManager->GetBoundingBoxMin(label);
     	max = this->_dataManager->GetBoundingBoxMax(label);
     }
@@ -167,7 +156,7 @@ void EditorOperations::Cut(const unsigned short label)
 			for (unsigned int z = min[2]; z <= max[2]; z++)
 				switch(type)
 				{
-					case Selection::Area:
+					case Selection::VOLUME:
 						if (this->_selection->VoxelIsInsideSelection(x, y, z))
 							_dataManager->SetVoxelScalar(x, y, z, 0);
 						break;
@@ -188,7 +177,7 @@ bool EditorOperations::Relabel(QWidget *parent, Metadata *data, unsigned short *
     Vector3d color;
     
     QtRelabel configdialog(parent);
-    configdialog.SetInitialOptions(*label, data, _dataManager, Selection::Area == _selection->GetSelectionType());
+    configdialog.SetInitialOptions(*label, data, _dataManager, Selection::VOLUME == _selection->GetSelectionType());
     configdialog.exec();
     
     if (!configdialog.ModifiedData())
@@ -221,7 +210,7 @@ bool EditorOperations::Relabel(QWidget *parent, Metadata *data, unsigned short *
     Vector3ui max;
     Selection::SelectionType selectedAreaType = this->_selection->GetSelectionType();
 
-    if (Selection::Empty != selectedAreaType)
+    if (Selection::EMPTY != selectedAreaType)
     {
 		min = this->_selection->GetSelectedMinimumBouds();
 		max = this->_selection->GetSelectedMaximumBouds();
@@ -237,7 +226,7 @@ bool EditorOperations::Relabel(QWidget *parent, Metadata *data, unsigned short *
             for (unsigned int y = min[1]; y <= max[1]; y++)
 				switch(selectedAreaType)
 				{
-					case Selection::Area:
+					case Selection::VOLUME:
 						if (this->_selection->VoxelIsInsideSelection(x, y, z))
 							_dataManager->SetVoxelScalar(x, y, z, newlabel);
 						break;
@@ -246,7 +235,6 @@ bool EditorOperations::Relabel(QWidget *parent, Metadata *data, unsigned short *
 							_dataManager->SetVoxelScalar(x, y, z, newlabel);
 						break;
 				}
-    
 
     *label = newlabel;
     _progress->ManualReset();
@@ -256,6 +244,9 @@ bool EditorOperations::Relabel(QWidget *parent, Metadata *data, unsigned short *
 
 void EditorOperations::Erode(const unsigned short label)
 {
+	if (0 == label)
+		return;
+
     _dataManager->OperationStart("Erode");
 
     typedef itk::BinaryBallStructuringElement<ImageType::PixelType, 3> StructuringElementType;
@@ -299,6 +290,9 @@ void EditorOperations::Erode(const unsigned short label)
 
 void EditorOperations::Dilate(const unsigned short label)
 {
+	if (0 == label)
+		return;
+
     _dataManager->OperationStart("Dilate");
 
     typedef itk::BinaryBallStructuringElement<ImageType::PixelType, 3> StructuringElementType;
@@ -339,6 +333,9 @@ void EditorOperations::Dilate(const unsigned short label)
 
 void EditorOperations::Open(const unsigned short label)
 {
+	if (0 == label)
+		return;
+
     _dataManager->OperationStart("Open");
 
     typedef itk::BinaryBallStructuringElement<ImageType::PixelType, 3> StructuringElementType;
@@ -379,6 +376,9 @@ void EditorOperations::Open(const unsigned short label)
 
 void EditorOperations::Close(const unsigned short label)
 {
+	if (0 == label)
+		return;
+
     _dataManager->OperationStart("Close");
 
     typedef itk::BinaryBallStructuringElement<ImageType::PixelType, 3> StructuringElementType;
@@ -419,6 +419,9 @@ void EditorOperations::Close(const unsigned short label)
 
 void EditorOperations::Watershed(const unsigned short label)
 {
+	if (0 == label)
+		return;
+
     _dataManager->OperationStart("Watershed");
     
     typedef itk::Image<float,3> FloatImageType;
@@ -784,5 +787,15 @@ const Vector3ui EditorOperations::GetSelectedMaximumBouds()
 
 const bool EditorOperations::IsFirstColorSelected()
 {
-	return (Selection::Empty == this->_selection->GetSelectionType());
+	return (Selection::EMPTY == this->_selection->GetSelectionType());
+}
+
+void EditorOperations::SetSliceViews(SliceVisualization* axialView, SliceVisualization* coronalView, SliceVisualization* sagittalView)
+{
+	this->_selection->SetSliceViews(axialView, coronalView, sagittalView);
+}
+
+void EditorOperations::ClearSelection(void)
+{
+	this->_selection->ClearSelection();
 }

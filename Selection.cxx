@@ -16,6 +16,8 @@
 #include <vtkImageCanvasSource2D.h>
 #include <vtkProperty.h>
 #include <vtkImageClip.h>
+#include <vtkImageConstantPad.h>
+#include <vtkImageToStructuredPoints.h>
 
 #include <vtkVolumeTextureMapper.h>
 #include <vtkVolumeProperty.h>
@@ -30,6 +32,7 @@
 // project includes
 #include "Selection.h"
 #include "itkvtkpipeline.h"
+#include "SliceVisualization.h"
 
 // qt includes
 #include <QtGui>
@@ -44,7 +47,7 @@ Selection::Selection()
 	this->_actor = NULL;
 	this->_renderer = NULL;
 	this->_dataManager = NULL;
-	this->_selectionType = Empty;
+	this->_selectionType = EMPTY;
 }
 
 Selection::~Selection()
@@ -75,6 +78,26 @@ void Selection::Initialize(Coordinates *orientation, vtkSmartPointer<vtkRenderer
 	this->_volume->SetExtent(0, this->_size[0], 0, this->_size[1], 0, this->_size[2]);
 	this->_volume->AllocateScalars();
 	this->_volume->Update();
+
+	// create volume selection texture
+	vtkSmartPointer<vtkImageCanvasSource2D> textureIcon = vtkSmartPointer<vtkImageCanvasSource2D>::New();
+	textureIcon->SetScalarTypeToUnsignedChar();
+	textureIcon->SetExtent(0, 15, 0, 15, 0, 0);
+	textureIcon->SetNumberOfScalarComponents(4);
+	textureIcon->SetDrawColor(0,0,0,0);             // transparent color
+	textureIcon->FillBox(0,15,0,15);
+	textureIcon->SetDrawColor(255,255,255,150);     // "somewhat transparent" white
+	textureIcon->DrawSegment(0, 0, 15, 15);
+	textureIcon->DrawSegment(1, 0, 15, 14);
+	textureIcon->DrawSegment(0, 1, 14, 15);
+	textureIcon->DrawSegment(15, 0, 15, 0);
+	textureIcon->DrawSegment(0, 15, 0, 15);
+
+	this->_texture = vtkSmartPointer<vtkTexture>::New();
+	this->_texture->SetInputConnection(textureIcon->GetOutputPort());
+	this->_texture->RepeatOn();
+	this->_texture->InterpolateOn();
+	this->_texture->ReleaseDataFlagOn();
 }
 
 void Selection::AddSelectionPoint(const Vector3ui point)
@@ -83,7 +106,7 @@ void Selection::AddSelectionPoint(const Vector3ui point)
     switch (this->_selectedPoints.size())
     {
         case 0:
-        	this->_selectionType = Cube;
+        	this->_selectionType = CUBE;
         	this->_selectedPoints.push_back(point);
             break;
         case 2:
@@ -94,6 +117,7 @@ void Selection::AddSelectionPoint(const Vector3ui point)
             this->_selectedPoints.push_back(point);
             break;
     }
+
     ComputeSelectionCube();
     ComputeActor();
 }
@@ -114,8 +138,7 @@ void Selection::ComputeSelectionCube()
     std::vector<Vector3ui>::iterator it;
 
     // clear previously selected data before creating a new selection cube, if there is any
-    if (1 != this->_selectedPoints.size())
-    	FillSelectionCube(0);
+    FillSelectionCube(VOXEL_UNSELECTED);
 
     // initialize with first point
     this->_max = this->_min = this->_selectedPoints[0];
@@ -143,34 +166,49 @@ void Selection::ComputeSelectionCube()
     }
 
     // fill selected values in volume and update volume
-    FillSelectionCube(255);
+    FillSelectionCube(VOXEL_SELECTED);
     this->_volume->Modified();
+
+    this->_axialView->ClearSelections();
+    this->_coronalView->ClearSelections();
+    this->_sagittalView->ClearSelections();
+
+	vtkSmartPointer<vtkImageClip> imageClip = vtkSmartPointer<vtkImageClip>::New();
+	imageClip->SetInput(this->_volume);
+	imageClip->SetOutputWholeExtent(this->_min[0], this->_max[0], this->_min[1], this->_max[1], this->_min[2], this->_max[2]);
+	imageClip->ClipDataOn();
+	imageClip->Update();
+
+	this->_axialView->SetSelectionVolume(imageClip->GetOutput());
+	this->_coronalView->SetSelectionVolume(imageClip->GetOutput());
+	this->_sagittalView->SetSelectionVolume(imageClip->GetOutput());
 }
 
 
 void Selection::ClearSelection(void)
 {
 	// don't do anything if there's no selection
-	if (this->_selectionType == Empty)
+	if (this->_selectionType == EMPTY)
 		return;
 
-    // clear the selection volume
-    FillSelectionCube(0);
-
-	// clear selection points and bounds
-    this->_selectedPoints.clear();
-    this->_min = Vector3ui(0,0,0);
-    this->_max = _size;
-    this->_selectionType = Empty;
-
-    // remove the actor
+    // remove the 3d render view actor
     if (NULL != this->_actor)
     {
     	this->_renderer->RemoveActor(this->_actor);
     	this->_actor = NULL;
     }
 
-    this->_volume->Modified();
+	FillSelectionCube(VOXEL_UNSELECTED);
+
+	// clear selection points and bounds
+    this->_selectedPoints.clear();
+    this->_min = Vector3ui(0,0,0);
+    this->_max = _size;
+    this->_selectionType = EMPTY;
+
+    this->_axialView->ClearSelections();
+    this->_coronalView->ClearSelections();
+    this->_sagittalView->ClearSelections();
 }
 
 const Selection::SelectionType Selection::GetSelectionType()
@@ -178,22 +216,13 @@ const Selection::SelectionType Selection::GetSelectionType()
     return this->_selectionType;
 }
 
-const std::vector<Vector3ui> Selection::GetSelectionPoints()
-{
-	std::vector<Vector3ui> result;
-
-	if (this->_selectionType == Cube)
-	{
-
-		result.push_back(_min);
-		result.push_back(_max);
-	}
-
-	return result;
-}
-
 void Selection::AddArea(Vector3ui point, const unsigned short label)
 {
+	// if the user picked in an already selected area just return
+	unsigned char *voxel = static_cast<unsigned char*>(this->_volume->GetScalarPointer(point[0], point[1], point[2]));
+	if (VOXEL_SELECTED == *voxel)
+		return;
+
 	itk::Index<3> seed;
 	seed[0] = point[0];
 	seed[1] = point[1];
@@ -209,7 +238,7 @@ void Selection::AddArea(Vector3ui point, const unsigned short label)
     connectThreshold->ReleaseDataFlagOn();
     connectThreshold->SetLower(label);
     connectThreshold->SetUpper(label);
-    connectThreshold->SetReplaceValue(255);
+    connectThreshold->SetReplaceValue(VOXEL_SELECTED);
     connectThreshold->SetConnectivity(ConnectedThresholdFilterType::FullConnectivity);
 
 	try
@@ -226,6 +255,40 @@ void Selection::AddArea(Vector3ui point, const unsigned short label)
 		return;
 	}
 
+	// extract the interesting subvolume of our selection buffer
+    Vector3ui min = this->_dataManager->GetBoundingBoxMin(label);
+    Vector3ui max = this->_dataManager->GetBoundingBoxMax(label);
+
+    if (this->_selectionType == EMPTY)
+    {
+    	this->_min = min;
+    	this->_max = max;
+    }
+    else
+    {
+		// not our first, update selection bounds
+		if (this->_min[0] > min[0]) this->_min[0] = min[0];
+		if (this->_min[1] > min[1]) this->_min[1] = min[1];
+		if (this->_min[2] > min[2]) this->_min[2] = min[2];
+		if (this->_max[0] < max[0]) this->_max[0] = max[0];
+		if (this->_max[1] < max[1]) this->_max[1] = max[1];
+		if (this->_max[2] < max[2]) this->_max[2] = max[2];
+    }
+
+    // clip selection volume and send the sub-volume to slices for reslice+actor
+	vtkSmartPointer<vtkImageClip> imageClip = vtkSmartPointer<vtkImageClip>::New();
+	imageClip->SetInput(this->_volume);
+	imageClip->SetOutputWholeExtent(min[0], max[0], min[1], max[1], min[2], max[2]);
+	imageClip->ClipDataOn();
+	imageClip->Update();
+	imageClip->AbortExecuteOn();
+
+	// create a copy to desconect the subvolume from the pipeline (bc i don't want to update the actors
+	// i will create later when i update de selection volume)
+	vtkSmartPointer<vtkImageData> subvolume = vtkSmartPointer<vtkImageData>::New();
+	subvolume->DeepCopy(imageClip->GetOutput());
+	subvolume->Update();
+
 	// iterate through image and copy selected points to selection volume
 	typedef itk::ImageRegionConstIteratorWithIndex<ImageTypeUC> IteratorType;
 	IteratorType it(connectThreshold->GetOutput(), connectThreshold->GetOutput()->GetLargestPossibleRegion());
@@ -234,46 +297,31 @@ void Selection::AddArea(Vector3ui point, const unsigned short label)
     for (it.GoToBegin(); !it.IsAtEnd(); ++it)
     {
     	index = it.GetIndex();
-    	if (255 == it.Get())
+
+    	if (VOXEL_SELECTED == it.Get())
     	{
     		unsigned char *voxel = static_cast<unsigned char*>(this->_volume->GetScalarPointer(index[0], index[1], index[2]));
-    		*voxel = 255;
+    		*voxel = VOXEL_SELECTED;
+
+    		unsigned char *voxel2 = static_cast<unsigned char*>(subvolume->GetScalarPointer(index[0], index[1], index[2]));
+    		*voxel2 = VOXEL_SELECTED;
+    	}
+    	else
+    	{
+    		unsigned char *voxel = static_cast<unsigned char*>(subvolume->GetScalarPointer(index[0], index[1], index[2]));
+    		*voxel = VOXEL_UNSELECTED;
     	}
     }
+    this->_volume->Modified();
+    this->_volume->Update();
+    subvolume->Update();
 
-    // compute selection box for faster clearing, corrected with -(1,1,1)
-    if (Empty == this->_selectionType)
-    {
-    	this->_min = this->_dataManager->GetBoundingBoxMin(label);
-    	this->_max = this->_dataManager->GetBoundingBoxMax(label);
-    }
-    else
-    {
-		Vector3ui minBoundingBox = this->_dataManager->GetBoundingBoxMin(label);
-		Vector3ui maxBoundingBox = this->_dataManager->GetBoundingBoxMax(label);
+	this->_axialView->SetSelectionVolume(subvolume);
+    this->_coronalView->SetSelectionVolume(subvolume);
+	this->_sagittalView->SetSelectionVolume(subvolume);
 
-		if (this->_min[0] > minBoundingBox[0])
-			this->_min[0] = minBoundingBox[0];
-
-		if (this->_min[1] > minBoundingBox[1])
-			this->_min[1] = minBoundingBox[1];
-
-		if (this->_min[2] > minBoundingBox[2])
-			this->_min[2] = minBoundingBox[2];
-
-		if (this->_max[0] < maxBoundingBox[0])
-			this->_max[0] = maxBoundingBox[0];
-
-		if (this->_max[1] < maxBoundingBox[1])
-			this->_max[1] = maxBoundingBox[1];
-
-		if (this->_max[2] < maxBoundingBox[2])
-			this->_max[2] = maxBoundingBox[2];
-    }
-
-	this->_selectionType = Area;
-	this->_volume->Modified();
 	ComputeActor();
+	this->_selectionType = VOLUME;
 }
 
 itk::SmartPointer<ImageType> Selection::GetSegmentationItkImage(const unsigned short label)
@@ -320,7 +368,7 @@ itk::SmartPointer<ImageType> Selection::GetSelectionItkImage(const unsigned shor
 	vtkSmartPointer<vtkImageClip> imageClip = vtkSmartPointer<vtkImageClip>::New();
 	imageClip->SetInput(this->_dataManager->GetStructuredPoints());
 
-	if (Empty == this->_selectionType)
+	if (EMPTY == this->_selectionType)
 	{
 		objectMin = _dataManager->GetBoundingBoxMin(label);
 		objectMax = _dataManager->GetBoundingBoxMax(label);
@@ -424,45 +472,31 @@ bool Selection::VoxelIsInsideSelection(unsigned int x, unsigned int y, unsigned 
 {
 	unsigned char *voxel = static_cast<unsigned char*>(this->_volume->GetScalarPointer(x,y,z));
 
-	return (255 == *voxel);
+	return (VOXEL_SELECTED == *voxel);
 }
 
 void Selection::ClearSelectionBuffer(void)
 {
 	unsigned char *pointer = static_cast<unsigned char *>(_volume->GetScalarPointer());
 	Vector3ui size = this->_size + Vector3ui(1,1,1);
-	memset(pointer, 0, size[0]*size[1]*size[2]);
+	memset(pointer, VOXEL_UNSELECTED, size[0]*size[1]*size[2]);
 }
 
 void Selection::ComputeActor(void)
 {
+	if (this->_actor != NULL)
+		return;
+
 	// create and setup actor for selection area... some parts of the pipeline have SetGlobalWarningDisplay(false)
 	// because i don't want to generate a warning when used with empty input data (no user selection)
-	vtkSmartPointer<vtkImageClip> imageClip = vtkSmartPointer<vtkImageClip>::New();
-	imageClip->SetInput(this->_volume);
 
-	// expand extent so actor won't get clipped with the edges
-	Vector3ui minBounds = this->_min;
-	Vector3ui maxBounds = this->_max;
-
-	if (minBounds[0] > 0) minBounds[0]--;
-	if (minBounds[1] > 0) minBounds[1]--;
-	if (minBounds[2] > 0) minBounds[2]--;
-	if (maxBounds[0] < this->_size[0]) maxBounds[0]++;
-	if (maxBounds[1] < this->_size[1]) maxBounds[1]++;
-	if (maxBounds[2] < this->_size[2]) maxBounds[2]++;
-
-	imageClip->SetOutputWholeExtent(minBounds[0], maxBounds[0], minBounds[1], maxBounds[1], minBounds[2], maxBounds[2]);
-	imageClip->ClipDataOn();
-	imageClip->Update();
-
-    // generate iso surface, selected points in the volume have a value of 255
+    // generate surface
     vtkSmartPointer<vtkDiscreteMarchingCubes> marcher = vtkSmartPointer<vtkDiscreteMarchingCubes>::New();
-	marcher->SetInput(imageClip->GetOutput());
+	marcher->SetInput(this->_volume);
 	marcher->ReleaseDataFlagOn();
 	marcher->SetGlobalWarningDisplay(false);
 	marcher->SetNumberOfContours(1);
-	marcher->GenerateValues(1, 255, 255);
+	marcher->GenerateValues(1, VOXEL_SELECTED, VOXEL_SELECTED);
 	marcher->ComputeScalarsOff();
 	marcher->ComputeNormalsOff();
 	marcher->ComputeGradientsOff();
@@ -486,37 +520,19 @@ void Selection::ComputeActor(void)
 	polydataMapper->SetInputConnection(textureTrans->GetOutputPort());
 	polydataMapper->SetResolveCoincidentTopologyToOff();
 
-	// create and apply striped texture
-    vtkSmartPointer<vtkImageCanvasSource2D> image2D = vtkSmartPointer<vtkImageCanvasSource2D>::New();
-    image2D->SetScalarTypeToUnsignedChar();
-    image2D->SetExtent(0, 15, 0, 15, 0, 0);
-    image2D->SetNumberOfScalarComponents(4);
-    image2D->SetDrawColor(0,0,0,0);             // transparent color
-    image2D->FillBox(0,15,0,15);
-    image2D->SetDrawColor(255,255,255,150);     // "somewhat transparent" white
-    image2D->DrawSegment(0, 0, 15, 15);
-    image2D->DrawSegment(1, 0, 15, 14);
-    image2D->DrawSegment(0, 1, 14, 15);
-    image2D->DrawSegment(15, 0, 15, 0);
-    image2D->DrawSegment(0, 15, 0, 15);
-
-    vtkSmartPointer<vtkTexture> texture = vtkSmartPointer<vtkTexture>::New();
-    texture->SetInputConnection(image2D->GetOutputPort());
-    texture->RepeatOn();
-    texture->InterpolateOn();
-    texture->ReleaseDataFlagOn();
-
-    if (NULL != this->_actor)
-    {
-        this->_renderer->RemoveActor(this->_actor);
-        this->_actor = NULL;
-    }
-
     this->_actor = vtkSmartPointer<vtkActor>::New();
     this->_actor->SetMapper(polydataMapper);
-    this->_actor->SetTexture(texture);
+    this->_actor->SetTexture(this->_texture);
     this->_actor->GetProperty()->SetOpacity(1);
     this->_actor->SetVisibility(true);
 
     this->_renderer->AddActor(this->_actor);
 }
+
+void Selection::SetSliceViews(SliceVisualization* axialSliceView, SliceVisualization* coronalSliceView, SliceVisualization* sagittalSliceView)
+{
+	this->_axialView = axialSliceView;
+	this->_coronalView = coronalSliceView;
+	this->_sagittalView = sagittalSliceView;
+}
+
