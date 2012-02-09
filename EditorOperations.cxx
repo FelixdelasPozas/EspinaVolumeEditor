@@ -156,6 +156,7 @@ void EditorOperations::Cut(const unsigned short label)
 			for (unsigned int z = min[2]; z <= max[2]; z++)
 				switch(type)
 				{
+					// TODO: cambiar para hacer más eficiente
 					case Selection::VOLUME:
 						if (this->_selection->VoxelIsInsideSelection(x, y, z))
 							_dataManager->SetVoxelScalar(x, y, z, 0);

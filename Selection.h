@@ -59,9 +59,6 @@ class Selection
         // deletes points and hides actor (clears buffer only between [_min, _max] bounds)
         void ClearSelection(void);
 
-        // clear all buffer
-        void ClearSelectionBuffer(void);
-
         // get selection type
         const SelectionType GetSelectionType(void);
 
@@ -70,6 +67,9 @@ class Selection
 
         // get maximum selected bounds
         const Vector3ui GetSelectedMaximumBouds();
+
+        // returns true if the voxel is inside the selection
+        bool VoxelIsInsideSelection(unsigned int, unsigned int, unsigned int);
 
         // get a itk image from the selection, or the segmentation if there is nothing selected. the image bounds
         // are adjusted for filter radius
@@ -80,9 +80,6 @@ class Selection
 
         // get a itk image from the whole data
         itk::SmartPointer<ImageType> GetItkImage(void);
-
-        // returns true if the voxel coordinates refer to a selected voxel
-        bool VoxelIsInsideSelection(unsigned int, unsigned int, unsigned int);
 
         // set the views to pass selection volumes
         void SetSliceViews(SliceVisualization*, SliceVisualization*, SliceVisualization*);
@@ -100,26 +97,29 @@ class Selection
         // computes selection area
         void ComputeSelectionCube(void);
         //
-        // clears selection cube
-        void FillSelectionCube(unsigned char);
-        //
         // computes actor from selected volume
-        void ComputeActor(void);
+        void ComputeActor(vtkSmartPointer<vtkImageData>);
+        //
+        // deletes all selection volumes
+        void DeleteSelectionVolumes(void);
+        //
+        // deletes all selection actors for render view
+        void DeleteSelectionActors(void);
+        //
+        // returns true if the voxel coordinates refer to a selected voxel
+        bool VoxelIsInsideSelectionSubvolume(vtkSmartPointer<vtkImageData>, unsigned int, unsigned int, unsigned int);
 
         // pointer to renderer
         vtkSmartPointer<vtkRenderer> 						_renderer;
-
-        // selection actor
-        vtkSmartPointer<vtkActor> 							_actor;
-
-        // selection volume (unsigned char type, selected points have a 255 value)
-        vtkSmartPointer<vtkStructuredPoints>				_volume;
 
         // min/max actual selection bounds
         Vector3ui 											_max, _min;
 
         // maximum possible bounds ([0,0,0] to _size)
         Vector3ui 											_size;
+
+        // image spacing (needed for subvolume creation)
+        Vector3d											_spacing;
 
         // selection points for box selection
         std::vector< Vector3ui > 							_selectedPoints;
@@ -130,13 +130,19 @@ class Selection
         // pointer to data
         DataManager 										*_dataManager;
 
-        // selection actor texture
+        // selection actor texture for render view
         vtkSmartPointer<vtkTexture> 						_texture;
 
         // slice views
         SliceVisualization*									_axialView;
         SliceVisualization*									_coronalView;
         SliceVisualization*									_sagittalView;
+
+        // list of selection actor for render view
+        std::vector<vtkSmartPointer<vtkActor> >				_selectionActorsList;
+
+        // list of selection volumes (unsigned char scalar size)
+        std::vector<vtkSmartPointer<vtkImageData> >			_selectionVolumesList;
 };
 
 #endif // _SELECTION_H_

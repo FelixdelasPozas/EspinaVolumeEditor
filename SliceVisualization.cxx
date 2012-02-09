@@ -137,7 +137,7 @@ void SliceVisualization::Initialize(
     // we set point out of range to force an update of the first call as all components will be
     // different from the update point
     this->_point = this->_size + Vector3ui(1);
-    
+
     GenerateThumbnail();
 }
 
@@ -267,9 +267,7 @@ void SliceVisualization::UpdateSlice(Vector3ui point)
     }
     
     // reclaculate visibility for all volume selection actors
-	std::vector<struct ActorData*>::iterator it;
-	for(it = this->_actorList.begin(); it != this->_actorList.end(); it++)
-		ModifyActorVisibility((*it));
+	for_each(this->_actorList.begin(), this->_actorList.end(), std::bind1st(std::mem_fun(&SliceVisualization::ModifyActorVisibility), this));
 
 	this->_axesMatrix->Modified();
 	this->_textbuffer += out.str();
@@ -589,9 +587,9 @@ void SliceVisualization::SetReferenceImage(vtkSmartPointer<vtkStructuredPoints> 
 
 	this->_renderer->RemoveActor(this->_segmentationActor);
 	this->_renderer->AddActor(this->_blendActor);
-	
-	_thumbRenderer->RemoveActor(this->_segmentationActor);
-	_thumbRenderer->AddActor(this->_blendActor);
+
+	this->_thumbRenderer->RemoveActor(this->_segmentationActor);
+	this->_thumbRenderer->AddActor(this->_blendActor);
 
 	// change color for the crosshair because reference images tend to be too white and it messes with it
 	this->_horiactor->GetProperty()->SetColor(0,0,0);
@@ -601,9 +599,7 @@ void SliceVisualization::SetReferenceImage(vtkSmartPointer<vtkStructuredPoints> 
 
     // this stupid action allows the selection actors to be seen, if we don't do this actors are occluded by
     // the blended one
-	std::vector<struct ActorData*>::iterator it;
-	for(it = this->_actorList.begin(); it != this->_actorList.end(); it++)
-		ModifyActorVisibility((*it));
+	for_each(this->_actorList.begin(), this->_actorList.end(), std::bind1st(std::mem_fun(&SliceVisualization::ModifyActorVisibility), this));
 }
 
 unsigned int SliceVisualization::GetSegmentationOpacity()
@@ -642,14 +638,12 @@ void SliceVisualization::ToggleSegmentationView(void)
 	if (this->_blendimages)
 		this->_blendimages->SetOpacity(1,opacity);
 
-	std::vector<struct ActorData*>::iterator it;
-	for(it = this->_actorList.begin(); it != this->_actorList.end(); it++)
-		ModifyActorVisibility((*it));
+	for_each(this->_actorList.begin(), this->_actorList.end(), std::bind1st(std::mem_fun(&SliceVisualization::ModifyActorVisibility), this));
 }
 
 void SliceVisualization::ModifyActorVisibility(struct ActorData* actorInformation)
 {
-	unsigned int slice;
+	unsigned int slice = 0;
 
 	if (this->_segmentationHidden)
 		actorInformation->actor->SetVisibility(false);
@@ -734,7 +728,9 @@ void SliceVisualization::SetSelectionVolume(const vtkSmartPointer<vtkImageData> 
     actor->SetTexture(this->_texture);
     actor->SetDragable(false);
 
-    this->_renderer->AddActor(actor);
+    // TODO: vtkActors change order of rendering in lower end machines when adding this one?
+    // remedy, use layers?
+	this->_renderer->AddActor(actor);
 
     double bounds[6];
     selectionBuffer->GetBounds(bounds);

@@ -33,7 +33,6 @@
 #include <vtkCoordinate.h>
 #include <vtkCamera.h>
 #include <vtkMetaImageReader.h>
-#include <vtkImageToStructuredPoints.h>
 #include <vtkImageFlip.h>
 #include <vtkImageCast.h>
 #include <vtkImageToStructuredPoints.h>
@@ -2827,11 +2826,8 @@ void EspinaVolumeEditor::ToggleWandButton(bool value)
 		    closeoperation->setEnabled(false);
 		    watershedoperation->setEnabled(false);
 
-		    _editorOperations->ClearSelection();
-		    _dataManager->ColorHighlightExclusive(_selectedLabel);
-		    _volumeRender->ColorHighlightExclusive(_selectedLabel);
-		    _volumeRender->UpdateFocusExtent();
-		    UpdateViewports(All);
+		    // do usual button operations
+		    this->ToggleDefaultButton(true);
 			break;
 		case false:
 			// put the filters back in place
