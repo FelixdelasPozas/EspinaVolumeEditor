@@ -38,14 +38,14 @@ VoxelVolumeRender::VoxelVolumeRender(DataManager *data, vtkSmartPointer<vtkRende
     this->_dataManager = data;
     this->_renderer = renderer;
     this->_progress = progress;
-    this->_meshActor = NULL;
     this->_volume = NULL;
     this->_volumemapper = NULL;
-    this->_objectLabel = 0;
+    this->_min = this->_max = Vector3ui(0,0,0);
+    this->_renderingIsVolume = true;
 
     // the raycasted volume is always present
     ComputeRayCastVolume();
-    FocusSegmentation(0);
+    UpdateFocusExtent();
 }
 
 VoxelVolumeRender::~VoxelVolumeRender()
@@ -55,8 +55,12 @@ VoxelVolumeRender::~VoxelVolumeRender()
     // delete actors from renderers before leaving. volume actor always present
 	this->_renderer->RemoveActor(_volume);
 
-	if (NULL != this->_meshActor)
-		this->_renderer->RemoveActor(this->_meshActor);
+	std::map<unsigned short, vtkSmartPointer<vtkActor> >::iterator it;
+	for (it = this->_actorList.begin(); it != this->_actorList.end(); it++)
+	{
+		this->_renderer->RemoveActor((*it).second);
+		(*it).second = NULL;
+	}
 }
 
 // NOTE: some filters make use of SetGlobalWarningDisplay(false) because if we delete
@@ -68,43 +72,26 @@ void VoxelVolumeRender::ComputeMesh(const unsigned short label)
 {
     double rgba[4];
 
-    // recompute actor when object bounds change just by calling ComputeMesh() again
-    if (this->_meshActor != NULL)
-    {
-		this->_renderer->RemoveActor(this->_meshActor);
-		this->_meshActor = NULL;
-    }
-
 	// first crop the region and then use the vtk-itk pipeline to get a itk::Image of the region
-	Vector3ui objectMin = _dataManager->GetBoundingBoxMin(label);
-	Vector3ui objectMax = _dataManager->GetBoundingBoxMax(label);
-	Vector3ui size = _dataManager->GetOrientationData()->GetTransformedSize();
+	Vector3ui objectMin = this->_dataManager->GetBoundingBoxMin(label);
+	Vector3ui objectMax = this->_dataManager->GetBoundingBoxMax(label);
+	Vector3ui size = this->_dataManager->GetOrientationData()->GetTransformedSize();
+	double weight = 1.0/4.0;
 
 	// the object bounds collide with the object, we must add one not to clip the mesh at the borders
-	if (objectMin[0] > 0)
-		objectMin[0]--;
-
-	if (objectMin[1] > 0)
-		objectMin[1]--;
-
-	if (objectMin[2] > 0)
-		objectMin[2]--;
-
-	if (objectMax[0] < size[0])
-		objectMax[0]++;
-
-	if (objectMax[1] < size[1])
-		objectMax[1]++;
-
-	if (objectMax[2] < size[2])
-		objectMax[2]++;
+	if (objectMin[0] > 0) objectMin[0]--;
+	if (objectMin[1] > 0) objectMin[1]--;
+	if (objectMin[2] > 0) objectMin[2]--;
+	if (objectMax[0] < size[0]) objectMax[0]++;
+	if (objectMax[1] < size[1])	objectMax[1]++;
+	if (objectMax[2] < size[2])	objectMax[2]++;
 
 	// image clipping
 	vtkSmartPointer<vtkImageClip> imageClip = vtkSmartPointer<vtkImageClip>::New();
 	imageClip->SetInput(this->_dataManager->GetStructuredPoints());
 	imageClip->SetOutputWholeExtent(objectMin[0], objectMax[0], objectMin[1], objectMax[1], objectMin[2], objectMax[2]);
 	imageClip->ClipDataOn();
-	this->_progress->Observe(imageClip, "Clip", 1.0/4.0);
+	this->_progress->Observe(imageClip, "Clip", weight);
 	imageClip->Update();
 	this->_progress->Ignore(imageClip);
 
@@ -117,7 +104,7 @@ void VoxelVolumeRender::ComputeMesh(const unsigned short label)
 	marcher->ComputeScalarsOff();
 	marcher->ComputeNormalsOff();
 	marcher->ComputeGradientsOff();
-	this->_progress->Observe(marcher, "March", 1.0/4.0);
+	this->_progress->Observe(marcher, "March", weight);
 	marcher->Update();
 	this->_progress->Ignore(marcher);
 
@@ -130,7 +117,7 @@ void VoxelVolumeRender::ComputeMesh(const unsigned short label)
 	decimator->PreserveTopologyOn();
 	decimator->BoundaryVertexDeletionOn();
 	decimator->SplittingOff();
-	this->_progress->Observe(decimator, "Decimate", 1.0/4.0);
+	this->_progress->Observe(decimator, "Decimate", weight);
 	decimator->Update();
 	this->_progress->Ignore(decimator);
 
@@ -153,7 +140,7 @@ void VoxelVolumeRender::ComputeMesh(const unsigned short label)
 
 	// model mapper
     vtkSmartPointer<vtkPolyDataMapper> isoMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-    this->_progress->Observe(isoMapper, "Map", 1.0/4.0);
+    this->_progress->Observe(isoMapper, "Map", weight);
 	isoMapper->SetInputConnection(normals->GetOutputPort());
 	isoMapper->ReleaseDataFlagOn();
 	isoMapper->ImmediateModeRenderingOn();
@@ -162,17 +149,16 @@ void VoxelVolumeRender::ComputeMesh(const unsigned short label)
 	this->_progress->Ignore(isoMapper);
 
 	// create the actor a assign a color to it
-	this->_meshActor = vtkSmartPointer<vtkActor>::New();
-	this->_meshActor->SetMapper(isoMapper);
+	vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
+	actor->SetMapper(isoMapper);
 	this->_dataManager->GetColorComponents(label, rgba);
-	this->_meshActor->GetProperty()->SetColor(rgba[0], rgba[1], rgba[2]);
-	this->_meshActor->GetProperty()->SetOpacity(1);
-	this->_meshActor->GetProperty()->SetSpecular(0.2);
+	actor->GetProperty()->SetColor(rgba[0], rgba[1], rgba[2]);
+	actor->GetProperty()->SetOpacity(1);
+	actor->GetProperty()->SetSpecular(0.2);
 
 	// add the actor to the renderer
-	this->_renderer->AddActor(this->_meshActor);
-
-	this->_progress->Reset();
+	this->_renderer->AddActor(actor);
+	this->_actorList[label] = actor;
 }
 
 void VoxelVolumeRender::ComputeRayCastVolume()
@@ -213,13 +199,6 @@ void VoxelVolumeRender::ComputeRayCastVolume()
     volumeproperty->ShadeOn();
     volumeproperty->SetInterpolationTypeToNearest();
 
-    // create volume and add to render
-    if (NULL != this->_volume)
-    {
-    	this->_renderer->RemoveActor(this->_volume);
-    	this->_volume = NULL;
-    }
-
     this->_volume = vtkSmartPointer<vtkVolume>::New();
     this->_volume->SetMapper(this->_volumemapper);
     this->_volume->SetProperty(volumeproperty);
@@ -230,23 +209,36 @@ void VoxelVolumeRender::ComputeRayCastVolume()
 // update object focus extent
 void VoxelVolumeRender::UpdateFocusExtent(void)
 {
-    // if the selected label has no voxels it has no centroid, don't show anything
-    if (0LL == this->_dataManager->GetNumberOfVoxelsForLabel(this->_objectLabel) || (0 == this->_objectLabel))
-    	this->_volumemapper->SetCroppingRegionPlanes(0,0,0,0,0,0);
-    else
-    {
-    	Vector3d spacing = this->_dataManager->GetOrientationData()->GetImageSpacing();
-    	Vector3ui min = this->_dataManager->GetBoundingBoxMin(this->_objectLabel);
-    	Vector3ui max = this->_dataManager->GetBoundingBoxMax(this->_objectLabel);
+	// recalculate focus
+	this->_min = this->_max = Vector3ui(0,0,0);
+	if (this->_highlightedLabels.empty())
+		this->_volumemapper->SetCroppingRegionPlanes(0,0,0,0,0,0);
+	else
+	{
+		std::set<unsigned short>::iterator it = this->_highlightedLabels.begin();
+		this->_min = this->_dataManager->GetBoundingBoxMin((*it));
+		this->_max = this->_dataManager->GetBoundingBoxMax((*it));
+		it++;
 
-    	// it should really be (origin-0.5) and (origin+object_size+0.5) for rendering the
-    	// correct bounding box for the object, but if we do it that way very thin
-    	// objects aren't rendered correctly, so 1.5 corrects this.
+		for ( /* empty */ ; it != this->_highlightedLabels.end(); it++)
+		{
+			Vector3ui minBounds = this->_dataManager->GetBoundingBoxMin((*it));
+			Vector3ui maxBounds = this->_dataManager->GetBoundingBoxMax((*it));
+
+			if (this->_min[0] > minBounds[0]) this->_min[0] = minBounds[0];
+			if (this->_min[1] > minBounds[1]) this->_min[1] = minBounds[1];
+			if (this->_min[2] > minBounds[2]) this->_min[2] = minBounds[2];
+			if (this->_max[0] < maxBounds[0]) this->_max[0] = maxBounds[0];
+			if (this->_max[1] < maxBounds[1]) this->_max[1] = maxBounds[1];
+			if (this->_max[2] < maxBounds[2]) this->_max[2] = maxBounds[2];
+		}
+
+		Vector3d spacing = this->_dataManager->GetOrientationData()->GetImageSpacing();
     	this->_volumemapper->SetCroppingRegionPlanes(
-    			(min[0]-1.5)*spacing[0], (max[0]+1.5)*spacing[0],
-    			(min[1]-1.5)*spacing[1], (max[1]+1.5)*spacing[1],
-    			(min[2]-1.5)*spacing[2], (max[2]+1.5)*spacing[2]);
-    }
+    			(this->_min[0]-1.5)*spacing[0], (this->_max[0]+1.5)*spacing[0],
+    			(this->_min[1]-1.5)*spacing[1], (this->_max[1]+1.5)*spacing[1],
+    			(this->_min[2]-1.5)*spacing[2], (this->_max[2]+1.5)*spacing[2]);
+	}
 
     this->_volumemapper->CroppingOn();
     this->_volumemapper->SetCroppingRegionFlagsToSubVolume();
@@ -254,57 +246,49 @@ void VoxelVolumeRender::UpdateFocusExtent(void)
 
     // if we are rendering as mesh then recompute mesh (if not, mesh will get clipped against
     // boundaries set at the time of creation if the object grows outside old bounding box)
-    if (NULL != this->_meshActor)
+    // Volume render does not need this, updating the extent is just fine
+    if (!this->_actorList.empty())
     	this->ViewAsMesh();
-}
-
-void VoxelVolumeRender::FocusSegmentation(unsigned short label)
-{
-	// dim previous label
-	ColorDim(this->_objectLabel);
-
-	this->_objectLabel = label;
-
-	ViewAsVolume();
-	UpdateFocusExtent();
-	this->_opacityfunction->Modified();
-}
-
-void VoxelVolumeRender::CenterSegmentation(unsigned short label)
-{
-    // if the selected label has no voxels it has no centroid, also don't want to center
-	// the background label
-    if ((0LL == this->_dataManager->GetNumberOfVoxelsForLabel(label)) || (0 == label))
-    	return;
-
-	Vector3d spacing = this->_dataManager->GetOrientationData()->GetImageSpacing();
-
-    // change voxel renderer to move around the centroid of the object
-    Vector3d centroid = this->_dataManager->GetCentroidForObject(label);
-    this->_renderer->GetActiveCamera()->SetFocalPoint(centroid[0]*spacing[0],centroid[1]*spacing[1],centroid[2]*spacing[2]);
 }
 
 void VoxelVolumeRender::ViewAsMesh(void)
 {
-	if (0 != this->_objectLabel)
+	if (!this->_renderingIsVolume)
+		return;
+
+	// hide all highlighted volumes
+	std::set<unsigned short>::iterator it;
+	for (it = this->_highlightedLabels.begin(); it != this->_highlightedLabels.end(); it++)
 	{
-		// hide color as we only want to show the mesh
-		ColorDim(this->_objectLabel);
-		this->_opacityfunction->Modified();
-		ComputeMesh(this->_objectLabel);
+		this->_opacityfunction->AddPoint(*it, 0.0);
+		ComputeMesh(*it);
 	}
+	this->_progress->Reset();
+
+	this->_opacityfunction->Modified();
+	this->_renderingIsVolume = false;
 }
 
 void VoxelVolumeRender::ViewAsVolume(void)
 {
-	if (NULL != this->_meshActor)
-	{
-		this->_renderer->RemoveActor(this->_meshActor);
-		this->_meshActor = NULL;
-	}
+	if (this->_renderingIsVolume)
+		return;
 
-	if (0 != this->_objectLabel)
-		ColorHighlightExclusive(this->_objectLabel);
+	// delete all actors
+	std::map<unsigned short, vtkSmartPointer<vtkActor> >::iterator it;
+	for (it = this->_actorList.begin(); it != this->_actorList.end(); it++)
+	{
+		this->_renderer->RemoveActor((*it).second);
+		(*it).second = NULL;
+	}
+	this->_actorList.clear();
+
+	std::set<unsigned short>::iterator labelit;
+	for (labelit = this->_highlightedLabels.begin(); labelit != this->_highlightedLabels.end(); labelit++)
+		this->_opacityfunction->AddPoint(*labelit, 1.0);
+
+	this->_opacityfunction->Modified();
+	this->_renderingIsVolume = true;
 }
 
 // NOTE: this->_opacityfunction->Modified() not signaled. need to use UpdateColorTable() after
@@ -316,7 +300,17 @@ void VoxelVolumeRender::ColorHighlight(const unsigned short label)
 
 	if (this->_highlightedLabels.find(label) == this->_highlightedLabels.end())
 	{
-		this->_opacityfunction->AddPoint(label, 1.0);
+		switch(this->_renderingIsVolume)
+		{
+			case true:
+				this->_opacityfunction->AddPoint(label, 1.0);
+				break;
+			case false:
+				ComputeMesh(label);
+				break;
+			default:
+				break;
+		}
 		this->_highlightedLabels.insert(label);
 	}
 }
@@ -331,7 +325,20 @@ void VoxelVolumeRender::ColorDim(const unsigned short label, float alpha)
 
 	if (this->_highlightedLabels.find(label) != this->_highlightedLabels.end())
 	{
-		this->_opacityfunction->AddPoint(label, alpha);
+		switch(this->_renderingIsVolume)
+		{
+			case true:
+				this->_opacityfunction->AddPoint(label, alpha);
+				break;
+			case false:
+				this->_renderer->RemoveActor(this->_actorList[label]);
+				this->_actorList[label] = NULL;
+				this->_actorList.erase(label);
+				break;
+			default:
+				// can't happen
+				break;
+		}
 		this->_highlightedLabels.erase(label);
 	}
 }
@@ -341,14 +348,12 @@ void VoxelVolumeRender::ColorHighlightExclusive(unsigned short label)
 	std::set<unsigned short>::iterator it;
 	for (it = this->_highlightedLabels.begin(); it != this->_highlightedLabels.end(); it++)
 	{
-		if ((*it) == label)
+		if (label == (*it))
 			continue;
-
 		ColorDim(*it);
 	}
 
-	// do not highlight color if we are rendering as a mesh
-	if ((this->_highlightedLabels.find(label) == this->_highlightedLabels.end()) && (NULL == this->_meshActor))
+	if (this->_highlightedLabels.find(label) == this->_highlightedLabels.end())
 		ColorHighlight(label);
 
 	this->_opacityfunction->Modified();
@@ -371,7 +376,7 @@ void VoxelVolumeRender::UpdateColorTable(void)
 
 void VoxelVolumeRender::RebuildHighlightedLabels(void)
 {
-	this->_highlightedLabels.clear();
+	ColorDimAll();
 
 	for (unsigned int i = 1; i < _dataManager->GetNumberOfColors(); i++)
 	{
@@ -379,29 +384,20 @@ void VoxelVolumeRender::RebuildHighlightedLabels(void)
 		_dataManager->GetColorComponents(i, rgba);
 		if (1.0 == rgba[3])
 		{
-			this->_opacityfunction->AddPoint(i, 1.0);
+			switch(this->_renderingIsVolume)
+			{
+				case true:
+					this->_opacityfunction->AddPoint(i, 1.0);
+					break;
+				case false:
+					ComputeMesh(i);
+					break;
+				default:
+					break;
+			}
 			this->_highlightedLabels.insert(i);
 		}
-		else
-			this->_opacityfunction->AddPoint(i, 0.0);
 	}
 
 	this->_opacityfunction->Modified();
-}
-
-void VoxelVolumeRender::FocusSelection(Vector3ui min, Vector3ui max)
-{
-   	Vector3d spacing = this->_dataManager->GetOrientationData()->GetImageSpacing();
-
-   	// it should really be (origin-0.5) and (origin+object_size+0.5) for rendering the
-   	// correct bounding box for the object, but if we do it that way very thin
-   	// objects aren't rendered correctly, so 1.5 corrects this.
-   	this->_volumemapper->SetCroppingRegionPlanes(
-    			(min[0]-1.5)*spacing[0], (max[0]+1.5)*spacing[0],
-    			(min[1]-1.5)*spacing[1], (max[1]+1.5)*spacing[1],
-    			(min[2]-1.5)*spacing[2], (max[2]+1.5)*spacing[2]);
-
-    this->_volumemapper->CroppingOn();
-    this->_volumemapper->SetCroppingRegionFlagsToSubVolume();
-    this->_volumemapper->Update();
 }

@@ -1083,35 +1083,14 @@ void EspinaVolumeEditor::LabelSelectionChanged(int value)
     // labels are selected individually, so we must cancel all selected areas and operations
     _editorOperations->ClearSelection();
 
-    // if actual value != 0 (background) highlight it with an alpha of 1
-    if(value != 0)
-    {
-    	_dataManager->ColorHighlightExclusive(value);
-    	_volumeRender->ColorHighlightExclusive(value);
-    }
-    else
-    {
-    	_dataManager->ColorDimAll();
-    	_volumeRender->ColorDimAll();
-    }
-
-    // focus volume renderer and reset switch render button
-  	_volumeRender->FocusSegmentation(value);
-	_volumeRender->CenterSegmentation(value);
-
-    renderIsAVolume = true;
-    _volumeRender->ViewAsVolume();
-    if (renderview->isEnabled())
-    {
-		rendertypebutton->setEnabled(true);
-		rendertypebutton->setIcon(QIcon(":/newPrefix/icons/mesh.png"));
-		rendertypebutton->setToolTip(tr("Switch to mesh renderer"));
-    }
-
     // don't want filters with the background label
     switch (_selectedLabel)
     {
     	case 0:
+        	_dataManager->ColorDimAll();
+        	_volumeRender->ColorDimAll();
+        	_volumeRender->UpdateFocusExtent();
+        	rendertypebutton->setEnabled(false);
     		erodeoperation->setEnabled(false);
     		dilateoperation->setEnabled(false);
     		openoperation->setEnabled(false);
@@ -1127,6 +1106,10 @@ void EspinaVolumeEditor::LabelSelectionChanged(int value)
     		return;
     		break;
     	default:
+        	_dataManager->ColorHighlightExclusive(value);
+        	_volumeRender->ColorHighlightExclusive(value);
+        	_volumeRender->UpdateFocusExtent();
+        	rendertypebutton->setEnabled(true);
     		erodeoperation->setEnabled(true);
     		dilateoperation->setEnabled(true);
     		openoperation->setEnabled(true);
@@ -1359,14 +1342,16 @@ void EspinaVolumeEditor::EditorRelabel()
 			// not faster but easier
 			delete _volumeRender;
 			_volumeRender = new VoxelVolumeRender(_dataManager, _voxelViewRenderer, _progress);
+			if (!this->renderIsAVolume)
+				_volumeRender->ViewAsMesh();
     	}
     	_selectedLabel = *label;
     	labelselector->setEnabled(false);
     	labelselector->setCurrentRow(_selectedLabel);
     	labelselector->setEnabled(true);
-    	_volumeRender->FocusSegmentation(*label);
     	_dataManager->ColorHighlightExclusive(*label);
     	_volumeRender->ColorHighlightExclusive(*label);
+    	_volumeRender->UpdateFocusExtent();
         GetPointLabel();
         UpdateUndoRedoMenu();
         UpdateViewports(All);
@@ -1485,7 +1470,8 @@ void EspinaVolumeEditor::WatershedVolume()
     // not faster but easier
 	delete _volumeRender;
 	_volumeRender = new VoxelVolumeRender(_dataManager, _voxelViewRenderer, _progress);
-	_volumeRender->FocusSegmentation(_selectedLabel);
+	_volumeRender->ColorHighlightExclusive(_selectedLabel);
+	_volumeRender->UpdateFocusExtent();
 
     GetPointLabel();
     UpdateUndoRedoMenu();
@@ -1522,6 +1508,9 @@ void EspinaVolumeEditor::OperationUndo()
 
     _dataManager->DoUndoOperation();
 
+    // default value
+    _selectedLabel = 0;
+
     // fix hilighted/dimmed labels in the lookuptable
 	_dataManager->RebuildHighlightedLabels();
 	_volumeRender->RebuildHighlightedLabels();
@@ -1542,6 +1531,9 @@ void EspinaVolumeEditor::OperationRedo()
     
     _dataManager->DoRedoOperation();
     
+    // default value
+    _selectedLabel = 0;
+
     // fix hilighted/dimmed labels in the lookuptable
 	_dataManager->RebuildHighlightedLabels();
 	_volumeRender->RebuildHighlightedLabels();
@@ -1876,9 +1868,9 @@ void EspinaVolumeEditor::AxialXYPick(const unsigned long event)
         		{
             		_dataManager->ColorHighlightExclusive(_pointScalar);
             		_volumeRender->ColorHighlightExclusive(_pointScalar);
-            		// need to disable this as we are probably going to select multiple labels
-            		if (renderview->isEnabled())
-            			rendertypebutton->setEnabled(false);
+
+             		// _selectedLabel could be 0 and renderbutton could be disabled
+           			rendertypebutton->setEnabled(true);
         		}
         		else
         		{
@@ -1889,7 +1881,7 @@ void EspinaVolumeEditor::AxialXYPick(const unsigned long event)
         		Vector3ui min = _editorOperations->GetSelectedMinimumBouds();
         		Vector3ui max = _editorOperations->GetSelectedMaximumBouds();
         		_volumeRender->UpdateColorTable();
-        		_volumeRender->FocusSelection(min,max);
+        		_volumeRender->UpdateFocusExtent();
         	}
         }
     }
@@ -2014,9 +2006,9 @@ void EspinaVolumeEditor::CoronalXYPick(const unsigned long event)
         		{
             		_dataManager->ColorHighlightExclusive(_pointScalar);
             		_volumeRender->ColorHighlightExclusive(_pointScalar);
-            		// need to disable this as we are probably going to select multiple labels
-            		if (renderview->isEnabled())
-            			rendertypebutton->setEnabled(false);
+
+            		// _selectedLabel could be 0 and renderbutton could be disabled
+           			rendertypebutton->setEnabled(true);
         		}
         		else
         		{
@@ -2027,7 +2019,7 @@ void EspinaVolumeEditor::CoronalXYPick(const unsigned long event)
         		Vector3ui min = _editorOperations->GetSelectedMinimumBouds();
         		Vector3ui max = _editorOperations->GetSelectedMaximumBouds();
         		_volumeRender->UpdateColorTable();
-        		_volumeRender->FocusSelection(min,max);
+        		_volumeRender->UpdateFocusExtent();
         	}
         }
     }
@@ -2079,7 +2071,7 @@ void EspinaVolumeEditor::SagittalXYPick(const unsigned long event)
         if ((erasebutton->isChecked() || paintbutton->isChecked()) && pickedProp == SliceVisualization::Slice && actualPick == SliceVisualization::Slice)
         {
             _dataManager->OperationEnd();
-            _volumeRender->UpdateFocusExtent();
+            _volumeRender->UpdateFocusExtent();// _selectedLabel could be 0
             UpdateUndoRedoMenu();
         }
         _axesRender->Update(_POI);
@@ -2152,9 +2144,9 @@ void EspinaVolumeEditor::SagittalXYPick(const unsigned long event)
          		{
              		_dataManager->ColorHighlightExclusive(_pointScalar);
              		_volumeRender->ColorHighlightExclusive(_pointScalar);
-             		// need to disable this as we are probably going to select multiple labels
-             		if (renderview->isEnabled())
-             			rendertypebutton->setEnabled(false);
+
+             		// _selectedLabel could be 0 and renderbutton could be disabled
+           			rendertypebutton->setEnabled(true);
          		}
          		else
          		{
@@ -2165,7 +2157,7 @@ void EspinaVolumeEditor::SagittalXYPick(const unsigned long event)
          		Vector3ui min = _editorOperations->GetSelectedMinimumBouds();
          		Vector3ui max = _editorOperations->GetSelectedMaximumBouds();
          		_volumeRender->UpdateColorTable();
-         		_volumeRender->FocusSelection(min,max);
+         		_volumeRender->UpdateFocusExtent();
          	}
          }
     }
@@ -2814,12 +2806,6 @@ void EspinaVolumeEditor::ToggleWandButton(bool value)
 	switch(value)
 	{
 		case true:
-			// don't want to create multiple meshes for multiple area selection, so we will disable meshes and use only
-			// the volume renderer.
-			if (!renderIsAVolume)
-				SwitchVoxelRender();
-			if (renderview->isEnabled())
-				rendertypebutton->setEnabled(false);
 		    erodeoperation->setEnabled(false);
 		    dilateoperation->setEnabled(false);
 		    openoperation->setEnabled(false);
@@ -2831,8 +2817,6 @@ void EspinaVolumeEditor::ToggleWandButton(bool value)
 			break;
 		case false:
 			// put the filters back in place
-			if ((_selectedLabel != 0) && (renderview->isEnabled()))
-				rendertypebutton->setEnabled(true);
 			if (this->_selectedLabel != 0)
 			{
 				erodeoperation->setEnabled(true);

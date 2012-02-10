@@ -130,43 +130,50 @@ void EditorOperations::ItkImageToPoints(itk::SmartPointer<ImageType> image)
 
 void EditorOperations::Cut(const unsigned short label)
 {
-	if (0 == label)
-		return;
-
     _progress->ManualSet("Cut");
     _dataManager->OperationStart("Cut");
     
     Vector3ui min;
     Vector3ui max;
-    Selection::SelectionType type = this->_selection->GetSelectionType();
 
-    if (Selection::EMPTY != type)
+    switch(this->_selection->GetSelectionType())
     {
-		min = this->_selection->GetSelectedMinimumBouds();
-		max = this->_selection->GetSelectedMaximumBouds();
-    }
-    else
-    {
-    	min = this->_dataManager->GetBoundingBoxMin(label);
-    	max = this->_dataManager->GetBoundingBoxMax(label);
-    }
+    	case Selection::EMPTY:
+    		if (0 == label)
+    			return;
 
-    for (unsigned int x = min[0]; x <= max[0]; x++)
-		for (unsigned int y = min[1]; y <= max[1]; y++)
-			for (unsigned int z = min[2]; z <= max[2]; z++)
-				switch(type)
-				{
-					// TODO: cambiar para hacer más eficiente
-					case Selection::VOLUME:
-						if (this->_selection->VoxelIsInsideSelection(x, y, z))
-							_dataManager->SetVoxelScalar(x, y, z, 0);
-						break;
-					default:
+        	min = this->_dataManager->GetBoundingBoxMin(label);
+        	max = this->_dataManager->GetBoundingBoxMax(label);
+            for (unsigned int x = min[0]; x <= max[0]; x++)
+        		for (unsigned int y = min[1]; y <= max[1]; y++)
+        			for (unsigned int z = min[2]; z <= max[2]; z++)
 						if (label == _dataManager->GetVoxelScalar(x, y, z))
 							_dataManager->SetVoxelScalar(x, y, z, 0);
-						break;
-				}
-    
+    		break;
+    	case Selection::VOLUME:
+    		min = this->_selection->GetSelectedMinimumBouds();
+    		max = this->_selection->GetSelectedMaximumBouds();
+    	    for (unsigned int x = min[0]; x <= max[0]; x++)
+    			for (unsigned int y = min[1]; y <= max[1]; y++)
+    				for (unsigned int z = min[2]; z <= max[2]; z++)
+    					if (this->_selection->VoxelIsInsideSelection(x, y, z))
+    						_dataManager->SetVoxelScalar(x, y, z, 0);
+    		break;
+    	case Selection::CUBE:
+    		if (0 == label)
+    			return;
+
+    		min = this->_selection->GetSelectedMinimumBouds();
+    		max = this->_selection->GetSelectedMaximumBouds();
+    	    for (unsigned int x = min[0]; x <= max[0]; x++)
+    			for (unsigned int y = min[1]; y <= max[1]; y++)
+    				for (unsigned int z = min[2]; z <= max[2]; z++)
+						if (label == _dataManager->GetVoxelScalar(x, y, z))
+							_dataManager->SetVoxelScalar(x, y, z, 0);
+    		break;
+    	default: // can't happen
+    		break;
+    }
     _progress->ManualReset();
     _dataManager->OperationEnd();
 }
@@ -209,33 +216,39 @@ bool EditorOperations::Relabel(QWidget *parent, Metadata *data, unsigned short *
     
     Vector3ui min;
     Vector3ui max;
-    Selection::SelectionType selectedAreaType = this->_selection->GetSelectionType();
 
-    if (Selection::EMPTY != selectedAreaType)
+    switch(this->_selection->GetSelectionType())
     {
-		min = this->_selection->GetSelectedMinimumBouds();
-		max = this->_selection->GetSelectedMaximumBouds();
-    }
-    else
-    {
-    	min = this->_dataManager->GetBoundingBoxMin(*label);
-    	max = this->_dataManager->GetBoundingBoxMax(*label);
-    }
-
-    for (unsigned int z = min[2]; z <= max[2]; z++)
-        for (unsigned int x = min[0]; x <= max[0]; x++)
-            for (unsigned int y = min[1]; y <= max[1]; y++)
-				switch(selectedAreaType)
-				{
-					case Selection::VOLUME:
-						if (this->_selection->VoxelIsInsideSelection(x, y, z))
-							_dataManager->SetVoxelScalar(x, y, z, newlabel);
-						break;
-					default:
+    	case Selection::EMPTY:
+        	min = this->_dataManager->GetBoundingBoxMin(*label);
+        	max = this->_dataManager->GetBoundingBoxMax(*label);
+            for (unsigned int x = min[0]; x <= max[0]; x++)
+        		for (unsigned int y = min[1]; y <= max[1]; y++)
+        			for (unsigned int z = min[2]; z <= max[2]; z++)
 						if (*label == _dataManager->GetVoxelScalar(x, y, z))
 							_dataManager->SetVoxelScalar(x, y, z, newlabel);
-						break;
-				}
+    		break;
+    	case Selection::VOLUME:
+    		min = this->_selection->GetSelectedMinimumBouds();
+    		max = this->_selection->GetSelectedMaximumBouds();
+    	    for (unsigned int x = min[0]; x <= max[0]; x++)
+    			for (unsigned int y = min[1]; y <= max[1]; y++)
+    				for (unsigned int z = min[2]; z <= max[2]; z++)
+    					if (this->_selection->VoxelIsInsideSelection(x, y, z))
+    						_dataManager->SetVoxelScalar(x, y, z, newlabel);
+    		break;
+    	case Selection::CUBE:
+    		min = this->_selection->GetSelectedMinimumBouds();
+    		max = this->_selection->GetSelectedMaximumBouds();
+    	    for (unsigned int x = min[0]; x <= max[0]; x++)
+    			for (unsigned int y = min[1]; y <= max[1]; y++)
+    				for (unsigned int z = min[2]; z <= max[2]; z++)
+						if (*label == _dataManager->GetVoxelScalar(x, y, z))
+							_dataManager->SetVoxelScalar(x, y, z, newlabel);
+    		break;
+    	default: // can't happen
+    		break;
+    }
 
     *label = newlabel;
     _progress->ManualReset();

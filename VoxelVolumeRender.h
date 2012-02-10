@@ -38,15 +38,6 @@ class VoxelVolumeRender
 		VoxelVolumeRender(DataManager*, vtkSmartPointer<vtkRenderer>, ProgressAccumulator*);
 		~VoxelVolumeRender();
 
-        // update focus extent for renderers clipping planes and highlights label
-        void FocusSegmentation(unsigned short);
-
-        // update focus extent for renderers using selection bounds
-        void FocusSelection(Vector3ui, Vector3ui);
-
-        // center render view in segmentation centroid
-        void CenterSegmentation(unsigned short);
-
         // update extent of focused object without moving the camera
         void UpdateFocusExtent(void);
 
@@ -71,28 +62,31 @@ class VoxelVolumeRender
         void ComputeMesh(const unsigned short label);
 
         // attributes
-        vtkSmartPointer<vtkRenderer>         		_renderer;
-        ProgressAccumulator                 	   *_progress;
-        DataManager                         	   *_dataManager;
+        vtkSmartPointer<vtkRenderer>         				_renderer;
+        ProgressAccumulator          						*_progress;
+        DataManager                         	  			*_dataManager;
         //
         // to update color table
-        vtkSmartPointer<vtkPiecewiseFunction>      	_opacityfunction;
-        vtkSmartPointer<vtkColorTransferFunction>  	_colorfunction;
-        //
-        // actor for the mesh representation of the volume
-        vtkSmartPointer<vtkActor> 					_meshActor;
+        vtkSmartPointer<vtkPiecewiseFunction>      			_opacityfunction;
+        vtkSmartPointer<vtkColorTransferFunction>  			_colorfunction;
         //
         // actors for the volume
-        vtkSmartPointer<vtkVolume> 					_volume;
-        //
-        // actual object label
-        unsigned short 								_objectLabel;
+        vtkSmartPointer<vtkVolume> 							_volume;
         //
         // software raycast volume mapper
-        vtkSmartPointer<vtkVolumeRayCastMapper> 	_volumemapper;
+        vtkSmartPointer<vtkVolumeRayCastMapper> 			_volumemapper;
         //
-        // set of highlighted labels
-        std::set<unsigned short> 					_highlightedLabels;
+        // set of highlighted labels (selected labels)
+        std::set<unsigned short>							_highlightedLabels;
+        //
+        // view bounding box (focusing on a selected area)
+        Vector3ui											_min, _max;
+        //
+        // mesh actors list
+        std::map<unsigned short,vtkSmartPointer<vtkActor> >	_actorList;
+        //
+        // mesh/volume rendering status
+        bool												_renderingIsVolume;
 };
 
 #endif
