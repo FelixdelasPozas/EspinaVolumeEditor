@@ -34,7 +34,7 @@ class QtRelabel: public QDialog, private Ui_Relabel
         ~QtRelabel();
 
         // set initial options
-        void SetInitialOptions(unsigned short, Metadata*, DataManager*, bool);
+        void SetInitialOptions(std::set<unsigned short>, Metadata*, DataManager*);
 
         // get the label selected in combobox
         unsigned short GetSelectedLabel();

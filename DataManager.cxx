@@ -182,24 +182,25 @@ void DataManager::SetVoxelScalar(unsigned int x, unsigned int y, unsigned int z,
     if (scalar == *pixel)
         return;
 
-    if (NULL == ActionInformationVector[*pixel])
+
+    if (ActionInformationVector.find(*pixel) == ActionInformationVector.end())
     {
     	struct ActionInformation *action = new struct ActionInformation;
     	ActionInformationVector[*pixel] = action;
     	action->min = Vector3ui(x,y,z);
-    	action->max = Vector3ui(x+1,y+1,z+1);
+    	action->max = Vector3ui(x,y,z);
     }
     ActionInformationVector[*pixel]->sizeInVoxels -= 1;
     ActionInformationVector[*pixel]->temporalCentroid[0] -= x;
     ActionInformationVector[*pixel]->temporalCentroid[1] -= y;
     ActionInformationVector[*pixel]->temporalCentroid[2] -= z;
 
-    if (NULL == ActionInformationVector[scalar])
+    if (ActionInformationVector.find(scalar) == ActionInformationVector.end())
     {
     	struct ActionInformation *action = new struct ActionInformation;
     	ActionInformationVector[scalar] = action;
     	action->min = Vector3ui(x,y,z);
-    	action->max = Vector3ui(x+1,y+1,z+1);
+    	action->max = Vector3ui(x,y,z);
     }
     ActionInformationVector[scalar]->sizeInVoxels += 1;
     ActionInformationVector[scalar]->temporalCentroid[0] += x;
@@ -246,11 +247,6 @@ void DataManager::SetVoxelScalarRaw(unsigned int x, unsigned int y, unsigned int
     *pixel = scalar;
     _structuredPoints->Modified();
 }
-
-//vtkSmartPointer<vtkLookupTable> DataManager::GetLookupTable()
-//{
-//    return _lookupTable;
-//}
 
 unsigned short DataManager::SetLabel(Vector3d rgb)
 {
@@ -673,22 +669,6 @@ bool DataManager::ColorIsInUse(double* color)
     }
 
     return false;
-}
-
-void DataManager::RebuildHighlightedLabels(void)
-{
-	double rgba[4];
-
-	_highlightedLabels.clear();
-
-	for (int i = 1; i < this->_lookupTable->GetNumberOfTableValues(); i++)
-	{
-		this->_lookupTable->GetTableValue(i, rgba);
-		if (1.0 == rgba[3])
-			this->_highlightedLabels.insert(i);
-	}
-
-	this->_lookupTable->Modified();
 }
 
 unsigned int DataManager::GetNumberOfColors()

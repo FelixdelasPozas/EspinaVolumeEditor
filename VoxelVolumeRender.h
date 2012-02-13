@@ -38,8 +38,11 @@ class VoxelVolumeRender
 		VoxelVolumeRender(DataManager*, vtkSmartPointer<vtkRenderer>, ProgressAccumulator*);
 		~VoxelVolumeRender();
 
-        // update extent of focused object without moving the camera
+        // update extent of focused object(s)
         void UpdateFocusExtent(void);
+
+        // set focal point (view rotates around this point)
+        void CenterSegmentations(void);
 
         // volume rendering switchers and status
         void ViewAsMesh();
@@ -51,7 +54,6 @@ class VoxelVolumeRender
         void ColorHighlightExclusive(unsigned short);
         void ColorDimAll(void);
         void UpdateColorTable(void);
-        void RebuildHighlightedLabels(void);
     private:
         // private methods
         //

@@ -128,27 +128,31 @@ void EditorOperations::ItkImageToPoints(itk::SmartPointer<ImageType> image)
     return;
 }
 
-void EditorOperations::Cut(const unsigned short label)
+void EditorOperations::Cut(std::set<unsigned short> labels)
 {
     _progress->ManualSet("Cut");
     _dataManager->OperationStart("Cut");
     
     Vector3ui min;
     Vector3ui max;
+    std::set<unsigned short>::iterator it;
 
     switch(this->_selection->GetSelectionType())
     {
     	case Selection::EMPTY:
-    		if (0 == label)
+    		if (labels.empty())
     			return;
 
-        	min = this->_dataManager->GetBoundingBoxMin(label);
-        	max = this->_dataManager->GetBoundingBoxMax(label);
-            for (unsigned int x = min[0]; x <= max[0]; x++)
-        		for (unsigned int y = min[1]; y <= max[1]; y++)
-        			for (unsigned int z = min[2]; z <= max[2]; z++)
-						if (label == _dataManager->GetVoxelScalar(x, y, z))
-							_dataManager->SetVoxelScalar(x, y, z, 0);
+    		for (it = labels.begin(); it != labels.end(); it++)
+    		{
+				min = this->_dataManager->GetBoundingBoxMin(*it);
+				max = this->_dataManager->GetBoundingBoxMax(*it);
+				for (unsigned int x = min[0]; x <= max[0]; x++)
+					for (unsigned int y = min[1]; y <= max[1]; y++)
+						for (unsigned int z = min[2]; z <= max[2]; z++)
+							if (labels.find(_dataManager->GetVoxelScalar(x, y, z)) != labels.end())
+								_dataManager->SetVoxelScalar(x, y, z, 0);
+    		}
     		break;
     	case Selection::VOLUME:
     		min = this->_selection->GetSelectedMinimumBouds();
@@ -160,16 +164,19 @@ void EditorOperations::Cut(const unsigned short label)
     						_dataManager->SetVoxelScalar(x, y, z, 0);
     		break;
     	case Selection::CUBE:
-    		if (0 == label)
+    		if (labels.empty())
     			return;
 
-    		min = this->_selection->GetSelectedMinimumBouds();
-    		max = this->_selection->GetSelectedMaximumBouds();
-    	    for (unsigned int x = min[0]; x <= max[0]; x++)
-    			for (unsigned int y = min[1]; y <= max[1]; y++)
-    				for (unsigned int z = min[2]; z <= max[2]; z++)
-						if (label == _dataManager->GetVoxelScalar(x, y, z))
-							_dataManager->SetVoxelScalar(x, y, z, 0);
+    		for (it = labels.begin(); it != labels.end(); it++)
+    		{
+				min = this->_selection->GetSelectedMinimumBouds();
+				max = this->_selection->GetSelectedMaximumBouds();
+				for (unsigned int x = min[0]; x <= max[0]; x++)
+					for (unsigned int y = min[1]; y <= max[1]; y++)
+						for (unsigned int z = min[2]; z <= max[2]; z++)
+							if (labels.find(_dataManager->GetVoxelScalar(x, y, z)) != labels.end())
+								_dataManager->SetVoxelScalar(x, y, z, 0);
+    		}
     		break;
     	default: // can't happen
     		break;
@@ -180,12 +187,12 @@ void EditorOperations::Cut(const unsigned short label)
 
 // BEWARE: new label scalar and boolean indicating if it's a new color returned by reference
 // (i like this better than returning a struct, but who cares...)
-bool EditorOperations::Relabel(QWidget *parent, Metadata *data, unsigned short *label, bool *isANewColor)
+bool EditorOperations::Relabel(QWidget *parent, Metadata *data, std::set<unsigned short> *labels, bool *isANewColor)
 {
     Vector3d color;
     
     QtRelabel configdialog(parent);
-    configdialog.SetInitialOptions(*label, data, _dataManager, Selection::VOLUME == _selection->GetSelectionType());
+    configdialog.SetInitialOptions(*labels, data, _dataManager);
     configdialog.exec();
     
     if (!configdialog.ModifiedData())
@@ -216,17 +223,21 @@ bool EditorOperations::Relabel(QWidget *parent, Metadata *data, unsigned short *
     
     Vector3ui min;
     Vector3ui max;
+    std::set<unsigned short>::iterator it;
 
     switch(this->_selection->GetSelectionType())
     {
     	case Selection::EMPTY:
-        	min = this->_dataManager->GetBoundingBoxMin(*label);
-        	max = this->_dataManager->GetBoundingBoxMax(*label);
-            for (unsigned int x = min[0]; x <= max[0]; x++)
-        		for (unsigned int y = min[1]; y <= max[1]; y++)
-        			for (unsigned int z = min[2]; z <= max[2]; z++)
-						if (*label == _dataManager->GetVoxelScalar(x, y, z))
-							_dataManager->SetVoxelScalar(x, y, z, newlabel);
+    		for (it = labels->begin(); it != labels->end(); it++)
+    		{
+				min = this->_dataManager->GetBoundingBoxMin(*it);
+				max = this->_dataManager->GetBoundingBoxMax(*it);
+				for (unsigned int x = min[0]; x <= max[0]; x++)
+					for (unsigned int y = min[1]; y <= max[1]; y++)
+						for (unsigned int z = min[2]; z <= max[2]; z++)
+							if (*it == _dataManager->GetVoxelScalar(x, y, z))
+								_dataManager->SetVoxelScalar(x, y, z, newlabel);
+    		}
     		break;
     	case Selection::VOLUME:
     		min = this->_selection->GetSelectedMinimumBouds();
@@ -243,14 +254,15 @@ bool EditorOperations::Relabel(QWidget *parent, Metadata *data, unsigned short *
     	    for (unsigned int x = min[0]; x <= max[0]; x++)
     			for (unsigned int y = min[1]; y <= max[1]; y++)
     				for (unsigned int z = min[2]; z <= max[2]; z++)
-						if (*label == _dataManager->GetVoxelScalar(x, y, z))
+						if (labels->find(_dataManager->GetVoxelScalar(x, y, z)) != labels->end())
 							_dataManager->SetVoxelScalar(x, y, z, newlabel);
     		break;
     	default: // can't happen
     		break;
     }
 
-    *label = newlabel;
+    labels->clear();
+    labels->insert(newlabel);
     _progress->ManualReset();
     _dataManager->OperationEnd();
     return true;

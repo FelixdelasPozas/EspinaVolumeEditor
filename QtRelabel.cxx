@@ -34,19 +34,16 @@ QtRelabel::~QtRelabel()
     // empty
 }
 
-void QtRelabel::SetInitialOptions(unsigned short label, Metadata* data, DataManager* dataManager, bool multipleLabels)
+void QtRelabel::SetInitialOptions(std::set<unsigned short> labels, Metadata* data, DataManager* dataManager)
 {
     double rgba[4];
     QPixmap icon(16,16);
     QColor color;
 
-    _selectedLabel = label;
+    newlabelbox->setSelectionMode(QAbstractItemView::SingleSelection);
     _maxcolors = dataManager->GetNumberOfLabels();
-    _multipleLabels = multipleLabels;
 
-    assert(label < _maxcolors);
-
-    if (multipleLabels)
+    if (labels.size() > 1)
 	{
 		selectionlabel->setText("Area with multiple labels");
 		newlabelbox->insertItem(0, "Background");
@@ -63,20 +60,25 @@ void QtRelabel::SetInitialOptions(unsigned short label, Metadata* data, DataMana
 			QListWidgetItem *item = new QListWidgetItem(QIcon(icon), QString(text.c_str()));
 			newlabelbox->addItem(item);
 		}
+
 		newlabelbox->addItem("New label");
 		newlabelbox->setCurrentRow(_maxcolors);
 	}
     else
     {
-		// generate items
-		if (label != 0)
+    	unsigned int tempLabel = 0;
+
+		if (labels.size() == 1)
 		{
+			std::set<unsigned short>::iterator it = labels.begin();
+			tempLabel = static_cast<unsigned int>(*it);
+
 			newlabelbox->insertItem(0, "Background");
-			dataManager->GetColorComponents(label, rgba);
+			dataManager->GetColorComponents(tempLabel, rgba);
 			color.setRgbF(rgba[0], rgba[1], rgba[2], 1);
 			icon.fill(color);
 			std::stringstream out;
-			out << data->GetObjectSegmentName(label) << " " << dataManager->GetScalarForLabel(label) << " voxels";
+			out << data->GetObjectSegmentName(tempLabel) << " " << dataManager->GetScalarForLabel(tempLabel) << " voxels";
 			std::string text = out.str();
 			colorlabel->setPixmap(icon);
 			selectionlabel->setText(QString(text.c_str()));
@@ -87,7 +89,8 @@ void QtRelabel::SetInitialOptions(unsigned short label, Metadata* data, DataMana
 		// color 0 is black, so we will start from 1
 		for (unsigned int i = 1; i < _maxcolors; i++)
 		{
-			if (i == static_cast<unsigned int>(label))
+			// avoid showing the only color available
+			if (i == tempLabel)
 				continue;
 
 			dataManager->GetColorComponents(i, rgba);

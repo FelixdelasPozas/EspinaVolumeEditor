@@ -85,7 +85,7 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         virtual void ChangeXspinBox(int);
         virtual void ChangeYspinBox(int);
         virtual void ChangeZspinBox(int);
-        virtual void LabelSelectionChanged(int);
+        virtual void LabelSelectionChanged();
         virtual void ViewReset();
         virtual void SwitchAxesView();
         virtual void SwitchVoxelRender();
@@ -114,6 +114,7 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         bool updateSliceRenderers;
         bool updatePointLabel;
 
+        // true if we are doing volume rendering and not mesh rendering
         bool renderIsAVolume;
 
         void AxialXYPick(const unsigned long);
@@ -127,6 +128,8 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         void RemoveSessionFiles();
         void LoadReferenceFile(QString);
         void InitiateSessionGUI();
+        void EnableFilters(const bool);
+        void RebuildSelectedLabels();
         
         // renderers for four QVTKWidget viewports
         vtkSmartPointer<vtkRenderer>           _voxelViewRenderer;
@@ -157,7 +160,7 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         vtkSmartPointer<vtkEventQtSlotConnect> _connections;
         
         // label selectable by the user, used for painting  
-        unsigned short int                     _selectedLabel;
+        std::set<unsigned short>			   _selectedLabels;
         
         // misc boolean values that affect editor 
         bool 								   _hasReferenceImage;

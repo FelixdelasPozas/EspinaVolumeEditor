@@ -51,10 +51,10 @@ class EditorOperations
         void Initialize(vtkSmartPointer<vtkRenderer>, Coordinates *, ProgressAccumulator *);
         
         // deletes voxels depending on selected label
-        void Cut(const unsigned short);
+        void Cut(std::set<unsigned short>);
         
         // changes label of selected voxels to a different one
-        bool Relabel(QWidget *parent, Metadata*, unsigned short*, bool*);
+        bool Relabel(QWidget *parent, Metadata*, std::set<unsigned short>*, bool*);
 
         // save volume to disk in MHA format
         void SaveImage(const std::string);

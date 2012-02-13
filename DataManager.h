@@ -76,7 +76,6 @@ class DataManager
         void ColorHighlightExclusive(unsigned short);
         void ColorDimAll(void);
         bool ColorIsInUse(double* color);
-        void RebuildHighlightedLabels(void);
         unsigned int GetNumberOfColors();
         void GetColorComponents(unsigned short, double*);
         void SetColorComponents(unsigned short, double*);

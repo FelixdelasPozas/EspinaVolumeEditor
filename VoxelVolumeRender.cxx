@@ -72,6 +72,14 @@ void VoxelVolumeRender::ComputeMesh(const unsigned short label)
 {
     double rgba[4];
 
+    // delete previous actor, if any exists
+    if (this->_actorList.find(label) != this->_actorList.end())
+    {
+    	this->_renderer->RemoveActor(this->_actorList[label]);
+    	this->_actorList[label] = NULL;
+    	this->_actorList.erase(label);
+    }
+
 	// first crop the region and then use the vtk-itk pipeline to get a itk::Image of the region
 	Vector3ui objectMin = this->_dataManager->GetBoundingBoxMin(label);
 	Vector3ui objectMax = this->_dataManager->GetBoundingBoxMax(label);
@@ -249,23 +257,26 @@ void VoxelVolumeRender::UpdateFocusExtent(void)
     // Volume render does not need this, updating the extent is just fine
     if (!this->_actorList.empty())
     	this->ViewAsMesh();
+
+    CenterSegmentations();
 }
 
 void VoxelVolumeRender::ViewAsMesh(void)
 {
-	if (!this->_renderingIsVolume)
-		return;
-
 	// hide all highlighted volumes
 	std::set<unsigned short>::iterator it;
 	for (it = this->_highlightedLabels.begin(); it != this->_highlightedLabels.end(); it++)
 	{
-		this->_opacityfunction->AddPoint(*it, 0.0);
+		if (this->_renderingIsVolume)
+			this->_opacityfunction->AddPoint(*it, 0.0);
+
 		ComputeMesh(*it);
 	}
 	this->_progress->Reset();
 
-	this->_opacityfunction->Modified();
+	if (this->_renderingIsVolume)
+		this->_opacityfunction->Modified();
+
 	this->_renderingIsVolume = false;
 }
 
@@ -274,19 +285,15 @@ void VoxelVolumeRender::ViewAsVolume(void)
 	if (this->_renderingIsVolume)
 		return;
 
-	// delete all actors
+	// delete all actors and while we're at it modify opacity values for volume rendering
 	std::map<unsigned short, vtkSmartPointer<vtkActor> >::iterator it;
 	for (it = this->_actorList.begin(); it != this->_actorList.end(); it++)
 	{
 		this->_renderer->RemoveActor((*it).second);
+		this->_opacityfunction->AddPoint((*it).first, 1.0);
 		(*it).second = NULL;
 	}
 	this->_actorList.clear();
-
-	std::set<unsigned short>::iterator labelit;
-	for (labelit = this->_highlightedLabels.begin(); labelit != this->_highlightedLabels.end(); labelit++)
-		this->_opacityfunction->AddPoint(*labelit, 1.0);
-
 	this->_opacityfunction->Modified();
 	this->_renderingIsVolume = true;
 }
@@ -374,30 +381,36 @@ void VoxelVolumeRender::UpdateColorTable(void)
 	this->_opacityfunction->Modified();
 }
 
-void VoxelVolumeRender::RebuildHighlightedLabels(void)
+void VoxelVolumeRender::CenterSegmentations(void)
 {
-	ColorDimAll();
+	Vector3d groupCentroid = Vector3d(0.0,0.0,0.0);
+	unsigned long long int groupSize = 0LL;
 
-	for (unsigned int i = 1; i < _dataManager->GetNumberOfColors(); i++)
+	// no labels means no change of focal point
+	if (this->_highlightedLabels.empty())
+		return;
+
+	// calculate combined centroid for the group of segmentations
+	// NOTE: this is not really necesary and it's not the right thing to do, what we should be doing
+	// is (this->_min/2, this->_max/2) coords to center the view, but doing this avoids "jumps" in
+	// the view while operating with multiple labels, as all individual labels are centered in
+	// their centroid.
+	std::set<unsigned short>::iterator it;
+	for (it = this->_highlightedLabels.begin(); it != this->_highlightedLabels.end(); it++)
 	{
-		double rgba[4];
-		_dataManager->GetColorComponents(i, rgba);
-		if (1.0 == rgba[3])
-		{
-			switch(this->_renderingIsVolume)
-			{
-				case true:
-					this->_opacityfunction->AddPoint(i, 1.0);
-					break;
-				case false:
-					ComputeMesh(i);
-					break;
-				default:
-					break;
-			}
-			this->_highlightedLabels.insert(i);
-		}
+		Vector3d segmentationCentroid = this->_dataManager->GetCentroidForObject(*it);
+		unsigned long long int segmentationSize = this->_dataManager->GetNumberOfVoxelsForLabel(*it);
+
+		double coef_1 = groupSize / static_cast<double>(groupSize + segmentationSize);
+		double coef_2 = segmentationSize / static_cast<double>(groupSize + segmentationSize);
+
+		groupCentroid[0] = (groupCentroid[0] * coef_1) + (segmentationCentroid[0] * coef_2);
+		groupCentroid[1] = (groupCentroid[1] * coef_1) + (segmentationCentroid[1] * coef_2);
+		groupCentroid[2] = (groupCentroid[2] * coef_1) + (segmentationCentroid[2] * coef_2);
+
+		groupSize += segmentationSize;
 	}
 
-	this->_opacityfunction->Modified();
+	Vector3d spacing = this->_dataManager->GetOrientationData()->GetImageSpacing();
+	this->_renderer->GetActiveCamera()->SetFocalPoint(groupCentroid[0]*spacing[0],groupCentroid[1]*spacing[1],groupCentroid[2]*spacing[2]);
 }
