@@ -35,6 +35,7 @@
 //
 VoxelVolumeRender::VoxelVolumeRender(DataManager *data, vtkSmartPointer<vtkRenderer> renderer, ProgressAccumulator *progress)
 {
+
     this->_dataManager = data;
     this->_renderer = renderer;
     this->_progress = progress;
@@ -189,12 +190,17 @@ void VoxelVolumeRender::ComputeRayCastVolume()
     {
     	this->_dataManager->GetColorComponents(i, rgba);
     	this->_colorfunction->AddRGBPoint(i,rgba[0], rgba[1], rgba[2]);
+    	if ((1.0 == rgba[3]) && (i != 0))
+    		this->_highlightedLabels.insert(i);
     }
 
-    // set all labels to an opacity of 0.0
+    // set all labels to an opacity of 0.0 except the highlighted ones
     this->_opacityfunction = vtkSmartPointer<vtkPiecewiseFunction>::New();
     for (unsigned int i = 0; i != this->_dataManager->GetNumberOfColors(); i++)
-    	this->_opacityfunction->AddPoint(i, 0.0);
+    	if (this->_highlightedLabels.find(i) != this->_highlightedLabels.end())
+    		this->_opacityfunction->AddPoint(i, 1.0);
+    	else
+    		this->_opacityfunction->AddPoint(i, 0.0);
 
     this->_opacityfunction->Modified();
 
@@ -214,40 +220,89 @@ void VoxelVolumeRender::ComputeRayCastVolume()
     this->_renderer->AddVolume(_volume);
 }
 
-// update object focus extent
+// update object focus extent and center the group of segmentations
 void VoxelVolumeRender::UpdateFocusExtent(void)
 {
-	// recalculate focus
-	this->_min = this->_max = Vector3ui(0,0,0);
+	// no labels case
 	if (this->_highlightedLabels.empty())
-		this->_volumemapper->SetCroppingRegionPlanes(0,0,0,0,0,0);
-	else
 	{
-		std::set<unsigned short>::iterator it = this->_highlightedLabels.begin();
-		this->_min = this->_dataManager->GetBoundingBoxMin((*it));
-		this->_max = this->_dataManager->GetBoundingBoxMax((*it));
-		it++;
-
-		for ( /* empty */ ; it != this->_highlightedLabels.end(); it++)
-		{
-			Vector3ui minBounds = this->_dataManager->GetBoundingBoxMin((*it));
-			Vector3ui maxBounds = this->_dataManager->GetBoundingBoxMax((*it));
-
-			if (this->_min[0] > minBounds[0]) this->_min[0] = minBounds[0];
-			if (this->_min[1] > minBounds[1]) this->_min[1] = minBounds[1];
-			if (this->_min[2] > minBounds[2]) this->_min[2] = minBounds[2];
-			if (this->_max[0] < maxBounds[0]) this->_max[0] = maxBounds[0];
-			if (this->_max[1] < maxBounds[1]) this->_max[1] = maxBounds[1];
-			if (this->_max[2] < maxBounds[2]) this->_max[2] = maxBounds[2];
-		}
-
-		Vector3d spacing = this->_dataManager->GetOrientationData()->GetImageSpacing();
-    	this->_volumemapper->SetCroppingRegionPlanes(
-    			(this->_min[0]-1.5)*spacing[0], (this->_max[0]+1.5)*spacing[0],
-    			(this->_min[1]-1.5)*spacing[1], (this->_max[1]+1.5)*spacing[1],
-    			(this->_min[2]-1.5)*spacing[2], (this->_max[2]+1.5)*spacing[2]);
+		this->_volumemapper->SetCroppingRegionPlanes(0,0,0,0,0,0);
+	    this->_volumemapper->CroppingOn();
+	    this->_volumemapper->SetCroppingRegionFlagsToSubVolume();
+	    this->_volumemapper->Update();
+	    return;
 	}
 
+	double croppingCoords[6];
+	this->_volumemapper->GetCroppingRegionPlanes(croppingCoords);
+	this->_min = this->_max = Vector3ui(0,0,0);
+	Vector3d groupCentroid = Vector3d(0.0,0.0,0.0);
+	unsigned long long int groupSize = 0LL;
+
+	// calculate combined centroid for the group of segmentations
+	// NOTE: this is not really necesary and it's not the right thing to do, what we should be doing
+	// is (this->_min/2, this->_max/2) coords to center the view, but doing this avoids "jumps" in
+	// the view while operating with multiple labels, as all individual labels are centered in
+	// their centroid.
+	std::set<unsigned short>::iterator it = this->_highlightedLabels.begin();
+
+	// bootstrap min/max values from the first of the selected segmentations
+	this->_min = this->_dataManager->GetBoundingBoxMin((*it));
+	this->_max = this->_dataManager->GetBoundingBoxMax((*it));
+
+	// calculate bounding box and focus point
+	for (it = this->_highlightedLabels.begin(); it != this->_highlightedLabels.end(); it++)
+	{
+		Vector3ui minBounds = this->_dataManager->GetBoundingBoxMin((*it));
+		Vector3ui maxBounds = this->_dataManager->GetBoundingBoxMax((*it));
+
+		// calculate group centroid
+		Vector3d segmentationCentroid = this->_dataManager->GetCentroidForObject(*it);
+		unsigned long long int segmentationSize = this->_dataManager->GetNumberOfVoxelsForLabel(*it);
+
+		// empty segmentations do not add anything
+		if (0LL == segmentationSize)
+			continue;
+
+		if (this->_min[0] > minBounds[0]) this->_min[0] = minBounds[0];
+		if (this->_min[1] > minBounds[1]) this->_min[1] = minBounds[1];
+		if (this->_min[2] > minBounds[2]) this->_min[2] = minBounds[2];
+		if (this->_max[0] < maxBounds[0]) this->_max[0] = maxBounds[0];
+		if (this->_max[1] < maxBounds[1]) this->_max[1] = maxBounds[1];
+		if (this->_max[2] < maxBounds[2]) this->_max[2] = maxBounds[2];
+
+		double coef_1 = groupSize / static_cast<double>(groupSize + segmentationSize);
+		double coef_2 = segmentationSize / static_cast<double>(groupSize + segmentationSize);
+
+		groupCentroid[0] = (groupCentroid[0] * coef_1) + (segmentationCentroid[0] * coef_2);
+		groupCentroid[1] = (groupCentroid[1] * coef_1) + (segmentationCentroid[1] * coef_2);
+		groupCentroid[2] = (groupCentroid[2] * coef_1) + (segmentationCentroid[2] * coef_2);
+
+		groupSize += segmentationSize;
+	}
+
+	// selected group could be empty, we return now to avoid NaN calculations
+	if (0LL == groupSize)
+		return;
+
+	// set focus point
+	Vector3d spacing = this->_dataManager->GetOrientationData()->GetImageSpacing();
+	this->_renderer->GetActiveCamera()->SetFocalPoint(groupCentroid[0]*spacing[0],groupCentroid[1]*spacing[1],groupCentroid[2]*spacing[2]);
+
+	double bounds[6] = {
+			(this->_min[0]-1.5)*spacing[0], (this->_max[0]+1.5)*spacing[0],
+			(this->_min[1]-1.5)*spacing[1], (this->_max[1]+1.5)*spacing[1],
+			(this->_min[2]-1.5)*spacing[2], (this->_max[2]+1.5)*spacing[2]	};
+
+	// do not update if the region is smaller and contained in the previous one, to avoid recalculation of the mesh actors.
+	if ((bounds[0] >= croppingCoords[0]) && (bounds[1] <= croppingCoords[1]) &&
+		(bounds[2] >= croppingCoords[2]) && (bounds[3] <= croppingCoords[3]) &&
+		(bounds[4] >= croppingCoords[4]) && (bounds[5] <= croppingCoords[5]))
+	{
+		return;
+	}
+
+	this->_volumemapper->SetCroppingRegionPlanes(bounds);
     this->_volumemapper->CroppingOn();
     this->_volumemapper->SetCroppingRegionFlagsToSubVolume();
     this->_volumemapper->Update();
@@ -257,8 +312,6 @@ void VoxelVolumeRender::UpdateFocusExtent(void)
     // Volume render does not need this, updating the extent is just fine
     if (!this->_actorList.empty())
     	this->ViewAsMesh();
-
-    CenterSegmentations();
 }
 
 void VoxelVolumeRender::ViewAsMesh(void)
@@ -338,6 +391,7 @@ void VoxelVolumeRender::ColorDim(const unsigned short label, float alpha)
 				this->_opacityfunction->AddPoint(label, alpha);
 				break;
 			case false:
+				// actor MUST exist
 				this->_renderer->RemoveActor(this->_actorList[label]);
 				this->_actorList[label] = NULL;
 				this->_actorList.erase(label);
@@ -354,11 +408,7 @@ void VoxelVolumeRender::ColorHighlightExclusive(unsigned short label)
 {
 	std::set<unsigned short>::iterator it;
 	for (it = this->_highlightedLabels.begin(); it != this->_highlightedLabels.end(); it++)
-	{
-		if (label == (*it))
-			continue;
 		ColorDim(*it);
-	}
 
 	if (this->_highlightedLabels.find(label) == this->_highlightedLabels.end())
 		ColorHighlight(label);
@@ -379,38 +429,4 @@ void VoxelVolumeRender::ColorDimAll(void)
 void VoxelVolumeRender::UpdateColorTable(void)
 {
 	this->_opacityfunction->Modified();
-}
-
-void VoxelVolumeRender::CenterSegmentations(void)
-{
-	Vector3d groupCentroid = Vector3d(0.0,0.0,0.0);
-	unsigned long long int groupSize = 0LL;
-
-	// no labels means no change of focal point
-	if (this->_highlightedLabels.empty())
-		return;
-
-	// calculate combined centroid for the group of segmentations
-	// NOTE: this is not really necesary and it's not the right thing to do, what we should be doing
-	// is (this->_min/2, this->_max/2) coords to center the view, but doing this avoids "jumps" in
-	// the view while operating with multiple labels, as all individual labels are centered in
-	// their centroid.
-	std::set<unsigned short>::iterator it;
-	for (it = this->_highlightedLabels.begin(); it != this->_highlightedLabels.end(); it++)
-	{
-		Vector3d segmentationCentroid = this->_dataManager->GetCentroidForObject(*it);
-		unsigned long long int segmentationSize = this->_dataManager->GetNumberOfVoxelsForLabel(*it);
-
-		double coef_1 = groupSize / static_cast<double>(groupSize + segmentationSize);
-		double coef_2 = segmentationSize / static_cast<double>(groupSize + segmentationSize);
-
-		groupCentroid[0] = (groupCentroid[0] * coef_1) + (segmentationCentroid[0] * coef_2);
-		groupCentroid[1] = (groupCentroid[1] * coef_1) + (segmentationCentroid[1] * coef_2);
-		groupCentroid[2] = (groupCentroid[2] * coef_1) + (segmentationCentroid[2] * coef_2);
-
-		groupSize += segmentationSize;
-	}
-
-	Vector3d spacing = this->_dataManager->GetOrientationData()->GetImageSpacing();
-	this->_renderer->GetActiveCamera()->SetFocalPoint(groupCentroid[0]*spacing[0],groupCentroid[1]*spacing[1],groupCentroid[2]*spacing[2]);
 }

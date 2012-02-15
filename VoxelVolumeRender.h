@@ -41,9 +41,6 @@ class VoxelVolumeRender
         // update extent of focused object(s)
         void UpdateFocusExtent(void);
 
-        // set focal point (view rotates around this point)
-        void CenterSegmentations(void);
-
         // volume rendering switchers and status
         void ViewAsMesh();
         void ViewAsVolume();
@@ -57,7 +54,7 @@ class VoxelVolumeRender
     private:
         // private methods
         //
-        // compute volume using raycast
+        // compute volume using raycast and reconstruct highlighted labels set while doing it
         void ComputeRayCastVolume();
         //
         // compute mesh for a label

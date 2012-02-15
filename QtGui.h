@@ -129,7 +129,7 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         void LoadReferenceFile(QString);
         void InitiateSessionGUI();
         void EnableFilters(const bool);
-        void RebuildSelectedLabels();
+        void RestartVoxelRender();
         
         // renderers for four QVTKWidget viewports
         vtkSmartPointer<vtkRenderer>           _voxelViewRenderer;
@@ -158,9 +158,6 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         // used to get mouse left button press and release events for painting
         // and for axes rendering
         vtkSmartPointer<vtkEventQtSlotConnect> _connections;
-        
-        // label selectable by the user, used for painting  
-        std::set<unsigned short>			   _selectedLabels;
         
         // misc boolean values that affect editor 
         bool 								   _hasReferenceImage;

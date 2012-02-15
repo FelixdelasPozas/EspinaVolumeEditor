@@ -284,7 +284,6 @@ unsigned short DataManager::SetLabel(Vector3d rgb)
 
     vtkSmartPointer<vtkLookupTable> temptable = vtkSmartPointer<vtkLookupTable>::New();
     CopyLookupTable(_lookupTable, temptable);
-    _actionsBuffer->StoreLookupTable(temptable);
 
     // this is a convoluted way of doing things, but SetNumberOfTableValues() seems to
     // corrup the table (due to reallocation?) and all values must be copied again.
@@ -368,7 +367,7 @@ void DataManager::StatisticsActionClear(void)
 void DataManager::OperationStart(std::string actionName)
 {
 	StatisticsActionClear();
-    _actionsBuffer->SignalBeginAction(actionName);
+    _actionsBuffer->SignalBeginAction(actionName, this->_selectedLabels, this->_lookupTable);
 }
 
 void DataManager::OperationEnd()
@@ -595,28 +594,28 @@ void DataManager::ColorHighlight(const unsigned short label)
 	if (0 == label)
 		return;
 
-	if (_highlightedLabels.find(label) == _highlightedLabels.end())
+	if (_selectedLabels.find(label) == _selectedLabels.end())
 	{
 		double rgba[4];
 
 		this->_lookupTable->GetTableValue(label, rgba);
 		this->_lookupTable->SetTableValue(label, rgba[0], rgba[1], rgba[2], 1);
 
-		_highlightedLabels.insert(label);
+		_selectedLabels.insert(label);
 		this->_lookupTable->Modified();
 	}
 }
 
 void DataManager::ColorDim(const unsigned short label)
 {
-	if (_highlightedLabels.find(label) != _highlightedLabels.end())
+	if (_selectedLabels.find(label) != _selectedLabels.end())
 	{
 		double rgba[4];
 
 		this->_lookupTable->GetTableValue(label, rgba);
 		this->_lookupTable->SetTableValue(label, rgba[0], rgba[1], rgba[2], 0.4);
 
-		_highlightedLabels.erase(label);
+		_selectedLabels.erase(label);
 		this->_lookupTable->Modified();
 	}
 }
@@ -624,7 +623,7 @@ void DataManager::ColorDim(const unsigned short label)
 void DataManager::ColorHighlightExclusive(const unsigned short label)
 {
 	std::set<unsigned short>::iterator it;
-	for (it = _highlightedLabels.begin(); it != _highlightedLabels.end(); it++)
+	for (it = _selectedLabels.begin(); it != _selectedLabels.end(); it++)
 	{
 		if ((*it) == label)
 			continue;
@@ -633,10 +632,10 @@ void DataManager::ColorHighlightExclusive(const unsigned short label)
 
 		this->_lookupTable->GetTableValue(*it, rgba);
 		this->_lookupTable->SetTableValue(*it, rgba[0], rgba[1], rgba[2], 0.4);
-		_highlightedLabels.erase(*it);
+		_selectedLabels.erase(*it);
 	}
 
-	if (_highlightedLabels.find(label) == _highlightedLabels.end())
+	if (_selectedLabels.find(label) == _selectedLabels.end())
 		ColorHighlight(label);
 
 	this->_lookupTable->Modified();
@@ -645,14 +644,14 @@ void DataManager::ColorHighlightExclusive(const unsigned short label)
 void DataManager::ColorDimAll()
 {
 	std::set<unsigned short>::iterator it;
-	for (it = _highlightedLabels.begin(); it != _highlightedLabels.end(); it++)
+	for (it = _selectedLabels.begin(); it != _selectedLabels.end(); it++)
 	{
 		double rgba[4];
 
 		this->_lookupTable->GetTableValue((*it), rgba);
 		this->_lookupTable->SetTableValue((*it), rgba[0], rgba[1], rgba[2], 0.4);
 
-		_highlightedLabels.erase(*it);
+		_selectedLabels.erase(*it);
 	}
 	this->_lookupTable->Modified();
 }
@@ -690,4 +689,19 @@ void DataManager::SetColorComponents(unsigned short label, double* rgba)
 vtkSmartPointer<vtkLookupTable> DataManager::GetLookupTable()
 {
 	return this->_lookupTable;
+}
+
+const std::set<unsigned short> DataManager::GetSelectedLabelsSet(void)
+{
+	return this->_selectedLabels;
+}
+
+const bool DataManager::GetIsColorSelected(unsigned short color)
+{
+	return (this->_selectedLabels.find(color) != this->_selectedLabels.end());
+}
+
+void DataManager::SetSelectedLabelsSet(std::set<unsigned short> labelSet)
+{
+	this->_selectedLabels = labelSet;
 }

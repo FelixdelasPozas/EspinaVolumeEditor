@@ -34,6 +34,7 @@ UndoRedoSystem::UndoRedoSystem(DataManager *data)
     _sizeObject = sizeof(std::pair<unsigned short, struct DataManager::ObjectInformation*>);
     _sizeAction = sizeof(struct action);
     _sizeColor = 4 * sizeof(unsigned char);
+    _sizeLabel = sizeof(unsigned short);
 }
 
 UndoRedoSystem::~UndoRedoSystem()
@@ -63,8 +64,8 @@ void UndoRedoSystem::ClearBuffer(const UndoRedoBuffer buffer)
             	capacity += (*it).actionPoints.size() * _sizePoint;
                 capacity += (*it).actionObjects.size() * _sizeObject;
                 capacity += (*it).actionString.capacity();
-                if (NULL != (*it).actionLookupTable)
-                    capacity += ((*it).actionLookupTable)->GetNumberOfTableValues()* _sizeColor;
+                capacity += ((*it).actionLookupTable)->GetNumberOfTableValues()* _sizeColor;
+                capacity += (*it).actionLabels.size() * _sizeLabel;
                 capacity += _sizeAction;
             }
             _undoBuffer.clear();
@@ -75,8 +76,8 @@ void UndoRedoSystem::ClearBuffer(const UndoRedoBuffer buffer)
             	capacity += (*it).actionPoints.size() * _sizePoint;
                 capacity += (*it).actionObjects.size() * _sizeObject;
                 capacity += (*it).actionString.capacity();
-                if (NULL != (*it).actionLookupTable)
-                    capacity += ((*it).actionLookupTable)->GetNumberOfTableValues() * _sizeColor;
+                capacity += ((*it).actionLookupTable)->GetNumberOfTableValues() * _sizeColor;
+                capacity += (*it).actionLabels.size() * _sizeLabel;
                 capacity += _sizeAction;
 
                 // delete dinamically allocated objects no longer needed by DataManager
@@ -100,20 +101,36 @@ void UndoRedoSystem::ClearBuffer(const UndoRedoBuffer buffer)
 }
 
 // must call this one before inserting voxels
-void UndoRedoSystem::SignalBeginAction(const std::string actionstring)
+void UndoRedoSystem::SignalBeginAction(const std::string actionstring, const std::set<unsigned short> labelSet, vtkSmartPointer<vtkLookupTable> lut)
 {
     unsigned long int capacity = 0;
 
     //because an action started, the redo buffer must be empty
     ClearBuffer(REDO);
 
+    // we need to copy the values of the table
+    double rgba[4];
+    vtkSmartPointer<vtkLookupTable> lutCopy = vtkSmartPointer<vtkLookupTable>::New();
+    lutCopy->Allocate();
+    lutCopy->SetNumberOfTableValues(lut->GetNumberOfTableValues());
+
+    for (int index = 0; index != lut->GetNumberOfTableValues(); index++)
+    {
+        lut->GetTableValue(index, rgba);
+        lutCopy->SetTableValue(index,rgba);
+    }
+    lutCopy->SetTableRange(0,lut->GetNumberOfTableValues()-1);
+
     // create new action
     _action = new struct action;
     _action->actionString = actionstring;
-    _action->actionLookupTable = NULL;
+    _action->actionLabels = labelSet;
+    _action->actionLookupTable = lutCopy;
 
     capacity += _sizeAction;
     capacity += (*_action).actionString.capacity();
+    capacity += (*_action).actionLabels.size() * _sizeLabel;
+    capacity += (*_action).actionLookupTable->GetNumberOfTableValues() * _sizeColor;
 
     // we need to know if we are at the limit of our buffer
     while ((_bufferUsed + capacity ) > _bufferSize)
@@ -124,8 +141,8 @@ void UndoRedoSystem::SignalBeginAction(const std::string actionstring)
 		_bufferUsed -= (*_undoBuffer.begin()).actionPoints.size() * _sizePoint;
 		_bufferUsed -= (*_undoBuffer.begin()).actionObjects.size() * _sizeObject;
 		_bufferUsed -= (*_undoBuffer.begin()).actionString.capacity();
-		if (NULL != (*_undoBuffer.begin()).actionLookupTable)
-			_bufferUsed -= ((*_undoBuffer.begin()).actionLookupTable)->GetNumberOfTableValues() * _sizeColor;
+		_bufferUsed -= ((*_undoBuffer.begin()).actionLookupTable)->GetNumberOfTableValues() * _sizeColor;
+		_bufferUsed -= (*_undoBuffer.begin()).actionLabels.size() * _sizeLabel;
 		_bufferUsed -= _sizeAction;
 
 		_undoBuffer.erase(_undoBuffer.begin());
@@ -140,10 +157,7 @@ void UndoRedoSystem::SignalEndAction(void)
 {
     if (false == _bufferFull)
     {
-        // if action has modified any point, label or color then store it, if not just discard
-        if (((*_action).actionPoints.size() != 0) || ((*_action).actionObjects.size() != 0) || ((*_action).actionLookupTable != NULL))
-            _undoBuffer.push_back(*_action);
-        
+        _undoBuffer.push_back(*_action);
         _action = NULL;
     }
     else
@@ -177,24 +191,6 @@ void UndoRedoSystem::StoreObject(std::pair<unsigned short, struct DataManager::O
     CheckBufferLimits();
 }
 
-void UndoRedoSystem::StoreLookupTable(const vtkSmartPointer<vtkLookupTable> lookupTable)
-{
-	// if buffer marked as full, just return. complete action doesn't fit into memory
-	if (true == _bufferFull)
-		return;
-
-    // else if actionLookupTable != NULL we rely on smartpointers to deallocate previous tables
-    // automatically. In an operation we only have to store the first call (the first table), not
-    // the rest, that are just updates
-    if ((*_action).actionLookupTable != NULL)
-    	return;
-
-    (*_action).actionLookupTable = lookupTable;
-	_bufferUsed += ((*_action).actionLookupTable)->GetNumberOfTableValues() * _sizeColor;
-
-	// we need to know if we are at the limit of our buffer
-	CheckBufferLimits();
-}
 void UndoRedoSystem::CheckBufferLimits(void)
 {
     while (_bufferUsed > _bufferSize)
@@ -209,8 +205,8 @@ void UndoRedoSystem::CheckBufferLimits(void)
             _bufferUsed -= (*_action).actionPoints.size() * _sizePoint;
             _bufferUsed -= (*_action).actionObjects.size() * _sizeObject;
             _bufferUsed -= (*_action).actionString.capacity();
-            if (NULL != (*_action).actionLookupTable)
-                _bufferUsed -= ((*_action).actionLookupTable)->GetNumberOfTableValues() * _sizeColor;
+            _bufferUsed -= ((*_action).actionLookupTable)->GetNumberOfTableValues() * _sizeColor;
+            _bufferUsed -= (*_action).actionLabels.size() * _sizeLabel;
             _bufferUsed -= _sizeAction;
             
             delete _action;
@@ -221,8 +217,8 @@ void UndoRedoSystem::CheckBufferLimits(void)
         	_bufferUsed -= (*_undoBuffer.begin()).actionPoints.size() * _sizePoint;
             _bufferUsed -= (*_undoBuffer.begin()).actionObjects.size() * _sizeObject;
             _bufferUsed -= (*_undoBuffer.begin()).actionString.capacity();
-            if (NULL != (*_undoBuffer.begin()).actionLookupTable)
-                _bufferUsed -= ((*_undoBuffer.begin()).actionLookupTable)->GetNumberOfTableValues() * _sizeColor;
+            _bufferUsed -= ((*_undoBuffer.begin()).actionLookupTable)->GetNumberOfTableValues() * _sizeColor;
+            _bufferUsed -= (*_undoBuffer.begin()).actionLabels.size() * _sizeLabel;
             _bufferUsed -= _sizeAction;
             
             _undoBuffer.erase(_undoBuffer.begin());
@@ -261,8 +257,8 @@ void UndoRedoSystem::ChangeSize(const unsigned long int size)
     	_bufferUsed -= (*_redoBuffer.begin()).actionPoints.size() * _sizePoint;
         _bufferUsed -= (*_redoBuffer.begin()).actionObjects.size() * _sizeObject;
         _bufferUsed -= (*_redoBuffer.begin()).actionString.capacity();
-        if (NULL != (*_redoBuffer.begin()).actionLookupTable)
-            _bufferUsed -= ((*_redoBuffer.begin()).actionLookupTable)->GetNumberOfTableValues() * _sizeColor;
+        _bufferUsed -= ((*_redoBuffer.begin()).actionLookupTable)->GetNumberOfTableValues() * _sizeColor;
+        _bufferUsed -= (*_redoBuffer.begin()).actionLabels.size() * _sizeLabel;
         _bufferUsed -= _sizeAction;
 
         // delete dinamically allocated objects in redo
@@ -280,8 +276,8 @@ void UndoRedoSystem::ChangeSize(const unsigned long int size)
     	_bufferUsed -= (*_undoBuffer.begin()).actionPoints.size() * _sizePoint;
         _bufferUsed -= (*_undoBuffer.begin()).actionObjects.size() * _sizeObject;
         _bufferUsed -= (*_undoBuffer.begin()).actionString.capacity();
-        if (NULL != (*_undoBuffer.begin()).actionLookupTable)
-            _bufferUsed -= ((*_undoBuffer.begin()).actionLookupTable)->GetNumberOfTableValues() * _sizeColor;
+        _bufferUsed -= ((*_undoBuffer.begin()).actionLookupTable)->GetNumberOfTableValues() * _sizeColor;
+        _bufferUsed -= (*_undoBuffer.begin()).actionLabels.size() * _sizeLabel;
         _bufferUsed -= _sizeAction;
 
         _undoBuffer.erase(_undoBuffer.begin());
@@ -316,12 +312,14 @@ void UndoRedoSystem::DoAction(const UndoRedoBuffer actionBuffer)
             (*_action).actionString = _undoBuffer.back().actionString;
             (*_action).actionLookupTable = _undoBuffer.back().actionLookupTable;
             (*_action).actionObjects = _undoBuffer.back().actionObjects;
+            (*_action).actionLabels = _undoBuffer.back().actionLabels;
             break;
         case REDO:
         	action_vector = _redoBuffer.back().actionPoints;
             (*_action).actionString = _redoBuffer.back().actionString;
             (*_action).actionLookupTable = _redoBuffer.back().actionLookupTable;
             (*_action).actionObjects = _redoBuffer.back().actionObjects;
+            (*_action).actionLabels = _redoBuffer.back().actionLabels;
             break;
         default: 
             break;
@@ -333,7 +331,8 @@ void UndoRedoSystem::DoAction(const UndoRedoBuffer actionBuffer)
     // we "delete" the size of the points not to mess with memory while using 
     // SetVoxelScalar, at the end the memory size it's the same, in fact memory
     // used for points is constant during "do undo/redo action" as we delete
-    // one point while adding a new one to the opposite action
+    // one point while adding a new one to the opposite action, so the memory
+    // variation is about the size of a point plus the size of a label.
     _bufferUsed -= (numberOfPoints * _sizePoint);
 
     // reverse labels from all points in the action
@@ -351,17 +350,21 @@ void UndoRedoSystem::DoAction(const UndoRedoBuffer actionBuffer)
     // insert the changed action in the right buffer and apply the actual LookupTable and table values
     // in fact only the pointers in the original ObjectVector (a std::map) are changed the objects are
     // only deleted when the undoredosystem deletes them
+    std::set<unsigned short> temporalSet = this->_dataManager->GetSelectedLabelsSet();
     switch (actionBuffer)
     {
         case UNDO:
             _redoBuffer.push_back(*_action);
             _undoBuffer.pop_back();
-            if (NULL != _redoBuffer.back().actionLookupTable)
-            {
-            	_bufferUsed -= _redoBuffer.back().actionLookupTable->GetNumberOfColors() * _sizeColor;
-                _dataManager->SwitchLookupTables(_redoBuffer.back().actionLookupTable);
-                _bufferUsed += _redoBuffer.back().actionLookupTable->GetNumberOfColors() * _sizeColor;
-            }
+
+            _bufferUsed -= _redoBuffer.back().actionLookupTable->GetNumberOfColors() * _sizeColor;
+            _dataManager->SwitchLookupTables(_redoBuffer.back().actionLookupTable);
+            _bufferUsed += _redoBuffer.back().actionLookupTable->GetNumberOfColors() * _sizeColor;
+
+            _bufferUsed -= _redoBuffer.back().actionLabels.size() * _sizeLabel;
+            this->_dataManager->SetSelectedLabelsSet(_redoBuffer.back().actionLabels);
+            _redoBuffer.back().actionLabels = temporalSet;
+            _bufferUsed += _redoBuffer.back().actionLabels.size() * _sizeLabel;
             
             for(it = _redoBuffer.back().actionObjects.begin(); it != _redoBuffer.back().actionObjects.end(); it++)
             	(*_dataManager->GetObjectTablePointer()).erase((*it).first);
@@ -370,12 +373,15 @@ void UndoRedoSystem::DoAction(const UndoRedoBuffer actionBuffer)
         case REDO:
             _undoBuffer.push_back(*_action);
             _redoBuffer.pop_back();
-            if (NULL != _undoBuffer.back().actionLookupTable)
-            {
-            	_bufferUsed -= _undoBuffer.back().actionLookupTable->GetNumberOfColors() * _sizeColor;
-                _dataManager->SwitchLookupTables(_undoBuffer.back().actionLookupTable);
-                _bufferUsed += _undoBuffer.back().actionLookupTable->GetNumberOfColors() * _sizeColor;
-            }
+
+            _bufferUsed -= _undoBuffer.back().actionLookupTable->GetNumberOfColors() * _sizeColor;
+            _dataManager->SwitchLookupTables(_undoBuffer.back().actionLookupTable);
+            _bufferUsed += _undoBuffer.back().actionLookupTable->GetNumberOfColors() * _sizeColor;
+
+            _bufferUsed -= _undoBuffer.back().actionLabels.size() * _sizeLabel;
+            this->_dataManager->SetSelectedLabelsSet(_undoBuffer.back().actionLabels);
+            _undoBuffer.back().actionLabels = temporalSet;
+            _bufferUsed += _undoBuffer.back().actionLabels.size() * _sizeLabel;
 
             for(it = _undoBuffer.back().actionObjects.begin(); it != _undoBuffer.back().actionObjects.end(); it++)
             	(*_dataManager->GetObjectTablePointer())[(*it).first] = (*it).second;
@@ -425,8 +431,8 @@ void UndoRedoSystem::SignalCancelAction()
     _bufferUsed -= (*_action).actionPoints.size() * _sizePoint;
     _bufferUsed -= (*_action).actionObjects.size() * _sizeObject;
     _bufferUsed -= (*_action).actionString.capacity();
-    if (NULL != (*_action).actionLookupTable)
-        _bufferUsed -= ((*_action).actionLookupTable)->GetNumberOfTableValues() * _sizeColor;
+    _bufferUsed -= ((*_action).actionLookupTable)->GetNumberOfTableValues() * _sizeColor;
+    _bufferUsed -= (*_action).actionLabels.size() * _sizeLabel;
     _bufferUsed -= _sizeAction;
 
     // undo changes if there are some, bypassing the undo system as we don't want to store this

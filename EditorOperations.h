@@ -77,7 +77,7 @@ class EditorOperations
         void Dilate(const unsigned short);
         void Close(const unsigned short);
         void Open(const unsigned short);
-        void Watershed(const unsigned short);
+        std::set<unsigned short> Watershed(const unsigned short);
 
         // Selection class methods, see Selection.* for details
         void AddSelectionPoint(const Vector3ui point);

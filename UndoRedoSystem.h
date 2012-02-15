@@ -48,7 +48,7 @@ class UndoRedoSystem
         
         // add a point to current undo action
         void StorePoint(const Vector3ui, const unsigned short);
-        
+
         // check if one of the buffers is empty (to disable it's menu command)
         const bool IsEmpty(const UndoRedoBuffer);
         
@@ -62,13 +62,10 @@ class UndoRedoSystem
         const unsigned long int GetCapacity();
 
         // create a new action
-        void SignalBeginAction(const std::string);
+        void SignalBeginAction(const std::string, const std::set<unsigned short>, vtkSmartPointer<vtkLookupTable>);
         
         // we need to know when an action ends
         void SignalEndAction();
-        
-        // stores actual lookuptable in actual action pointer
-        void StoreLookupTable(vtkSmartPointer<vtkLookupTable>);
         
         // stores a new label scalar value
         void StoreObject(std::pair<unsigned short, struct DataManager::ObjectInformation*>);
@@ -91,6 +88,7 @@ class UndoRedoSystem
             vtkSmartPointer<vtkLookupTable>                           							actionLookupTable;
             std::string                                               							actionString;
             std::vector< std::pair<unsigned short, struct DataManager::ObjectInformation*> >  	actionObjects;
+            std::set<unsigned short>															actionLabels;
         };
 
         // action in progress
@@ -117,6 +115,7 @@ class UndoRedoSystem
         int _sizeAction;
         int _sizeObject;
         int _sizeColor;
+        int _sizeLabel;
 };
 
 #endif // _UNDOREDOSYSTEM_H_

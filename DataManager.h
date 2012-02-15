@@ -100,6 +100,9 @@ class DataManager
         // set the first scalar value that is free to assign a label (it's NOT the label number)
         void SetFirstFreeValue(unsigned short);
 
+        // set the set of selected labels
+        void SetSelectedLabelsSet(std::set<unsigned short>);
+
         // GETS /////////////////////////
 
         // get the lookuptable (used only by slices because we need the same lookuptable pointer for all)
@@ -142,6 +145,12 @@ class DataManager
 
         // get the number of labels used (including the background label)
         unsigned int GetNumberOfLabels(void);
+
+        // get the set of selected labels
+        const std::set<unsigned short> GetSelectedLabelsSet(void);
+
+        // ask if a color is selected
+        const bool GetIsColorSelected(unsigned short);
 
         struct ObjectInformation
         {
@@ -186,6 +195,9 @@ class DataManager
         // first free value for new labels
         unsigned short                          	_firstFreeValue;
 
+        // set of selected labels
+        std::set<unsigned short> 					_selectedLabels;
+
         // object information vector
         std::map<unsigned short, struct ObjectInformation*> ObjectVector;
 
@@ -200,8 +212,6 @@ class DataManager
         		ActionInformation(): sizeInVoxels(0), temporalCentroid(Vector3ll(0,0,0)), min(Vector3ui(0,0,0)), max(Vector3ui(0,0,0)) {};
         };
         std::map<unsigned short, struct ActionInformation*> ActionInformationVector;
-
-        std::set<unsigned short> 					_highlightedLabels;
 };
 
 #endif // _DATAMANAGER_H_

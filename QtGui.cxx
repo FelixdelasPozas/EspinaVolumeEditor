@@ -1043,19 +1043,15 @@ void EspinaVolumeEditor::GetPointLabel()
 void EspinaVolumeEditor::FillColorLabels()
 {
     // we need to disable it to avoid sending signals while updating
-    labelselector->setEnabled(false);
+	labelselector->blockSignals(true);
    	labelselector->clear();
 
-    // first insert background label and select it if the list of selected labels is empty
+    // first insert background label
     QListWidgetItem *newItem = new QListWidgetItem;
     newItem->setText("Background");
-
-    if (this->_selectedLabels.empty())
-    	newItem->setSelected(true);
-
     labelselector->insertItem(0, newItem);
     
-    // iterate over the colors
+    // iterate over the colors to fill the table
     for (unsigned int i = 1; i < _dataManager->GetNumberOfColors(); i++)
     {
         double rgba[4];
@@ -1068,26 +1064,31 @@ void EspinaVolumeEditor::FillColorLabels()
         std::stringstream out;
         out << _fileMetadata->GetObjectSegmentName(i) << " " << _dataManager->GetScalarForLabel(i);
         newItem = new QListWidgetItem(QIcon(icon), QString(out.str().c_str()));
-
-        if (this->_selectedLabels.find(i) != this->_selectedLabels.end())
-        	newItem->setSelected(true);
-
         labelselector->insertItem(i, newItem);
     }
 
+    // select the selected labels in the qlistwidget or, if the set is empty, select the background label
+    std::set<unsigned short> labelSet = this->_dataManager->GetSelectedLabelsSet();
+    std::set<unsigned short>::iterator it;
+    for (it = labelSet.begin(); it != labelSet.end(); it++)
+    	labelselector->item(*it)->setSelected(true);
+
+    // if the set of selected labels are empty then the background label is the one selected
+    if (labelSet.empty())
+    	labelselector->item(0)->setSelected(true);
+
+    labelselector->blockSignals(false);
     labelselector->setEnabled(true);
 }
 
 void EspinaVolumeEditor::LabelSelectionChanged()
 {
-	int value = labelselector->currentRow();
-
-    if (!labelselector->isEnabled() || (value == -1))
+    if (!labelselector->isEnabled() || (labelselector->currentRow() == -1))
         return;
     
-    labelselector->setEnabled(false);
+	labelselector->blockSignals(true);
 
-    // we must cancel all selections
+    // we must cancel all selections in the editor
     _editorOperations->ClearSelection();
 
     // find the selected items group in the labelselector widget
@@ -1101,80 +1102,70 @@ void EspinaVolumeEditor::LabelSelectionChanged()
     if ((labelsList.find(0) != labelsList.end()) || (labelsList.empty()))
     {
     	// deselect labels other than the current one
-    	for (it = selectedItems.begin(); it != selectedItems.end(); it++)
-    	{
-    		if (0 == labelselector->row(*it))
-    			continue;
+    	labelselector->clearSelection();
+    	labelselector->item(0)->setSelected(true);
 
-    		(*it)->setSelected(false);
-    	}
-
-    	this->_selectedLabels.clear();
     	_dataManager->ColorDimAll();
     	_volumeRender->ColorDimAll();
-    	_volumeRender->UpdateFocusExtent();
-    	rendertypebutton->setEnabled(false);
-    	EnableFilters(false);
-	    if (pickerbutton->isChecked() || wandButton->isChecked())
-	    	viewbutton->setChecked(true);
+
 		cutbutton->setEnabled(false);
 		relabelbutton->setEnabled(false);
+
+	    if (pickerbutton->isChecked() || wandButton->isChecked())
+	    	viewbutton->setChecked(true);
+
 		if (renderview->isEnabled())
 			rendertypebutton->setEnabled(false);
+
+		EnableFilters(false);
 	    UpdateViewports(All);
 
-	    labelselector->setEnabled(true);
+	    labelselector->blockSignals(false);
 		return;
     }
 
     if (paintbutton->isChecked())
     {
     	// deselect labels other than the current one
-        QList<QListWidgetItem*>::iterator it;
-        for (it = selectedItems.begin(); it != selectedItems.end(); it++)
-    	{
-    		if (value == labelselector->row(*it))
-    			continue;
-
-    		(*it)->setSelected(false);
-    	}
-    	this->_selectedLabels.clear();
-    	this->_selectedLabels.insert(value);
-       	_dataManager->ColorHighlightExclusive(value);
-       	_volumeRender->ColorHighlightExclusive(value);
+    	labelselector->clearSelection();
+    	labelselector->item(labelselector->currentRow())->setSelected(true);
+       	_dataManager->ColorHighlightExclusive(static_cast<unsigned short>(labelselector->currentRow()));
+       	_volumeRender->ColorHighlightExclusive(static_cast<unsigned short>(labelselector->currentRow()));
     }
     else
     {
+    	// clear the labels not present in the actual selection and later highlight labels present in the actual avoiding
+    	// highlighting/dimmng the ones already present in both groups
+    	std::set<unsigned short> selectedLabels = this->_dataManager->GetSelectedLabelsSet();
     	std::set<unsigned short>::iterator it;
-    	for (it = this->_selectedLabels.begin(); it != this->_selectedLabels.end(); it++)
+    	for (it = selectedLabels.begin(); it != selectedLabels.end(); it++)
     	{
     		if (labelsList.find(*it) == labelsList.end())
     		{
     			_dataManager->ColorDim(*it);
     			_volumeRender->ColorDim(*it);
-    			this->_selectedLabels.erase(*it);
     		}
     	}
 
     	for (it = labelsList.begin(); it != labelsList.end(); it++)
     	{
-    		if (this->_selectedLabels.find(*it) == this->_selectedLabels.end())
+    		if (selectedLabels.find(*it) == selectedLabels.end())
     		{
     			_dataManager->ColorHighlight(*it);
     			_volumeRender->ColorHighlight(*it);
-    			this->_selectedLabels.insert(*it);
     		}
     	}
 
 		cutbutton->setEnabled(true);
 		relabelbutton->setEnabled(true);
-		EnableFilters(1 == this->_selectedLabels.size());
+		EnableFilters(1 == labelsList.size());
     	_volumeRender->UpdateColorTable();
+    	_volumeRender->UpdateFocusExtent();
     }
 
-    labelselector->setEnabled(true);
+    // we end now modifying labelselector so we can stop now blocking its signals.
+    labelselector->blockSignals(false);
 
-   	_volumeRender->UpdateFocusExtent();
 	if(renderview->isEnabled())
 		rendertypebutton->setEnabled(true);
 
@@ -1191,13 +1182,13 @@ void EspinaVolumeEditor::LabelSelectionChanged()
     	viewbutton->setChecked(true);
 
     // if the selected label has no voxels it has no centroid
-    if (0LL == _dataManager->GetNumberOfVoxelsForLabel(value))
+    if (0LL == _dataManager->GetNumberOfVoxelsForLabel(labelselector->currentRow()))
     {
     	UpdateViewports(All);
     	return;
     }
 
-    Vector3d newPOI = _dataManager->GetCentroidForObject(value);
+    Vector3d newPOI = _dataManager->GetCentroidForObject(labelselector->currentRow());
 
     updateSliceRenderers = false;
     updateVoxelRenderer = false;
@@ -1374,7 +1365,7 @@ void EspinaVolumeEditor::EditorCut()
 {
 	QMutexLocker locker(actionLock);
 
-    _editorOperations->Cut(this->_selectedLabels);
+    _editorOperations->Cut(this->_dataManager->GetSelectedLabelsSet());
     GetPointLabel();
     UpdateUndoRedoMenu();
     UpdateViewports(All);
@@ -1384,30 +1375,23 @@ void EspinaVolumeEditor::EditorRelabel()
 {
 	QMutexLocker locker(actionLock);
 	std::set<unsigned short> *labels = new std::set<unsigned short>;
-	*labels = this->_selectedLabels;
+	*labels = this->_dataManager->GetSelectedLabelsSet();
 	bool *isANewColor = new bool(false);
 
     if (_editorOperations->Relabel(this, _fileMetadata, labels, isANewColor))
     {
-    	this->_selectedLabels = *labels;
+    	// relabel returned just one label
+    	std::set<unsigned short>::iterator it = (*labels).begin();
+
+    	// highlight only this new colour
+    	this->_dataManager->ColorHighlightExclusive(*it);
 
     	if (true == *isANewColor)
     	{
-			// not faster but easier
-			delete _volumeRender;
-			_volumeRender = new VoxelVolumeRender(_dataManager, _voxelViewRenderer, _progress);
-
-			if (!this->renderIsAVolume)
-				_volumeRender->ViewAsMesh();
-
+    		RestartVoxelRender();
 			FillColorLabels();
     	}
 
-    	// relabel returned just one label
-    	std::set<unsigned short>::iterator it = this->_selectedLabels.begin();
-    	_dataManager->ColorHighlightExclusive(*it);
-    	_volumeRender->ColorHighlightExclusive(*it);
-    	_volumeRender->UpdateFocusExtent();
         GetPointLabel();
         UpdateUndoRedoMenu();
         UpdateViewports(All);
@@ -1471,7 +1455,7 @@ void EspinaVolumeEditor::About()
 void EspinaVolumeEditor::ErodeVolume()
 {
 	QMutexLocker locker(actionLock);
-	std::set<unsigned short>::iterator it = this->_selectedLabels.begin();
+	std::set<unsigned short>::iterator it = this->_dataManager->GetSelectedLabelsSet().begin();
 
     _editorOperations->Erode(*it);
 
@@ -1483,7 +1467,7 @@ void EspinaVolumeEditor::ErodeVolume()
 void EspinaVolumeEditor::DilateVolume()
 {
 	QMutexLocker locker(actionLock);
-	std::set<unsigned short>::iterator it = this->_selectedLabels.begin();
+	std::set<unsigned short>::iterator it = this->_dataManager->GetSelectedLabelsSet().begin();
 
     _editorOperations->Dilate(*it);
 
@@ -1496,7 +1480,7 @@ void EspinaVolumeEditor::DilateVolume()
 void EspinaVolumeEditor::OpenVolume()
 {
 	QMutexLocker locker(actionLock);
-	std::set<unsigned short>::iterator it = this->_selectedLabels.begin();
+	std::set<unsigned short>::iterator it = this->_dataManager->GetSelectedLabelsSet().begin();
 
     _editorOperations->Open(*it);
 
@@ -1509,7 +1493,7 @@ void EspinaVolumeEditor::OpenVolume()
 void EspinaVolumeEditor::CloseVolume()
 {
 	QMutexLocker locker(actionLock);
-	std::set<unsigned short>::iterator it = this->_selectedLabels.begin();
+	std::set<unsigned short>::iterator it = this->_dataManager->GetSelectedLabelsSet().begin();
 
     _editorOperations->Close(*it);
 
@@ -1522,18 +1506,19 @@ void EspinaVolumeEditor::CloseVolume()
 void EspinaVolumeEditor::WatershedVolume()
 {
 	QMutexLocker locker(actionLock);
-	std::set<unsigned short>::iterator it = this->_selectedLabels.begin();
+	std::set<unsigned short>::iterator it = this->_dataManager->GetSelectedLabelsSet().begin();
 
-    _editorOperations->Watershed(*it);
+    std::set<unsigned short> generatedLabels = _editorOperations->Watershed(*it);
 
+    // select the new colors from the watershed operation
+    this->_dataManager->ColorDimAll();
+    for(it = generatedLabels.begin(); it != generatedLabels.end(); it++)
+    	this->_dataManager->ColorHighlight(*it);
+
+    RestartVoxelRender();
     FillColorLabels();
-
-    // not faster but easier
-	delete _volumeRender;
-	_volumeRender = new VoxelVolumeRender(_dataManager, _voxelViewRenderer, _progress);
-	_volumeRender->UpdateFocusExtent();
-
     GetPointLabel();
+
     UpdateUndoRedoMenu();
     UpdateViewports(All);
 }
@@ -1568,12 +1553,9 @@ void EspinaVolumeEditor::OperationUndo()
 
     _dataManager->DoUndoOperation();
 
+    RestartVoxelRender();
     GetPointLabel();
     FillColorLabels();
-
-    // fix hilighted/dimmed labels in the lookuptable
-    RebuildSelectedLabels();
-
     UpdateUndoRedoMenu();
     UpdateViewports(All);
     _progress->ManualReset();
@@ -1588,12 +1570,9 @@ void EspinaVolumeEditor::OperationRedo()
     
     _dataManager->DoRedoOperation();
 
+    RestartVoxelRender();
     GetPointLabel();
     FillColorLabels();
-    
-    // fix hilighted/dimmed labels in the lookuptable and the selected labels
-    RebuildSelectedLabels();
-
     UpdateUndoRedoMenu();
     UpdateViewports(All);
     _progress->ManualReset();
@@ -1899,7 +1878,7 @@ void EspinaVolumeEditor::AxialXYPick(const unsigned long event)
     	if (paintbutton->isChecked())
     	{
     		// there should be just one label in the set
-    		std::set<unsigned short>::iterator it = this->_selectedLabels.begin();
+    		std::set<unsigned short>::iterator it = this->_dataManager->GetSelectedLabelsSet().begin();
     		_dataManager->SetVoxelScalar(_POI[0], _POI[1], _POI[2], (*it));
     	}
 
@@ -1918,6 +1897,7 @@ void EspinaVolumeEditor::AxialXYPick(const unsigned long event)
 
         if (wandButton->isChecked())
         {
+        	// TODO: iluminar los colores seleccionados con la varita.
         	QMutexLocker locker(actionLock);
 
             cutbutton->setEnabled(true);
@@ -1930,7 +1910,7 @@ void EspinaVolumeEditor::AxialXYPick(const unsigned long event)
             		_dataManager->ColorHighlightExclusive(_pointScalar);
             		_volumeRender->ColorHighlightExclusive(_pointScalar);
 
-             		// _selectedLabel could be 0 and renderbutton could be disabled
+            		// _selectedLabel could be 0 and renderbutton could be disabled
            			rendertypebutton->setEnabled(true);
         		}
         		else
@@ -2042,7 +2022,7 @@ void EspinaVolumeEditor::CoronalXYPick(const unsigned long event)
     	if (paintbutton->isChecked())
     	{
     		// there should be just one label in the set
-    		std::set<unsigned short>::iterator it = this->_selectedLabels.begin();
+    		std::set<unsigned short>::iterator it = this->_dataManager->GetSelectedLabelsSet().begin();
     		_dataManager->SetVoxelScalar(_POI[0], _POI[1], _POI[2], (*it));
     	}
 
@@ -2182,7 +2162,7 @@ void EspinaVolumeEditor::SagittalXYPick(const unsigned long event)
     	if (paintbutton->isChecked())
      	{
      		// there should be just one label in the set
-     		std::set<unsigned short>::iterator it = this->_selectedLabels.begin();
+     		std::set<unsigned short>::iterator it = this->_dataManager->GetSelectedLabelsSet().begin();
      		_dataManager->SetVoxelScalar(_POI[0], _POI[1], _POI[2], (*it));
      	}
 
@@ -2426,7 +2406,7 @@ void EspinaVolumeEditor::DisableRenderView(void)
             voxelresetbutton->setEnabled(true);
             rendersizebutton->setEnabled(true);
             axestypebutton->setEnabled(true);
-            if (!this->_selectedLabels.empty())
+            if (!this->_dataManager->GetSelectedLabelsSet().empty())
             	rendertypebutton->setEnabled(true);
 			renderdisablebutton->setIcon(QIcon(":/newPrefix/icons/cog_delete.png"));
             renderdisablebutton->setStatusTip(tr("Disable render view"));
@@ -2542,7 +2522,7 @@ void EspinaVolumeEditor::RestoreSavedSession(void)
 		free(buffer);
 	}
 
-	// read _POI and _selectedLabel
+	// read _POI
 	infile.read(reinterpret_cast<char*>(&_POI[0]), sizeof(unsigned int));
 	infile.read(reinterpret_cast<char*>(&_POI[1]), sizeof(unsigned int));
 	infile.read(reinterpret_cast<char*>(&_POI[2]), sizeof(unsigned int));
@@ -2554,7 +2534,6 @@ void EspinaVolumeEditor::RestoreSavedSession(void)
 
 	QMutexLocker locker(actionLock);
 
-    // MetaImageIO needed to read an image without a estandar extension (segmha in this case)
     typedef itk::Image<unsigned short, 3> ImageType;
     typedef itk::ImageFileReader<ImageType> ReaderType;
     itk::SmartPointer<itk::MetaImageIO> io = itk::MetaImageIO::New();
@@ -2856,7 +2835,6 @@ void EspinaVolumeEditor::InitiateSessionGUI(void)
     axestypebutton->setIcon(QIcon(":newPrefix/icons/noaxes.png"));
     labelselector->setCurrentRow(0);
     viewbutton->setChecked(true);
-    this->_selectedLabels.clear();
 
     // we can now begin updating the viewports
     this->updateVoxelRenderer = true;
@@ -2877,7 +2855,7 @@ void EspinaVolumeEditor::ToggleWandButton(bool value)
 			break;
 		case false:
 			// put the filters back in place
-			if (!this->_selectedLabels.empty())
+			if (!this->_dataManager->GetSelectedLabelsSet().empty())
 				EnableFilters(true);
 			break;
 		default: // can't happen
@@ -2911,31 +2889,11 @@ void EspinaVolumeEditor::EnableFilters(const bool value)
 	watershedoperation->setEnabled(value);
 }
 
-void EspinaVolumeEditor::RebuildSelectedLabels(void)
+void EspinaVolumeEditor::RestartVoxelRender(void)
 {
-	QListWidgetItem* item = NULL;
+	delete _volumeRender;
+	_volumeRender = new VoxelVolumeRender(_dataManager, _voxelViewRenderer, _progress);
 
-	this->_volumeRender->ColorDimAll();
-	this->_selectedLabels.clear();
-	labelselector->setEnabled(false);
-	for (unsigned int i = 1; i < this->_dataManager->GetNumberOfColors(); i++)
-	{
-		double rgba[4];
-
-		// recreate previous selection by deselecting all and selecting only the highlighted values
-		item = labelselector->item(i);
-		item->setSelected(false);
-
-		this->_dataManager->GetColorComponents(i, rgba);
-		if (1.0 == rgba[3])
-		{
-			unsigned short color = static_cast<unsigned short>(i);
-			_volumeRender->ColorHighlight(color);
-			this->_selectedLabels.insert(color);
-			item->setSelected(true);
-		}
-	}
-	labelselector->setEnabled(true);
-	this->_volumeRender->UpdateColorTable();
-	this->_volumeRender->UpdateFocusExtent();
+	if (!this->renderIsAVolume)
+		_volumeRender->ViewAsMesh();
 }

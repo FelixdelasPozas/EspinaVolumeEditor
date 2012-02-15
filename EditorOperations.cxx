@@ -150,7 +150,7 @@ void EditorOperations::Cut(std::set<unsigned short> labels)
 				for (unsigned int x = min[0]; x <= max[0]; x++)
 					for (unsigned int y = min[1]; y <= max[1]; y++)
 						for (unsigned int z = min[2]; z <= max[2]; z++)
-							if (labels.find(_dataManager->GetVoxelScalar(x, y, z)) != labels.end())
+							if (*it == _dataManager->GetVoxelScalar(x, y, z))
 								_dataManager->SetVoxelScalar(x, y, z, 0);
     		}
     		break;
@@ -443,10 +443,11 @@ void EditorOperations::Close(const unsigned short label)
     return;
 }
 
-void EditorOperations::Watershed(const unsigned short label)
+std::set<unsigned short> EditorOperations::Watershed(const unsigned short label)
 {
+	std::set<unsigned short> createdLabels;
 	if (0 == label)
-		return;
+		return createdLabels;
 
     _dataManager->OperationStart("Watershed");
     
@@ -473,7 +474,7 @@ void EditorOperations::Watershed(const unsigned short label)
     {
         _progress->Ignore(danielssonFilter);
         EditorError(excp);
-        return;
+        return createdLabels;
     }
     
     _progress->Ignore(danielssonFilter);
@@ -494,7 +495,7 @@ void EditorOperations::Watershed(const unsigned short label)
     {
         _progress->Ignore(watershedFilter);
         EditorError(excp);
-        return;
+        return createdLabels;
     }
     
     _progress->Ignore(watershedFilter);
@@ -515,7 +516,7 @@ void EditorOperations::Watershed(const unsigned short label)
     {
         _progress->Ignore(converter);
         EditorError(excp);
-        return;
+        return createdLabels;
     }
     
     _progress->Ignore(converter);
@@ -545,6 +546,7 @@ void EditorOperations::Watershed(const unsigned short label)
             if (false == _dataManager->ColorIsInUse(color))
             {
                 newlabel = _dataManager->SetLabel(Vector3d(color[0], color[1], color[2]));
+                createdLabels.insert(newlabel);
                 found = true;
             }
         }
@@ -567,6 +569,7 @@ void EditorOperations::Watershed(const unsigned short label)
 
     _progress->Reset();
     _dataManager->OperationEnd();
+    return createdLabels;
 }
 
 void EditorOperations::CleanImage(itk::SmartPointer<ImageType> image, const unsigned short label)
