@@ -71,9 +71,7 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         virtual void EditorSave();
         virtual void EditorExit();
         virtual void FullscreenToggle();
-        virtual void AxialInteraction(vtkObject*, unsigned long event, void*, void*, vtkCommand*);
-        virtual void CoronalInteraction(vtkObject*, unsigned long event, void*, void*, vtkCommand*);
-        virtual void SagittalInteraction(vtkObject*, unsigned long event, void*, void*, vtkCommand*);
+        virtual void SliceInteraction(vtkObject*, unsigned long event, void*, void*, vtkCommand*);
         virtual void SwitchSegmentationView();
         virtual void Preferences();
         virtual void About();
@@ -86,6 +84,7 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         virtual void ChangeYspinBox(int);
         virtual void ChangeZspinBox(int);
         virtual void LabelSelectionChanged();
+        virtual void LabelSelectionUserInteraction(const QModelIndex &);
         virtual void ViewReset();
         virtual void SwitchAxesView();
         virtual void SwitchVoxelRender();
@@ -105,6 +104,7 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         virtual void SaveSessionEnd();
         virtual void SaveSessionProgress(int);
         virtual void ToggleWandButton(bool);
+        virtual void ToggleEraseOrPaintButton(bool);
         virtual void ToggleDefaultButton(bool);
     private:
         typedef enum { All, Slices, Voxel, Axial, Coronal, Sagittal } VIEWPORTSENUM;
@@ -117,9 +117,7 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         // true if we are doing volume rendering and not mesh rendering
         bool renderIsAVolume;
 
-        void AxialXYPick(const unsigned long);
-        void CoronalXYPick(const unsigned long);
-        void SagittalXYPick(const unsigned long);
+        void SliceXYPick(const unsigned long, SliceVisualization::OrientationType);
         void GetPointLabel();
         void FillColorLabels();
         void UpdateViewports(VIEWPORTSENUM);
@@ -130,6 +128,9 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         void InitiateSessionGUI();
         void EnableFilters(const bool);
         void RestartVoxelRender();
+        void SelectLabelGroup(std::set<unsigned short>);
+        void CheckConsistentState();
+        void ApplyUserAction(void);
         
         // renderers for four QVTKWidget viewports
         vtkSmartPointer<vtkRenderer>           _voxelViewRenderer;

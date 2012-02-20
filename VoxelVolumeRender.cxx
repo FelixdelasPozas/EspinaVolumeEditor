@@ -26,6 +26,12 @@
 #include <vtkCamera.h>
 #include <vtkImageClip.h>
 
+#include <vtkImageCanvasSource2D.h>
+#include <vtkTexture.h>
+#include <vtkTextureMapToPlane.h>
+#include <vtkPolyDataMapper.h>
+#include <vtkTransformTextureCoords.h>
+
 // project includes
 #include "DataManager.h"
 #include "VoxelVolumeRender.h"
@@ -367,6 +373,7 @@ void VoxelVolumeRender::ColorHighlight(const unsigned short label)
 				break;
 			case false:
 				ComputeMesh(label);
+				this->_progress->Reset();
 				break;
 			default:
 				break;

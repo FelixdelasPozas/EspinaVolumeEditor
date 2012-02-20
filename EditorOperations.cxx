@@ -130,6 +130,9 @@ void EditorOperations::ItkImageToPoints(itk::SmartPointer<ImageType> image)
 
 void EditorOperations::Cut(std::set<unsigned short> labels)
 {
+	if (labels.empty())
+		return;
+
     _progress->ManualSet("Cut");
     _dataManager->OperationStart("Cut");
     
@@ -249,6 +252,9 @@ bool EditorOperations::Relabel(QWidget *parent, Metadata *data, std::set<unsigne
     						_dataManager->SetVoxelScalar(x, y, z, newlabel);
     		break;
     	case Selection::CUBE:
+    		if (labels->empty())
+    			labels->insert(0);
+
     		min = this->_selection->GetSelectedMinimumBouds();
     		max = this->_selection->GetSelectedMaximumBouds();
     	    for (unsigned int x = min[0]; x <= max[0]; x++)
@@ -608,6 +614,7 @@ void EditorOperations::EditorError(itk::ExceptionObject &excp)
     std::string text = std::string("An error occurred.\nThe ");
     text += _dataManager->GetActualActionString();
     text += std::string(" operation has been aborted.");
+    msgBox.setCaption("Error");
     msgBox.setText(text.c_str());
     msgBox.setDetailedText(excp.what());
     msgBox.exec();
@@ -657,6 +664,7 @@ void EditorOperations::SaveImage(const std::string filename)
 	if(0 == converter->GetOutput()->GetNumberOfLabelObjects())
 	{
 		QMessageBox msgBox;
+		msgBox.setCaption("Error trying to save image");
 		msgBox.setIcon(QMessageBox::Warning);
 		msgBox.setText("There are no segmentations in the image. Not saving an empty image.");
 		msgBox.exec();
@@ -709,6 +717,7 @@ void EditorOperations::SaveImage(const std::string filename)
 	catch (itk::ExceptionObject &excp)
 	{
 	    QMessageBox msgBox;
+	    msgBox.setCaption("Error trying to save image");
 	    msgBox.setIcon(QMessageBox::Critical);
 		std::string text = std::string("An error occurred saving the segmentation file.\nThe operation has been aborted.");
 		msgBox.setText(text.c_str());
@@ -722,6 +731,7 @@ void EditorOperations::SaveImage(const std::string filename)
 	if (0 != (rename(tempfilename.c_str(), filename.c_str())))
 	{
 	    QMessageBox msgBox;
+	    msgBox.setCaption("Error trying to rename a file");
 	    msgBox.setIcon(QMessageBox::Critical);
 		msgBox.setText("An error occurred saving the segmentation file.\nThe operation has been aborted.");
 		msgBox.setDetailedText(QString("The temporal file couldn't be renamed."));
@@ -730,6 +740,7 @@ void EditorOperations::SaveImage(const std::string filename)
 		if (0 != (remove(tempfilename.c_str())))
 		{
 		    QMessageBox msgBox;
+		    msgBox.setCaption("Error trying to delete a file");
 		    msgBox.setIcon(QMessageBox::Critical);
 			std::string text = std::string("The temporal file \"");
 			text += tempfilename;

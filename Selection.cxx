@@ -240,6 +240,7 @@ void Selection::AddArea(Vector3ui point, const unsigned short label)
 	catch (itk::ExceptionObject &excp)
 	{
 	    QMessageBox msgBox;
+	    msgBox.setCaption("Error while selecting");
 	    msgBox.setIcon(QMessageBox::Critical);
 		msgBox.setText("An error occurred in connected thresholding.\nThe operation has been aborted.");
 		msgBox.setDetailedText(excp.what());
@@ -260,6 +261,7 @@ void Selection::AddArea(Vector3ui point, const unsigned short label)
 	catch (itk::ExceptionObject &excp)
 	{
 	    QMessageBox msgBox;
+	    msgBox.setCaption("Error while selecting");
 	    msgBox.setIcon(QMessageBox::Critical);
 		msgBox.setText("An error occurred converting an itk image to a vtk image.\nThe operation has been aborted.");
 		msgBox.setDetailedText(excp.what());

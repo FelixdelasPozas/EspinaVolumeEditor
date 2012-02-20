@@ -42,6 +42,7 @@ void QtRelabel::SetInitialOptions(std::set<unsigned short> labels, Metadata* dat
 
     newlabelbox->setSelectionMode(QAbstractItemView::SingleSelection);
     _maxcolors = dataManager->GetNumberOfLabels();
+    _multipleLabels = (labels.size() > 1);
 
     if (labels.size() > 1)
 	{
@@ -89,7 +90,7 @@ void QtRelabel::SetInitialOptions(std::set<unsigned short> labels, Metadata* dat
 		// color 0 is black, so we will start from 1
 		for (unsigned int i = 1; i < _maxcolors; i++)
 		{
-			// avoid showing the only color available
+			// avoid showing the selected color
 			if (i == tempLabel)
 				continue;
 

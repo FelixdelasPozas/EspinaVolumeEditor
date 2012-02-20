@@ -72,6 +72,7 @@ int SaveSessionThread::exec()
 		if (!file.remove())
 		{
 			QMessageBox msgBox;
+			msgBox.setCaption("Error saving session");
 			msgBox.setIcon(QMessageBox::Critical);
 			msgBox.setText("An error occurred saving the editor session file.\nThe operation has been aborted.");
 			msgBox.setDetailedText("Previous session file exists but couldn't be removed.");
@@ -84,6 +85,7 @@ int SaveSessionThread::exec()
 		if (!fileMHA.remove())
 		{
 			QMessageBox msgBox;
+			msgBox.setCaption("Error saving session");
 			msgBox.setIcon(QMessageBox::Critical);
 			msgBox.setText("An error occurred saving the editor session file.\nThe operation has been aborted.");
 			msgBox.setDetailedText("Previous MHA session file exists but couldn't be removed.");
@@ -111,6 +113,7 @@ int SaveSessionThread::exec()
 	catch (itk::ExceptionObject &excp)
 	{
 	    QMessageBox msgBox;
+	    msgBox.setCaption("Error saving session");
 	    msgBox.setIcon(QMessageBox::Critical);
 		msgBox.setText("An error occurred saving the editor MHA session file.\nThe operation has been aborted.");
 		msgBox.setDetailedText(excp.what());
@@ -126,6 +129,7 @@ int SaveSessionThread::exec()
 	if (!outfile.is_open())
 	{
 		QMessageBox msgBox;
+		msgBox.setCaption("Error saving session");
 		msgBox.setIcon(QMessageBox::Critical);
 		msgBox.setText("An error occurred saving the editor session file.\nThe operation has been aborted.");
 		msgBox.setDetailedText("Couldn't open session file for writing.");
@@ -136,7 +140,7 @@ int SaveSessionThread::exec()
 	// dump all relevant data and objects to file, first the size of the std::map or std::vector, the objects
 	// themselves and also all the relevant data.
 	// the order:
-	//		- EspinaEditor relevant data: POI, selectedlabel and file names
+	//		- EspinaEditor relevant data: POI and file names...
 	//		- metadata ObjectMetadata
 	//		- metadata CountingBrickMetadata
 	//		- metadata SegmentMetadata

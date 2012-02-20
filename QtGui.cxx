@@ -97,6 +97,7 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
     connect(sagittalslider, SIGNAL(sliderPressed()), this, SLOT(SliceSliderPressed()));
     
     connect(labelselector, SIGNAL(itemSelectionChanged()), this, SLOT(LabelSelectionChanged()));
+    connect(labelselector, SIGNAL(clicked(const QModelIndex &)), this, SLOT(LabelSelectionUserInteraction(const QModelIndex &)));
     
     connect(XspinBox, SIGNAL(valueChanged(int)), this, SLOT(ChangeXspinBox(int)));
     connect(YspinBox, SIGNAL(valueChanged(int)), this, SLOT(ChangeYspinBox(int)));
@@ -112,8 +113,8 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
     connect(axestypebutton, SIGNAL(clicked(bool)), this, SLOT(SwitchAxesView()));
     
     connect(viewbutton, SIGNAL(toggled(bool)), this, SLOT(ToggleDefaultButton(bool)));
-    connect(paintbutton, SIGNAL(toggled(bool)), this, SLOT(ToggleDefaultButton(bool)));
-    connect(erasebutton, SIGNAL(toggled(bool)), this, SLOT(ToggleDefaultButton(bool)));
+    connect(paintbutton, SIGNAL(toggled(bool)), this, SLOT(ToggleEraseOrPaintButton(bool)));
+    connect(erasebutton, SIGNAL(toggled(bool)), this, SLOT(ToggleEraseOrPaintButton(bool)));
     connect(cutbutton, SIGNAL(clicked(bool)), this, SLOT(EditorCut()));
     connect(relabelbutton, SIGNAL(clicked(bool)), this, SLOT(EditorRelabel()));
     connect(pickerbutton, SIGNAL(clicked(bool)), this, SLOT(ToggleDefaultButton(bool)));
@@ -198,111 +199,111 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
     // delegates the rest to the style so we don't get the mouse release event.  
     _connections->Connect(axialview->GetRenderWindow()->GetInteractor()->GetInteractorStyle(),
                           vtkCommand::LeftButtonPressEvent, this,
-                          SLOT(AxialInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
+                          SLOT(SliceInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
     
     _connections->Connect(axialview->GetRenderWindow()->GetInteractor()->GetInteractorStyle(), 
                           vtkCommand::LeftButtonReleaseEvent, this, 
-                          SLOT(AxialInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
+                          SLOT(SliceInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
 
     _connections->Connect(axialview->GetRenderWindow()->GetInteractor()->GetInteractorStyle(),
                           vtkCommand::RightButtonPressEvent, this,
-                          SLOT(AxialInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
+                          SLOT(SliceInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
     
     _connections->Connect(axialview->GetRenderWindow()->GetInteractor()->GetInteractorStyle(), 
                           vtkCommand::RightButtonReleaseEvent, this, 
-                          SLOT(AxialInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
+                          SLOT(SliceInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
 
     _connections->Connect(axialview->GetRenderWindow()->GetInteractor()->GetInteractorStyle(),
                           vtkCommand::MiddleButtonPressEvent, this,
-                          SLOT(AxialInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
+                          SLOT(SliceInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
     
     _connections->Connect(axialview->GetRenderWindow()->GetInteractor()->GetInteractorStyle(), 
                           vtkCommand::MiddleButtonReleaseEvent, this, 
-                          SLOT(AxialInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
+                          SLOT(SliceInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
 
     _connections->Connect(axialview->GetRenderWindow()->GetInteractor()->GetInteractorStyle(), 
                           vtkCommand::MouseMoveEvent, this, 
-                          SLOT(AxialInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
+                          SLOT(SliceInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
     
     _connections->Connect(axialview->GetRenderWindow()->GetInteractor()->GetInteractorStyle(), 
                           vtkCommand::MouseWheelForwardEvent, this, 
-                          SLOT(AxialInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
+                          SLOT(SliceInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
 
     _connections->Connect(axialview->GetRenderWindow()->GetInteractor()->GetInteractorStyle(), 
                           vtkCommand::MouseWheelBackwardEvent, this, 
-                          SLOT(AxialInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
+                          SLOT(SliceInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
 
     _connections->Connect(coronalview->GetRenderWindow()->GetInteractor()->GetInteractorStyle(),
                           vtkCommand::LeftButtonPressEvent, this,
-                          SLOT(CoronalInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
+                          SLOT(SliceInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
     
     _connections->Connect(coronalview->GetRenderWindow()->GetInteractor()->GetInteractorStyle(), 
                           vtkCommand::LeftButtonReleaseEvent, this, 
-                          SLOT(CoronalInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
+                          SLOT(SliceInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
 
     _connections->Connect(coronalview->GetRenderWindow()->GetInteractor()->GetInteractorStyle(),
                           vtkCommand::RightButtonPressEvent, this,
-                          SLOT(CoronalInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
+                          SLOT(SliceInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
     
     _connections->Connect(coronalview->GetRenderWindow()->GetInteractor()->GetInteractorStyle(), 
                           vtkCommand::RightButtonReleaseEvent, this, 
-                          SLOT(CoronalInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
+                          SLOT(SliceInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
 
     _connections->Connect(coronalview->GetRenderWindow()->GetInteractor()->GetInteractorStyle(),
                           vtkCommand::MiddleButtonPressEvent, this,
-                          SLOT(CoronalInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
+                          SLOT(SliceInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
     
     _connections->Connect(coronalview->GetRenderWindow()->GetInteractor()->GetInteractorStyle(), 
                           vtkCommand::MiddleButtonReleaseEvent, this, 
-                          SLOT(CoronalInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
+                          SLOT(SliceInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
 
     _connections->Connect(coronalview->GetRenderWindow()->GetInteractor()->GetInteractorStyle(), 
                           vtkCommand::MouseMoveEvent, this, 
-                          SLOT(CoronalInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
+                          SLOT(SliceInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
     
     _connections->Connect(coronalview->GetRenderWindow()->GetInteractor()->GetInteractorStyle(), 
                           vtkCommand::MouseWheelForwardEvent, this, 
-                          SLOT(CoronalInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
+                          SLOT(SliceInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
 
     _connections->Connect(coronalview->GetRenderWindow()->GetInteractor()->GetInteractorStyle(), 
                           vtkCommand::MouseWheelBackwardEvent, this, 
-                          SLOT(CoronalInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
+                          SLOT(SliceInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
     
     _connections->Connect(sagittalview->GetRenderWindow()->GetInteractor()->GetInteractorStyle(),
                           vtkCommand::LeftButtonPressEvent, this,
-                          SLOT(SagittalInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
+                          SLOT(SliceInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
     
     _connections->Connect(sagittalview->GetRenderWindow()->GetInteractor()->GetInteractorStyle(), 
                           vtkCommand::LeftButtonReleaseEvent, this, 
-                          SLOT(SagittalInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
+                          SLOT(SliceInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
 
     _connections->Connect(sagittalview->GetRenderWindow()->GetInteractor()->GetInteractorStyle(),
                           vtkCommand::RightButtonPressEvent, this,
-                          SLOT(SagittalInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
+                          SLOT(SliceInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
     
     _connections->Connect(sagittalview->GetRenderWindow()->GetInteractor()->GetInteractorStyle(), 
                           vtkCommand::RightButtonReleaseEvent, this, 
-                          SLOT(SagittalInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
+                          SLOT(SliceInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
 
     _connections->Connect(sagittalview->GetRenderWindow()->GetInteractor()->GetInteractorStyle(),
                           vtkCommand::MiddleButtonPressEvent, this,
-                          SLOT(SagittalInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
+                          SLOT(SliceInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
     
     _connections->Connect(sagittalview->GetRenderWindow()->GetInteractor()->GetInteractorStyle(), 
                           vtkCommand::MiddleButtonReleaseEvent, this, 
-                          SLOT(SagittalInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
+                          SLOT(SliceInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
 
     _connections->Connect(sagittalview->GetRenderWindow()->GetInteractor()->GetInteractorStyle(), 
                           vtkCommand::MouseMoveEvent, this, 
-                          SLOT(SagittalInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
+                          SLOT(SliceInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
     
     _connections->Connect(sagittalview->GetRenderWindow()->GetInteractor()->GetInteractorStyle(), 
                           vtkCommand::MouseWheelForwardEvent, this, 
-                          SLOT(SagittalInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
+                          SLOT(SliceInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
 
     _connections->Connect(sagittalview->GetRenderWindow()->GetInteractor()->GetInteractorStyle(), 
                           vtkCommand::MouseWheelBackwardEvent, this, 
-                          SLOT(SagittalInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
+                          SLOT(SliceInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
     
     // init some global variables
     this->_hasReferenceImage = false;
@@ -354,6 +355,7 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
 
 		QMessageBox msgBox;
 		msgBox.setIcon(QMessageBox::Information);
+		msgBox.setCaption("Previous session data detected");
 		msgBox.setText("Data from a previous Editor session exists (maybe the editor crashed or didn't exit cleanly).");
 		msgBox.setInformativeText("Do you want to restore that session?");
 		msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
@@ -422,6 +424,7 @@ void EspinaVolumeEditor::EditorOpen(void)
 	coronalview->setEnabled(true);
 
     QMessageBox msgBox;
+	msgBox.setCaption("Error loading segmentation file");
 
     QString filename = QFileDialog::getOpenFileName(this, tr("Open Espina Segmentation Image"), QDir::currentPath(), QObject::tr("Espina segmentation files (*.segmha)"));
 
@@ -587,6 +590,7 @@ void EspinaVolumeEditor::EditorOpen(void)
 	if (0 != unusedLabels.size())
 	{
 		std::stringstream out;
+		msgBox.setCaption("Unused objects detected");
 		msgBox.setIcon(QMessageBox::Warning);
 
 		qApp->restoreOverrideCursor();
@@ -720,6 +724,7 @@ void EspinaVolumeEditor::LoadReferenceFile(QString filename)
     if (segmentationsize != Vector3ui(size[0], size[1], size[2]))
     {
     	_progress->ManualReset();
+		msgBox.setCaption("Segmentation size mismatch");
     	std::stringstream out;
 		msgBox.setIcon(QMessageBox::Critical);
 
@@ -741,6 +746,7 @@ void EspinaVolumeEditor::LoadReferenceFile(QString filename)
     	qApp->restoreOverrideCursor();
     	std::stringstream out;
 		msgBox.setIcon(QMessageBox::Warning);
+		msgBox.setCaption("Segmentation origin mismatch");
 
 		std::string text = std::string("Reference and segmentation images have different origin of coordinates.\nReference origin is [");
 		out << origin[0] << "," << origin[1] << "," << origin[2] << "].\nSegmentation origin is [" << segmentationorigin[0] << ",";
@@ -759,6 +765,7 @@ void EspinaVolumeEditor::LoadReferenceFile(QString filename)
     	qApp->restoreOverrideCursor();
     	std::stringstream out;
 		msgBox.setIcon(QMessageBox::Warning);
+		msgBox.setCaption("Segmentation spacing mismatch");
 
 		std::string text = std::string("Reference and segmentation images have different point spacing.\nReference spacing is [");
 		out << spacing[0] << "," << spacing[1] << "," << spacing[2] << "].\nSegmentation spacing is [" << segmentationspacing[0] << ",";
@@ -855,6 +862,7 @@ void EspinaVolumeEditor::EditorSave()
 	if (!_fileMetadata->Write(QString(filenameStd.c_str()), _dataManager))
 	{
 		msgBox.setIcon(QMessageBox::Critical);
+		msgBox.setCaption("Error saving segmentation file");
 
 		std::string text = std::string("An error occurred saving the segmentation metadata to file \"");
 		text += filenameStd;
@@ -1081,153 +1089,166 @@ void EspinaVolumeEditor::FillColorLabels()
     labelselector->setEnabled(true);
 }
 
-void EspinaVolumeEditor::LabelSelectionChanged()
+void EspinaVolumeEditor::LabelSelectionChanged(void)
 {
-    if (!labelselector->isEnabled() || (labelselector->currentRow() == -1))
+    if (!labelselector->isEnabled())
         return;
-    
-	labelselector->blockSignals(true);
-
-    // we must cancel all selections in the editor
-    _editorOperations->ClearSelection();
 
     // find the selected items group in the labelselector widget
+	std::set<unsigned short> labelsList;
     QList<QListWidgetItem*> selectedItems = labelselector->selectedItems();
-    std::set<unsigned short> labelsList;
-    QList<QListWidgetItem*>::iterator it;
-    for (it = selectedItems.begin(); it != selectedItems.end(); it++)
-    	labelsList.insert(static_cast<unsigned short>(labelselector->row(*it)));
 
-    // if the selectedList contains the background label or is empty then the selected label is background
-    if ((labelsList.find(0) != labelsList.end()) || (labelsList.empty()))
+    QList<QListWidgetItem*>::iterator items_it;
+    for (items_it = selectedItems.begin(); items_it != selectedItems.end(); items_it++)
     {
-    	// deselect labels other than the current one
-    	labelselector->clearSelection();
-    	labelselector->item(0)->setSelected(true);
-
-    	_dataManager->ColorDimAll();
-    	_volumeRender->ColorDimAll();
-
-		cutbutton->setEnabled(false);
-		relabelbutton->setEnabled(false);
-
-	    if (pickerbutton->isChecked() || wandButton->isChecked())
-	    	viewbutton->setChecked(true);
-
-		if (renderview->isEnabled())
-			rendertypebutton->setEnabled(false);
-
-		EnableFilters(false);
-	    UpdateViewports(All);
-
-	    labelselector->blockSignals(false);
-		return;
-    }
-
-    if (paintbutton->isChecked())
-    {
-    	// deselect labels other than the current one
-    	labelselector->clearSelection();
-    	labelselector->item(labelselector->currentRow())->setSelected(true);
-       	_dataManager->ColorHighlightExclusive(static_cast<unsigned short>(labelselector->currentRow()));
-       	_volumeRender->ColorHighlightExclusive(static_cast<unsigned short>(labelselector->currentRow()));
-    }
-    else
-    {
-    	// clear the labels not present in the actual selection and later highlight labels present in the actual avoiding
-    	// highlighting/dimmng the ones already present in both groups
-    	std::set<unsigned short> selectedLabels = this->_dataManager->GetSelectedLabelsSet();
-    	std::set<unsigned short>::iterator it;
-    	for (it = selectedLabels.begin(); it != selectedLabels.end(); it++)
+    	if (0 == labelselector->row(*items_it))
     	{
-    		if (labelsList.find(*it) == labelsList.end())
-    		{
-    			_dataManager->ColorDim(*it);
-    			_volumeRender->ColorDim(*it);
-    		}
+    		labelselector->blockSignals(true);
+        	labelselector->item(0)->setSelected(false);
+            labelselector->blockSignals(false);
+    		continue;
     	}
 
-    	for (it = labelsList.begin(); it != labelsList.end(); it++)
-    	{
-    		if (selectedLabels.find(*it) == selectedLabels.end())
-    		{
-    			_dataManager->ColorHighlight(*it);
-    			_volumeRender->ColorHighlight(*it);
-    		}
-    	}
-
-		cutbutton->setEnabled(true);
-		relabelbutton->setEnabled(true);
-		EnableFilters(1 == labelsList.size());
-    	_volumeRender->UpdateColorTable();
-    	_volumeRender->UpdateFocusExtent();
+    	labelsList.insert(static_cast<unsigned short>(labelselector->row(*items_it)));
     }
 
-    // we end now modifying labelselector so we can stop now blocking its signals.
-    labelselector->blockSignals(false);
-
-	if(renderview->isEnabled())
-		rendertypebutton->setEnabled(true);
-
-    // if the user selected the label by hand I don't want to change the POI, just highlight the label
-    // in the picked point
-    if (pickerbutton->isChecked())
+    // modify views according to selected group of labels
+    switch (labelsList.size())
     {
-    	viewbutton->setChecked(true);
+    	case 0: // background label selected or no label selected
+    		labelselector->blockSignals(true);
+        	labelselector->clearSelection();
+        	labelselector->item(0)->setSelected(true);
+            labelselector->blockSignals(false);
+        	_dataManager->ColorDimAll();
+        	_volumeRender->ColorDimAll();
+    		break;
+    	case 1: // single or extended selection, but only one label.
+    	{
+    		std::set<unsigned short>::iterator it = labelsList.begin();
+           	_dataManager->ColorHighlightExclusive(*it);
+           	_volumeRender->ColorHighlightExclusive(*it);
+    	    break;
+    	}
+    	default: // multiple labels selection
+    	{
+    		// clear the labels not present in the actual selection and highlight labels present in the actual avoiding
+			// highlighting/dimmng the ones already present in both groups
+			std::set<unsigned short> selectedLabels = this->_dataManager->GetSelectedLabelsSet();
+			for (std::set<unsigned short>::iterator it = selectedLabels.begin(); it != selectedLabels.end(); it++)
+				if (labelsList.find(*it) == labelsList.end())
+				{
+					_dataManager->ColorDim(*it);
+					_volumeRender->ColorDim(*it);
+				}
+			for (std::set<unsigned short>::iterator it = labelsList.begin(); it != labelsList.end(); it++)
+				if (selectedLabels.find(*it) == selectedLabels.end())
+				{
+					_dataManager->ColorHighlight(*it);
+					_volumeRender->ColorHighlight(*it);
+				}
+    		break;
+    	}
+    }
+
+	this->_volumeRender->UpdateColorTable();
+	this->_volumeRender->UpdateFocusExtent();
+
+	// manage buttons and actions available for current selection
+	CheckConsistentState();
+
+    switch (labelsList.size())
+    {
+    	case 0:
+    		cutbutton->setEnabled(false);
+   			rendertypebutton->setEnabled(!renderview->isEnabled());
+   			relabelbutton->setEnabled(selectbutton->isChecked());
+    		EnableFilters(false);
+    		break;
+    	case 1:
+    		cutbutton->setEnabled(true);
+    		relabelbutton->setEnabled(true);
+   			rendertypebutton->setEnabled(renderview->isEnabled());
+    		EnableFilters(true);
+    		break;
+    	default:
+			cutbutton->setEnabled(true);
+			relabelbutton->setEnabled(true);
+   			rendertypebutton->setEnabled(renderview->isEnabled());
+			EnableFilters(false);
+    		break;
+    }
+
+	this->_volumeRender->UpdateColorTable();
+	this->_volumeRender->UpdateFocusExtent();
+
+	// if there is more than one segmentation this slot is responsible for updating the views,
+	// the other case is handled by LabelSelectionUserInteraction
+    if ((labelselector->selectedItems().size() > 1) || pickerbutton->isChecked())
+    	UpdateViewports(All);
+}
+
+void EspinaVolumeEditor::LabelSelectionUserInteraction(const QModelIndex &value)
+{
+	// only want to change POI when the user selects one item from the list by clicking on it
+	// and it's not painting
+    if (labelselector->selectedItems().size() != 1)
+    	return;
+
+    // POI not updated if painting, picking a color or doing a cube selection
+    if (paintbutton->isChecked() || pickerbutton->isChecked() || selectbutton->isChecked())
+    {
     	UpdateViewports(All);
     	return;
     }
 
-    if (wandButton->isChecked())
-    	viewbutton->setChecked(true);
-
-    // if the selected label has no voxels it has no centroid
-    if (0LL == _dataManager->GetNumberOfVoxelsForLabel(labelselector->currentRow()))
+    // if segmentation has no voxels it has no centroid, check first
+    if (0LL != _dataManager->GetNumberOfVoxelsForLabel(value.row()))
     {
-    	UpdateViewports(All);
-    	return;
+		// center slice views in the centroid of the object
+		Vector3d newPOI = _dataManager->GetCentroidForObject(value.row());
+
+		// to prevent unwanted updates to the view it's not enough to blocksignals() of the
+		// involved qt elements
+		updateSliceRenderers = false;
+		updateVoxelRenderer = false;
+		updatePointLabel = false;
+
+		// POI values start in 0, spinboxes start in 1
+		_POI[0] = static_cast<unsigned int>(newPOI[0]);
+		_POI[1] = static_cast<unsigned int>(newPOI[1]);
+		_POI[2] = static_cast<unsigned int>(newPOI[2]);
+		ZspinBox->setValue(_POI[2] + 1);
+		YspinBox->setValue(_POI[1] + 1);
+		XspinBox->setValue(_POI[0] + 1);
+
+		_sagittalSliceVisualization->Update(_POI);
+		_coronalSliceVisualization->Update(_POI);
+		_axialSliceVisualization->Update(_POI);
+		_axesRender->Update(_POI);
+		GetPointLabel();
+
+		// change slice view to the new label
+		Vector3d spacing = _orientationData->GetImageSpacing();
+		double coords[3];
+		_axialViewRenderer->GetActiveCamera()->GetPosition(coords);
+		_axialViewRenderer->GetActiveCamera()->SetPosition(_POI[0] * spacing[0], _POI[1] * spacing[1], coords[2]);
+		_axialViewRenderer->GetActiveCamera()->SetFocalPoint(_POI[0] * spacing[0], _POI[1] * spacing[1], 0.0);
+		_axialSliceVisualization->ZoomEvent();
+		_coronalViewRenderer->GetActiveCamera()->GetPosition(coords);
+		_coronalViewRenderer->GetActiveCamera()->SetPosition(_POI[0] * spacing[0], _POI[2] * spacing[2], coords[2]);
+		_coronalViewRenderer->GetActiveCamera()->SetFocalPoint(_POI[0] * spacing[0], _POI[2] * spacing[2], 0.0);
+		_coronalSliceVisualization->ZoomEvent();
+		_sagittalViewRenderer->GetActiveCamera()->GetPosition(coords);
+		_sagittalViewRenderer->GetActiveCamera()->SetPosition(_POI[1] * spacing[1], _POI[2] * spacing[2], coords[2]);
+		_sagittalViewRenderer->GetActiveCamera()->SetFocalPoint(_POI[1] * spacing[1], _POI[2] * spacing[2], 0.0);
+		_sagittalSliceVisualization->ZoomEvent();
+
+		updatePointLabel = true;
+		updateSliceRenderers = true;
+		updateVoxelRenderer = true;
+		UpdateViewports(All);
     }
-
-    Vector3d newPOI = _dataManager->GetCentroidForObject(labelselector->currentRow());
-
-    updateSliceRenderers = false;
-    updateVoxelRenderer = false;
-    updatePointLabel = false;
-
-    // POI values start in 0, spinboxes start in 1
-    _POI[0] = static_cast<unsigned int>(newPOI[0]);
-    _POI[1] = static_cast<unsigned int>(newPOI[1]);
-    _POI[2] = static_cast<unsigned int>(newPOI[2]);
-    ZspinBox->setValue(_POI[2]+1);
-    YspinBox->setValue(_POI[1]+1);
-    XspinBox->setValue(_POI[0]+1);
-
-    _sagittalSliceVisualization->Update(_POI);
-    _coronalSliceVisualization->Update(_POI);
-    _axialSliceVisualization->Update(_POI);
-    _axesRender->Update(_POI);
-    GetPointLabel();
-
-    // change slice view to the new label
-    Vector3d spacing = _orientationData->GetImageSpacing();
-    double coords[3];
-    _axialViewRenderer->GetActiveCamera()->GetPosition(coords);
-    _axialViewRenderer->GetActiveCamera()->SetPosition(_POI[0]*spacing[0],_POI[1]*spacing[1],coords[2]);
-    _axialViewRenderer->GetActiveCamera()->SetFocalPoint(_POI[0]*spacing[0],_POI[1]*spacing[1],0.0);
-    _axialSliceVisualization->ZoomEvent();
-    _coronalViewRenderer->GetActiveCamera()->GetPosition(coords);
-    _coronalViewRenderer->GetActiveCamera()->SetPosition(_POI[0]*spacing[0],_POI[2]*spacing[2],coords[2]);
-    _coronalViewRenderer->GetActiveCamera()->SetFocalPoint(_POI[0]*spacing[0],_POI[2]*spacing[2],0.0);
-    _coronalSliceVisualization->ZoomEvent();
-    _sagittalViewRenderer->GetActiveCamera()->GetPosition(coords);
-    _sagittalViewRenderer->GetActiveCamera()->SetPosition(_POI[1]*spacing[1],_POI[2]*spacing[2],coords[2]);
-    _sagittalViewRenderer->GetActiveCamera()->SetFocalPoint(_POI[1]*spacing[1],_POI[2]*spacing[2],0.0);
-    _sagittalSliceVisualization->ZoomEvent();
-
-    updatePointLabel = true;
-    updateSliceRenderers = true;
-    updateVoxelRenderer = true;
-    UpdateViewports(All);
 }
 
 void EspinaVolumeEditor::Preferences()
@@ -1380,18 +1401,13 @@ void EspinaVolumeEditor::EditorRelabel()
 
     if (_editorOperations->Relabel(this, _fileMetadata, labels, isANewColor))
     {
-    	// relabel returned just one label
-    	std::set<unsigned short>::iterator it = (*labels).begin();
-
-    	// highlight only this new colour
-    	this->_dataManager->ColorHighlightExclusive(*it);
-
     	if (true == *isANewColor)
     	{
     		RestartVoxelRender();
 			FillColorLabels();
     	}
 
+    	SelectLabelGroup(*labels);
         GetPointLabel();
         UpdateUndoRedoMenu();
         UpdateViewports(All);
@@ -1507,18 +1523,12 @@ void EspinaVolumeEditor::WatershedVolume()
 {
 	QMutexLocker locker(actionLock);
 	std::set<unsigned short>::iterator it = this->_dataManager->GetSelectedLabelsSet().begin();
-
     std::set<unsigned short> generatedLabels = _editorOperations->Watershed(*it);
-
-    // select the new colors from the watershed operation
-    this->_dataManager->ColorDimAll();
-    for(it = generatedLabels.begin(); it != generatedLabels.end(); it++)
-    	this->_dataManager->ColorHighlight(*it);
 
     RestartVoxelRender();
     FillColorLabels();
     GetPointLabel();
-
+    SelectLabelGroup(generatedLabels);
     UpdateUndoRedoMenu();
     UpdateViewports(All);
 }
@@ -1551,6 +1561,9 @@ void EspinaVolumeEditor::OperationUndo()
 	std::string text = std::string("Undo ") + _dataManager->GetUndoActionString();
     _progress->ManualSet(text);
 
+    // we need to put the program in an state where the redo operation makes sense
+	viewbutton->setChecked(true);
+
     _dataManager->DoUndoOperation();
 
     RestartVoxelRender();
@@ -1568,33 +1581,77 @@ void EspinaVolumeEditor::OperationRedo()
 	std::string text = std::string("Redo ") + _dataManager->GetRedoActionString();
     _progress->ManualSet(text);
     
+    // we need to put the program in an state where the redo operation makes sense
+	viewbutton->setChecked(true);
+
     _dataManager->DoRedoOperation();
 
     RestartVoxelRender();
     GetPointLabel();
     FillColorLabels();
+    CheckConsistentState();
     UpdateUndoRedoMenu();
     UpdateViewports(All);
     _progress->ManualReset();
 }
 
-void EspinaVolumeEditor::AxialInteraction(vtkObject* object, unsigned long event, void*, void*, vtkCommand*)
+void EspinaVolumeEditor::SliceInteraction(vtkObject* object, unsigned long event, void*, void*, vtkCommand*)
 {
+	static vtkSmartPointer<vtkInteractorObserver> axialInteractorObserver = axialview->GetRenderWindow()->GetInteractor()->GetInteractorStyle();
+	static vtkSmartPointer<vtkInteractorObserver> coronalInteractorObserver = coronalview->GetRenderWindow()->GetInteractor()->GetInteractorStyle();
+	static vtkSmartPointer<vtkInteractorObserver> sagittalInteractorObserver = sagittalview->GetRenderWindow()->GetInteractor()->GetInteractorStyle();
+
     static bool leftButtonStillDown = false;
     static bool rightButtonStillDown = false;
     static bool middleButtonStillDown = false;
-    
+    SliceVisualization::OrientationType sliceView;
+
     // to pass events forward
-    static vtkSmartPointer<vtkInteractorStyle> style = vtkInteractorStyle::SafeDownCast(axialview->GetRenderWindow()->GetInteractor()->GetInteractorStyle());
+    vtkSmartPointer<vtkInteractorStyle> style = vtkInteractorStyle::SafeDownCast(object);
+
+    if (style.GetPointer() == axialview->GetRenderWindow()->GetInteractor()->GetInteractorStyle())
+    	sliceView = SliceVisualization::Axial;
+
+    if (style.GetPointer() == coronalview->GetRenderWindow()->GetInteractor()->GetInteractorStyle())
+    	sliceView = SliceVisualization::Coronal;
+
+    if (style.GetPointer() == sagittalview->GetRenderWindow()->GetInteractor()->GetInteractorStyle())
+    	sliceView = SliceVisualization::Sagittal;
 
     switch(event)
     {
     	// sliders go [1-size], spinboxes go [0-(size-1)], that's the reason of the values added to POI.
         case vtkCommand::MouseWheelForwardEvent:
-        	axialslider->setSliderPosition(_POI[2]+2);
+        	switch(sliceView)
+        	{
+        		case SliceVisualization::Axial:
+        			axialslider->setSliderPosition(_POI[2]+2);
+        			break;
+        		case SliceVisualization::Coronal:
+        			coronalslider->setSliderPosition(_POI[1]+2);
+        			break;
+        		case SliceVisualization::Sagittal:
+        			sagittalslider->setSliderPosition(_POI[0]+2);
+        			break;
+        		default:
+        			break;
+        	}
             break;
         case vtkCommand::MouseWheelBackwardEvent:
-        	axialslider->setSliderPosition(_POI[2]);
+        	switch(sliceView)
+        	{
+        		case SliceVisualization::Axial:
+        			axialslider->setSliderPosition(_POI[2]);
+        			break;
+        		case SliceVisualization::Coronal:
+        			coronalslider->setSliderPosition(_POI[1]);
+        			break;
+        		case SliceVisualization::Sagittal:
+        			sagittalslider->setSliderPosition(_POI[0]);
+        			break;
+        		default:
+        			break;
+        	}
             break;
         case vtkCommand::RightButtonPressEvent:
             rightButtonStillDown = true;
@@ -1606,11 +1663,11 @@ void EspinaVolumeEditor::AxialInteraction(vtkObject* object, unsigned long event
             break;
         case vtkCommand::LeftButtonPressEvent:
             leftButtonStillDown = true;
-            AxialXYPick(event);
+            SliceXYPick(event, sliceView);
             break;
         case vtkCommand::LeftButtonReleaseEvent:
             leftButtonStillDown = false;
-            AxialXYPick(event);
+            SliceXYPick(event, sliceView);
             break;
         case vtkCommand::MiddleButtonPressEvent:
             middleButtonStillDown = true;
@@ -1630,14 +1687,26 @@ void EspinaVolumeEditor::AxialInteraction(vtkObject* object, unsigned long event
             if (leftButtonStillDown)
             {
                 style->OnMouseMove();
-                AxialXYPick(event);
+                SliceXYPick(event, sliceView);
                 return;
             }
             
             if (rightButtonStillDown || middleButtonStillDown)
             {
                 style->OnMouseMove();
-                _axialSliceVisualization->ZoomEvent();
+                switch(sliceView)
+                {
+                	case SliceVisualization::Axial:
+                		_axialSliceVisualization->ZoomEvent();
+                		break;
+
+                	case SliceVisualization::Coronal:
+                		_coronalSliceVisualization->ZoomEvent();
+                		break;
+                	case SliceVisualization::Sagittal:
+                		_sagittalSliceVisualization->ZoomEvent();
+                		break;
+                }
                 return;
             }
             break;
@@ -1647,177 +1716,52 @@ void EspinaVolumeEditor::AxialInteraction(vtkObject* object, unsigned long event
     }
 }
 
-void EspinaVolumeEditor::CoronalInteraction(vtkObject* object, unsigned long event, void*, void*, vtkCommand*)
-{
-    static bool leftButtonStillDown = false;
-    static bool rightButtonStillDown = false;
-    static bool middleButtonStillDown = false;
-    
-    // to pass events forward
-    static vtkSmartPointer<vtkInteractorStyle> style = vtkInteractorStyle::SafeDownCast(coronalview->GetRenderWindow()->GetInteractor()->GetInteractorStyle());
-
-    switch(event)
-    {
-    	// sliders go [1-size], spinboxes go [0-(size-1)], that's the reason of the values added to POI.
-        case vtkCommand::MouseWheelForwardEvent:
-        	coronalslider->setSliderPosition(_POI[1]+2);
-        	break;
-        case vtkCommand::MouseWheelBackwardEvent:
-        	coronalslider->setSliderPosition(_POI[1]);
-        	break;
-        case vtkCommand::RightButtonPressEvent:
-            rightButtonStillDown = true;
-            style->OnRightButtonDown();
-            break;
-        case vtkCommand::RightButtonReleaseEvent:
-            rightButtonStillDown = false;
-            style->OnRightButtonUp();
-            break;
-        case vtkCommand::LeftButtonPressEvent:
-            leftButtonStillDown = true;
-            CoronalXYPick(event);
-            break;
-        case vtkCommand::LeftButtonReleaseEvent:
-            leftButtonStillDown = false;
-            CoronalXYPick(event);
-            break;
-        case vtkCommand::MiddleButtonPressEvent:
-            middleButtonStillDown = true;
-            style->OnMiddleButtonDown();
-            break;
-        case vtkCommand::MiddleButtonReleaseEvent:
-            middleButtonStillDown = false;
-            style->OnMiddleButtonUp();
-            break;
-        case vtkCommand::MouseMoveEvent:
-            if (!leftButtonStillDown && !rightButtonStillDown && !middleButtonStillDown)
-            {
-                style->OnMouseMove();
-                return;
-            }
-            
-            if (leftButtonStillDown)
-            {
-                style->OnMouseMove();
-                CoronalXYPick(event);
-                return;
-            }
-            
-            if (rightButtonStillDown || middleButtonStillDown)
-            {
-                style->OnMouseMove();
-                _coronalSliceVisualization->ZoomEvent();
-                return;
-            }
-            break;
-        default:
-            // ignore event, can't happen as we have registered this function with only these commands up there
-            break;
-    }
-}
-
-void EspinaVolumeEditor::SagittalInteraction(vtkObject* object, unsigned long event, void*, void*, vtkCommand*)
-{
-    static bool leftButtonStillDown = false;
-    static bool rightButtonStillDown = false;
-    static bool middleButtonStillDown = false;
-    
-    // to pass events forward
-    static vtkSmartPointer<vtkInteractorStyle> style = vtkInteractorStyle::SafeDownCast(sagittalview->GetRenderWindow()->GetInteractor()->GetInteractorStyle());
-
-    switch(event)
-    {
-    // sliders go [1-size], spinboxes go [0-(size-1)], that's the reason of the values added to POI.
-        case vtkCommand::MouseWheelForwardEvent:
-        	sagittalslider->setSliderPosition(_POI[0]+2);
-            break;
-        case vtkCommand::MouseWheelBackwardEvent:
-        	sagittalslider->setSliderPosition(_POI[0]);
-            break;
-        case vtkCommand::RightButtonPressEvent:
-            rightButtonStillDown = true;
-            style->OnRightButtonDown();
-            break;
-        case vtkCommand::RightButtonReleaseEvent:
-            rightButtonStillDown = false;
-            style->OnRightButtonUp();
-            break;
-        case vtkCommand::LeftButtonPressEvent:
-            leftButtonStillDown = true;
-            SagittalXYPick(event);
-            break;
-        case vtkCommand::LeftButtonReleaseEvent:
-            leftButtonStillDown = false;
-            SagittalXYPick(event);
-            break;
-        case vtkCommand::MiddleButtonPressEvent:
-            middleButtonStillDown = true;
-            style->OnMiddleButtonDown();
-            break;
-        case vtkCommand::MiddleButtonReleaseEvent:
-            middleButtonStillDown = false;
-            style->OnMiddleButtonUp();
-            break;
-        case vtkCommand::MouseMoveEvent:
-            if (!leftButtonStillDown && !rightButtonStillDown && !middleButtonStillDown)
-            {
-                style->OnMouseMove();
-                return;
-            }
-            
-            if (leftButtonStillDown)
-            {
-                style->OnMouseMove();
-                SagittalXYPick(event);
-                return;
-            }
-            
-            if (rightButtonStillDown || middleButtonStillDown)
-            {
-                style->OnMouseMove();
-                _sagittalSliceVisualization->ZoomEvent();
-                return;
-            }
-            break;
-        default:
-            // ignore event, can't happen as we have registered this function with only these commands up there
-            break;
-    }
-}
-
-void EspinaVolumeEditor::AxialXYPick(const unsigned long event)
+void EspinaVolumeEditor::SliceXYPick(const unsigned long event, SliceVisualization::OrientationType sliceView)
 {
 	// if we are modifing the volume get the lock first
 	if (paintbutton->isChecked() || erasebutton->isChecked())
 		QMutexLocker locker(actionLock);
 
     // static var stores data between calls
-    static SliceVisualization::PickingType pickedProp = SliceVisualization::None;
+    static SliceVisualization::PickingType previousPick = SliceVisualization::None;
     SliceVisualization::PickingType actualPick = SliceVisualization::None;
     
-    // get coords
-    int X = axialview->GetRenderWindow()->GetInteractor()->GetEventPosition()[0];
-    int Y = axialview->GetRenderWindow()->GetInteractor()->GetEventPosition()[1];
+    int X,Y;
 
-    // we need to know first if we are picking something from the view
-    actualPick = _axialSliceVisualization->GetPickData(&X, &Y);
+	switch (sliceView)
+	{
+		case SliceVisualization::Axial:
+		    X = axialview->GetRenderWindow()->GetInteractor()->GetEventPosition()[0];
+		    Y = axialview->GetRenderWindow()->GetInteractor()->GetEventPosition()[1];
+		    actualPick = _axialSliceVisualization->GetPickData(&X, &Y);
+			break;
+		case SliceVisualization::Coronal:
+		    X = coronalview->GetRenderWindow()->GetInteractor()->GetEventPosition()[0];
+		    Y = coronalview->GetRenderWindow()->GetInteractor()->GetEventPosition()[1];
+		    actualPick = _coronalSliceVisualization->GetPickData(&X, &Y);
+			break;
+		case SliceVisualization::Sagittal:
+		    X = sagittalview->GetRenderWindow()->GetInteractor()->GetEventPosition()[0];
+		    Y = sagittalview->GetRenderWindow()->GetInteractor()->GetEventPosition()[1];
+		    actualPick = _sagittalSliceVisualization->GetPickData(&X, &Y);
+			break;
+		default:
+			break;
+	}
 
-    if (SliceVisualization::None == actualPick)
+    if ((SliceVisualization::None == actualPick) && (vtkCommand::LeftButtonReleaseEvent == event))
     {
       	// fix a glitch in rendering when the user picks a zone out of the slice
-      	if (vtkCommand::LeftButtonReleaseEvent == event)
-      	{
-      		updateVoxelRenderer = true;
-            updateSliceRenderers = true;
-            UpdateViewports(All);
-            pickedProp = SliceVisualization::None;
-     	}
+   		updateVoxelRenderer = true;
+        updateSliceRenderers = true;
+        UpdateViewports(All);
+        previousPick = SliceVisualization::None;
       	return;
     }
     
     // we need to know if we have started picking or we've picked something before
-    if (SliceVisualization::None == pickedProp)
-        pickedProp = actualPick;
+    if (SliceVisualization::None == previousPick)
+        previousPick = actualPick;
     
     // if we were picking or painting but released the button, draw voxel view's final state
     if (vtkCommand::LeftButtonReleaseEvent == event)
@@ -1825,7 +1769,7 @@ void EspinaVolumeEditor::AxialXYPick(const unsigned long event)
         updateVoxelRenderer = true;
         updateSliceRenderers = true;
 
-        if ((erasebutton->isChecked() || paintbutton->isChecked()) && pickedProp == SliceVisualization::Slice && actualPick == SliceVisualization::Slice)
+        if ((erasebutton->isChecked() || paintbutton->isChecked()) && previousPick == SliceVisualization::Slice && actualPick == SliceVisualization::Slice)
         {
             _dataManager->OperationEnd();
             _volumeRender->UpdateFocusExtent();
@@ -1834,16 +1778,16 @@ void EspinaVolumeEditor::AxialXYPick(const unsigned long event)
         _axesRender->Update(_POI);
         UpdateViewports(All);
 
-        pickedProp = SliceVisualization::None;
+        previousPick = SliceVisualization::None;
         return;
     }
 
     if (vtkCommand::LeftButtonPressEvent == event)
     {
-        if (paintbutton->isChecked() && pickedProp == SliceVisualization::Slice && actualPick == SliceVisualization::Slice)
+        if (paintbutton->isChecked() && previousPick == SliceVisualization::Slice && actualPick == SliceVisualization::Slice)
             _dataManager->OperationStart("Paint");
 
-        if (erasebutton->isChecked() && pickedProp == SliceVisualization::Slice && actualPick == SliceVisualization::Slice)
+        if (erasebutton->isChecked() && previousPick == SliceVisualization::Slice && actualPick == SliceVisualization::Slice)
             _dataManager->OperationStart("Erase");
     }
 
@@ -1852,362 +1796,67 @@ void EspinaVolumeEditor::AxialXYPick(const unsigned long event)
     updatePointLabel = false;
     
     // updating slider positions updates POI 
-    if (actualPick == pickedProp)
-    {
-        sagittalslider->setSliderPosition(X+1);
-        coronalslider->setSliderPosition(Y+1);
-        
-        // move camera if we are picking the thumbnail & update thumbnail to reflect new position        
-        if (actualPick == SliceVisualization::Thumbnail)
-        {
-            double coords[3];
-            Vector3d spacing = _orientationData->GetImageSpacing();
-            _axialViewRenderer->GetActiveCamera()->GetPosition(coords);
-            _axialViewRenderer->GetActiveCamera()->SetPosition(X*spacing[0],Y*spacing[1],coords[2]);
-            _axialViewRenderer->GetActiveCamera()->SetFocalPoint(X*spacing[0],Y*spacing[1],0.0);
-            _axialSliceVisualization->ZoomEvent();
-        }
-    }
+    if (actualPick == previousPick)
+    	switch (sliceView)
+    	{
+    		case SliceVisualization::Axial:
+    	        sagittalslider->setSliderPosition(X+1);
+    	        coronalslider->setSliderPosition(Y+1);
+
+    	        // move camera if we are picking the thumbnail & update thumbnail to reflect new position
+    	        if (actualPick == SliceVisualization::Thumbnail)
+    	        {
+    	            double coords[3];
+    	            Vector3d spacing = _orientationData->GetImageSpacing();
+    	            _axialViewRenderer->GetActiveCamera()->GetPosition(coords);
+    	            _axialViewRenderer->GetActiveCamera()->SetPosition(X*spacing[0],Y*spacing[1],coords[2]);
+    	            _axialViewRenderer->GetActiveCamera()->SetFocalPoint(X*spacing[0],Y*spacing[1],0.0);
+    	            _axialSliceVisualization->ZoomEvent();
+    	        }
+    			break;
+    		case SliceVisualization::Coronal:
+    	        sagittalslider->setSliderPosition(X+1);
+    	        axialslider->setSliderPosition(Y+1);
+
+    	        // move camera if we are picking the thumbnail & update thumbnail to reflect new position
+    	        if (actualPick == SliceVisualization::Thumbnail)
+    	        {
+    	            double coords[3];
+    	            Vector3d spacing = _orientationData->GetImageSpacing();
+    	            _coronalViewRenderer->GetActiveCamera()->GetPosition(coords);
+    	            _coronalViewRenderer->GetActiveCamera()->SetPosition(X*spacing[0],Y*spacing[2],coords[2]);
+    	            _coronalViewRenderer->GetActiveCamera()->SetFocalPoint(X*spacing[0],Y*spacing[2],0.0);
+    	            _coronalSliceVisualization->ZoomEvent();
+    	        }
+    			break;
+    		case SliceVisualization::Sagittal:
+    	        coronalslider->setSliderPosition(X+1);
+    	        axialslider->setSliderPosition(Y+1);
+
+    	        // move camera if we are picking the thumbnail & update thumbnail to reflect new position
+    	        if (actualPick == SliceVisualization::Thumbnail)
+    	        {
+    	            double coords[3];
+    	            Vector3d spacing = _orientationData->GetImageSpacing();
+    	            _sagittalViewRenderer->GetActiveCamera()->GetPosition(coords);
+    	            _sagittalViewRenderer->GetActiveCamera()->SetPosition(X*spacing[1],Y*spacing[2],coords[2]);
+    	            _sagittalViewRenderer->GetActiveCamera()->SetFocalPoint(X*spacing[1],Y*spacing[2],0.0);
+    	            _sagittalSliceVisualization->ZoomEvent();
+    	        }
+    			break;
+    		default:
+    			break;
+    	}
     
     // get pixel value or pick a label if color picker is activated (managed in GetPointLabel())
     GetPointLabel();
     updatePointLabel = true;
 
-    if (pickedProp == SliceVisualization::Slice && actualPick == SliceVisualization::Slice)
-    {
-    	if (paintbutton->isChecked())
-    	{
-    		// there should be just one label in the set
-    		std::set<unsigned short>::iterator it = this->_dataManager->GetSelectedLabelsSet().begin();
-    		_dataManager->SetVoxelScalar(_POI[0], _POI[1], _POI[2], (*it));
-    	}
-
-    	if (erasebutton->isChecked())
-    		_dataManager->SetVoxelScalar(_POI[0], _POI[1], _POI[2], 0);
-
-    	if (selectbutton->isChecked())
-    	{
-            cutbutton->setEnabled(true);
-            relabelbutton->setEnabled(true);
-            _editorOperations->AddSelectionPoint(Vector3ui(_POI[0], _POI[1], _POI[2]));
-    	}
-
-        if (pickerbutton->isChecked())
-        	labelselector->setCurrentRow(_pointScalar);
-
-        if (wandButton->isChecked())
-        {
-        	// TODO: iluminar los colores seleccionados con la varita.
-        	QMutexLocker locker(actionLock);
-
-            cutbutton->setEnabled(true);
-            relabelbutton->setEnabled(true);
-
-        	if (_pointScalar != 0)
-        	{
-        		if (_editorOperations->IsFirstColorSelected())
-        		{
-            		_dataManager->ColorHighlightExclusive(_pointScalar);
-            		_volumeRender->ColorHighlightExclusive(_pointScalar);
-
-            		// _selectedLabel could be 0 and renderbutton could be disabled
-           			rendertypebutton->setEnabled(true);
-        		}
-        		else
-        		{
-            		_dataManager->ColorHighlight(_pointScalar);
-            		_volumeRender->ColorHighlight(_pointScalar);
-            		_volumeRender->UpdateColorTable();
-        		}
-        		_editorOperations->ContiguousAreaSelection(_POI,_pointScalar);
-        		_volumeRender->UpdateFocusExtent();
-        	}
-        }
-    }
+    if (previousPick == SliceVisualization::Slice && actualPick == SliceVisualization::Slice)
+    	ApplyUserAction();
         
     // we will render the viewports as rendersliceviews == false now
     UpdateViewports(Slices);
-}
-
-void EspinaVolumeEditor::CoronalXYPick(const unsigned long event)
-{
-	// if we are modifing the volume get the lock
-	if (paintbutton->isChecked() || erasebutton->isChecked())
-		QMutexLocker locker(actionLock);
-
-    // static var stores data between calls
-    static SliceVisualization::PickingType pickedProp = SliceVisualization::None;
-    SliceVisualization::PickingType actualPick = SliceVisualization::None;
-    
-    // get coords
-    int X = coronalview->GetRenderWindow()->GetInteractor()->GetEventPosition()[0];
-    int Y = coronalview->GetRenderWindow()->GetInteractor()->GetEventPosition()[1];
-
-    // we need to know first if we are picking something from the view
-    actualPick = _coronalSliceVisualization->GetPickData(&X, &Y);
-
-    if (SliceVisualization::None == actualPick)
-    {
-      	// fix a glitch in rendering when the user picks a zone out of the slice
-      	if (vtkCommand::LeftButtonReleaseEvent == event)
-      	{
-      		updateVoxelRenderer = true;
-            updateSliceRenderers = true;
-            UpdateViewports(All);
-            pickedProp = SliceVisualization::None;
-     	}
-      	return;
-    }
-    
-    // we need to know if we have started picking or we've picked something before
-    if (SliceVisualization::None == pickedProp)
-        pickedProp = actualPick;
-    
-    // if we were picking or painting but released the button, draw voxel view's final state
-    if (vtkCommand::LeftButtonReleaseEvent == event)
-    {
-        updateVoxelRenderer = true;
-        updateSliceRenderers = true;
-
-        if ((erasebutton->isChecked() || paintbutton->isChecked()) && pickedProp == SliceVisualization::Slice && actualPick == SliceVisualization::Slice)
-        {
-            _dataManager->OperationEnd();
-            _volumeRender->UpdateFocusExtent();
-            UpdateUndoRedoMenu();
-        }
-        _axesRender->Update(_POI);
-        UpdateViewports(Voxel);
-        
-        pickedProp = SliceVisualization::None;
-        return;
-    }
-
-    if (vtkCommand::LeftButtonPressEvent == event)
-    {
-        if (paintbutton->isChecked() && pickedProp == SliceVisualization::Slice && actualPick == SliceVisualization::Slice)
-            _dataManager->OperationStart("Paint");
-
-        if (erasebutton->isChecked() && pickedProp == SliceVisualization::Slice && actualPick == SliceVisualization::Slice)
-            _dataManager->OperationStart("Erase");
-    }
-
-    updateVoxelRenderer = false;
-    updateSliceRenderers = false;
-    updatePointLabel = false;
-    
-    // updating slider positions updates POI
-    if (actualPick == pickedProp)
-    {
-        sagittalslider->setSliderPosition(X+1);
-        axialslider->setSliderPosition(Y+1);
-        
-        // move camera if we are picking the thumbnail & update thumbnail to reflect new position        
-        if (actualPick == SliceVisualization::Thumbnail)
-        {
-            double coords[3];
-            Vector3d spacing = _orientationData->GetImageSpacing();
-            _coronalViewRenderer->GetActiveCamera()->GetPosition(coords);
-            _coronalViewRenderer->GetActiveCamera()->SetPosition(X*spacing[0],Y*spacing[2],coords[2]);
-            _coronalViewRenderer->GetActiveCamera()->SetFocalPoint(X*spacing[0],Y*spacing[2],0.0);
-            _coronalSliceVisualization->ZoomEvent();
-        }
-    }
-
-    // get pixel value or pick a label if color picker is activated (managed in GetPointLabel())
-    GetPointLabel();
-    updatePointLabel = true;
-
-    if (pickedProp == SliceVisualization::Slice && actualPick == SliceVisualization::Slice)
-    {
-    	if (paintbutton->isChecked())
-    	{
-    		// there should be just one label in the set
-    		std::set<unsigned short>::iterator it = this->_dataManager->GetSelectedLabelsSet().begin();
-    		_dataManager->SetVoxelScalar(_POI[0], _POI[1], _POI[2], (*it));
-    	}
-
-    	if (erasebutton->isChecked())
-    		_dataManager->SetVoxelScalar(_POI[0], _POI[1], _POI[2], 0);
-
-    	if (selectbutton->isChecked())
-    	{
-            cutbutton->setEnabled(true);
-            relabelbutton->setEnabled(true);
-            _editorOperations->AddSelectionPoint(Vector3ui(_POI[0], _POI[1], _POI[2]));
-    	}
-
-        if (wandButton->isChecked())
-        {
-        	QMutexLocker locker(actionLock);
-
-            cutbutton->setEnabled(true);
-            relabelbutton->setEnabled(true);
-
-        	if (_pointScalar != 0)
-        	{
-        		if (_editorOperations->IsFirstColorSelected())
-        		{
-            		_dataManager->ColorHighlightExclusive(_pointScalar);
-            		_volumeRender->ColorHighlightExclusive(_pointScalar);
-
-            		// _selectedLabel could be 0 and renderbutton could be disabled
-           			rendertypebutton->setEnabled(true);
-        		}
-        		else
-        		{
-            		_dataManager->ColorHighlight(_pointScalar);
-            		_volumeRender->ColorHighlight(_pointScalar);
-            		_volumeRender->UpdateColorTable();
-        		}
-        		_editorOperations->ContiguousAreaSelection(_POI,_pointScalar);
-        		_volumeRender->UpdateFocusExtent();
-        	}
-        }
-    }
-        
-    // we will render the viewports as rendersliceviews == false now
-    UpdateViewports(Slices);    
-}
-
-void EspinaVolumeEditor::SagittalXYPick(const unsigned long event)
-{
-	// if we are modifing the volume get the lock
-	if (paintbutton->isChecked() || erasebutton->isChecked())
-		QMutexLocker locker(actionLock);
-
-    // static var stores data between calls
-    static SliceVisualization::PickingType pickedProp = SliceVisualization::None;
-    SliceVisualization::PickingType actualPick = SliceVisualization::None;
-    
-    // get coords
-    int X = sagittalview->GetRenderWindow()->GetInteractor()->GetEventPosition()[0];
-    int Y = sagittalview->GetRenderWindow()->GetInteractor()->GetEventPosition()[1];
-
-    // we need to know first if we are picking something from the view
-    actualPick = _sagittalSliceVisualization->GetPickData(&X, &Y);
-
-    if (SliceVisualization::None == actualPick)
-    {
-      	// fix a glitch in rendering when the user picks a zone out of the slice
-      	if (vtkCommand::LeftButtonReleaseEvent == event)
-      	{
-      		updateVoxelRenderer = true;
-            updateSliceRenderers = true;
-            UpdateViewports(All);
-            pickedProp = SliceVisualization::None;
-     	}
-      	return;
-    }
-    
-    // we need to know if we have started picking or we've picked something before
-    if (SliceVisualization::None == pickedProp)
-        pickedProp = actualPick;
-    
-    // if we were picking or painting but released the button, draw voxel view's final state
-    if (vtkCommand::LeftButtonReleaseEvent == event)
-    {
-        updateVoxelRenderer = true;
-        updateSliceRenderers = true;
-
-        if ((erasebutton->isChecked() || paintbutton->isChecked()) && pickedProp == SliceVisualization::Slice && actualPick == SliceVisualization::Slice)
-        {
-            _dataManager->OperationEnd();
-            _volumeRender->UpdateFocusExtent();// _selectedLabel could be 0
-            UpdateUndoRedoMenu();
-        }
-        _axesRender->Update(_POI);
-        UpdateViewports(Voxel);
-        
-        pickedProp = SliceVisualization::None;
-        return;
-    }
-
-    if (vtkCommand::LeftButtonPressEvent == event)
-    {
-        if (paintbutton->isChecked() && pickedProp == SliceVisualization::Slice && actualPick == SliceVisualization::Slice)
-            _dataManager->OperationStart("Paint");
-
-        if (erasebutton->isChecked() && pickedProp == SliceVisualization::Slice && actualPick == SliceVisualization::Slice)
-            _dataManager->OperationStart("Erase");
-    }
-
-    updateVoxelRenderer = false;
-    updateSliceRenderers = false;
-    updatePointLabel = false;
-    
-    // updating slider positions updates POI 
-    if (actualPick == pickedProp)
-    {
-        coronalslider->setSliderPosition(X+1);
-        axialslider->setSliderPosition(Y+1);
-        
-        // move camera if we are picking the thumbnail & update thumbnail to reflect new position        
-        if (actualPick == SliceVisualization::Thumbnail)
-        {
-            double coords[3];
-            Vector3d spacing = _orientationData->GetImageSpacing();
-            _sagittalViewRenderer->GetActiveCamera()->GetPosition(coords);
-            _sagittalViewRenderer->GetActiveCamera()->SetPosition(X*spacing[1],Y*spacing[2],coords[2]);
-            _sagittalViewRenderer->GetActiveCamera()->SetFocalPoint(X*spacing[1],Y*spacing[2],0.0);
-            _sagittalSliceVisualization->ZoomEvent();
-        }
-    }
-
-    // get pixel value or pick a label if color picker is activated (managed in GetPointLabel())
-    GetPointLabel();
-    updatePointLabel = true;
-
-    if (pickedProp == SliceVisualization::Slice && actualPick == SliceVisualization::Slice)
-    {
-    	if (paintbutton->isChecked())
-     	{
-     		// there should be just one label in the set
-     		std::set<unsigned short>::iterator it = this->_dataManager->GetSelectedLabelsSet().begin();
-     		_dataManager->SetVoxelScalar(_POI[0], _POI[1], _POI[2], (*it));
-     	}
-
-    	if (erasebutton->isChecked())
-			_dataManager->SetVoxelScalar(_POI[0], _POI[1], _POI[2], 0);
-
-		if (selectbutton->isChecked())
-		{
-			cutbutton->setEnabled(true);
-			relabelbutton->setEnabled(true);
-			_editorOperations->AddSelectionPoint(
-					Vector3ui(_POI[0], _POI[1], _POI[2]));
-		}
-
-		if (wandButton->isChecked())
-		{
-			QMutexLocker locker(actionLock);
-
-			cutbutton->setEnabled(true);
-			relabelbutton->setEnabled(true);
-
-			if (_pointScalar != 0)
-			{
-				if (_editorOperations->IsFirstColorSelected())
-				{
-					_dataManager->ColorHighlightExclusive(_pointScalar);
-					_volumeRender->ColorHighlightExclusive(_pointScalar);
-
-					// _selectedLabel could be 0 and renderbutton could be disabled
-					rendertypebutton->setEnabled(true);
-				}
-				else
-				{
-					_dataManager->ColorHighlight(_pointScalar);
-					_volumeRender->ColorHighlight(_pointScalar);
-					_volumeRender->UpdateColorTable();
-				}
-				_editorOperations->ContiguousAreaSelection(_POI, _pointScalar);
-				_volumeRender->UpdateFocusExtent();
-			}
-		}
-	}
-
-	// we will render the viewports as rendersliceviews == false now
-	UpdateViewports(Slices);
 }
 
 void EspinaVolumeEditor::ViewZoom(void)
@@ -2552,7 +2201,7 @@ void EspinaVolumeEditor::RestoreSavedSession(void)
 		_progress->ManualReset();
 		QMessageBox msgBox;
 		msgBox.setIcon(QMessageBox::Critical);
-
+		msgBox.setCaption("Error loading segmentation file");
 		msgBox.setText("An error occurred loading the segmentation file.\nThe operation has been aborted.");
 		msgBox.setDetailedText(excp.what());
 		msgBox.exec();
@@ -2709,6 +2358,7 @@ void EspinaVolumeEditor::RemoveSessionFiles(void)
 		if (!file.remove())
 		{
 			QMessageBox msgBox;
+			msgBox.setCaption("Error trying to remove file");
 			msgBox.setIcon(QMessageBox::Critical);
 			msgBox.setText("An error occurred exiting the editor.\n.Editor session file couldn't be removed.");
 			msgBox.exec();
@@ -2719,6 +2369,7 @@ void EspinaVolumeEditor::RemoveSessionFiles(void)
 		if (!fileMHA.remove())
 		{
 			QMessageBox msgBox;
+			msgBox.setCaption("Error trying to remove file");
 			msgBox.setIcon(QMessageBox::Critical);
 			msgBox.setText("An error occurred exiting the editor.\n.Editor MHA session file couldn't be removed.");
 			msgBox.exec();
@@ -2870,6 +2521,7 @@ void EspinaVolumeEditor::ToggleDefaultButton(bool value)
 		case true:
 		    _editorOperations->ClearSelection();
 		    _volumeRender->UpdateFocusExtent();
+		    relabelbutton->setEnabled(selectbutton->isChecked());
 		    UpdateViewports(All);
 			break;
 		case false:
@@ -2878,6 +2530,24 @@ void EspinaVolumeEditor::ToggleDefaultButton(bool value)
 		default: // can't happen
 			break;
 	}
+}
+
+void EspinaVolumeEditor::ToggleEraseOrPaintButton(bool value)
+{
+	switch (value)
+	{
+		case true:
+			labelselector->setSelectionMode(QAbstractItemView::SingleSelection);
+			break;
+		case false:
+			labelselector->setSelectionMode(QAbstractItemView::ExtendedSelection);
+			break;
+		default:
+			break;
+	}
+
+	labelselector->clearSelection();
+	this->ToggleDefaultButton(value);
 }
 
 void EspinaVolumeEditor::EnableFilters(const bool value)
@@ -2896,4 +2566,78 @@ void EspinaVolumeEditor::RestartVoxelRender(void)
 
 	if (!this->renderIsAVolume)
 		_volumeRender->ViewAsMesh();
+}
+
+void EspinaVolumeEditor::SelectLabelGroup(std::set<unsigned short> labels)
+{
+	// can't select a group of labels if it contains the background label
+	if (labels.find(0) != labels.end())
+		return;
+
+	std::set<unsigned short>::iterator it;
+
+	labelselector->blockSignals(true);
+	labelselector->setSelectionMode(QAbstractItemView::ExtendedSelection);
+	labelselector->clearSelection();
+
+	for (it = labels.begin(); it != labels.end(); it++)
+		labelselector->item(*it)->setSelected(true);
+
+	labelselector->blockSignals(false);
+
+	std::set<unsigned short>::reverse_iterator rit = labels.rbegin();
+	labelselector->scrollToItem(labelselector->item(*rit), QAbstractItemView::EnsureVisible);
+
+	LabelSelectionChanged();
+}
+
+void EspinaVolumeEditor::CheckConsistentState(void)
+{
+	// TODO: comprobaciones tras las operaciones y tras undo/redo de que el estado
+	// de los botones es consistente con la selección de etiquetas
+}
+
+void EspinaVolumeEditor::ApplyUserAction(void)
+{
+   	if (paintbutton->isChecked())
+	{
+		// there should be just one label in the set
+		std::set<unsigned short>::iterator it = this->_dataManager->GetSelectedLabelsSet().begin();
+		_dataManager->SetVoxelScalar(_POI[0], _POI[1], _POI[2], (*it));
+	}
+
+	if ((erasebutton->isChecked()) && (0 != _pointScalar))
+	{
+		_dataManager->SetVoxelScalar(_POI[0], _POI[1], _POI[2], 0);
+		if (!this->_dataManager->GetIsColorSelected(_pointScalar))
+			labelselector->item(_pointScalar)->setSelected(true);
+	}
+
+	if (selectbutton->isChecked())
+		_editorOperations->AddSelectionPoint(Vector3ui(_POI[0], _POI[1], _POI[2]));
+
+	if ((pickerbutton->isChecked()) && (0 != _pointScalar))
+		labelselector->item(_pointScalar)->setSelected(true);
+
+	if (wandButton->isChecked())
+	{
+		QMutexLocker locker(actionLock);
+
+		cutbutton->setEnabled(true);
+		relabelbutton->setEnabled(true);
+
+		if (_pointScalar != 0)
+		{
+			if (_editorOperations->IsFirstColorSelected())
+			{
+				labelselector->blockSignals(true);
+				labelselector->clearSelection();
+				labelselector->blockSignals(false);
+			}
+			Vector3ui oldPOI = _POI;
+			labelselector->item(_pointScalar)->setSelected(true);
+			_editorOperations->ContiguousAreaSelection(oldPOI, _pointScalar);
+			_volumeRender->UpdateFocusExtent();
+		}
+	}
 }
