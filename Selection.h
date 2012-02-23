@@ -54,7 +54,7 @@ class Selection
         void AddSelectionPoint(const Vector3ui);
 
         // contiguous area selection with the wand
-        void AddArea(Vector3ui, const unsigned short);
+        void AddArea(const Vector3ui);
 
         // deletes points and hides actor (clears buffer only between [_min, _max] bounds)
         void ClearSelection(void);

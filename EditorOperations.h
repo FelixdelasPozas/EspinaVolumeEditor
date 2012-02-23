@@ -80,11 +80,12 @@ class EditorOperations
         std::set<unsigned short> Watershed(const unsigned short);
 
         // Selection class methods, see Selection.* for details
-        void AddSelectionPoint(const Vector3ui point);
-        void ContiguousAreaSelection(Vector3ui, const unsigned short);
+        void AddSelectionPoint(const Vector3ui);
+        void ContiguousAreaSelection(const Vector3ui);
         const Vector3ui GetSelectedMinimumBouds();
         const Vector3ui GetSelectedMaximumBouds();
         void ClearSelection();
+        Selection::SelectionType GetSelectionType(void);
         const bool IsFirstColorSelected(void);
         void SetSliceViews(SliceVisualization*, SliceVisualization*, SliceVisualization*);
 

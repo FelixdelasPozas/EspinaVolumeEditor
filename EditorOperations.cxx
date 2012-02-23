@@ -317,7 +317,6 @@ void EditorOperations::Erode(const unsigned short label)
     _progress->Ignore(erodeFilter);
     _progress->Reset();
     _dataManager->OperationEnd();
-    return;
 }
 
 void EditorOperations::Dilate(const unsigned short label)
@@ -360,7 +359,6 @@ void EditorOperations::Dilate(const unsigned short label)
     _progress->Ignore(dilateFilter);
     _progress->Reset();
     _dataManager->OperationEnd();
-    return;
 }
 
 void EditorOperations::Open(const unsigned short label)
@@ -403,7 +401,6 @@ void EditorOperations::Open(const unsigned short label)
     _progress->Ignore(openFilter);
     _progress->Reset();
     _dataManager->OperationEnd();
-    return;
 }
 
 void EditorOperations::Close(const unsigned short label)
@@ -446,7 +443,6 @@ void EditorOperations::Close(const unsigned short label)
     _progress->Ignore(closeFilter);
     _progress->Reset();
     _dataManager->OperationEnd();
-    return;
 }
 
 std::set<unsigned short> EditorOperations::Watershed(const unsigned short label)
@@ -620,8 +616,6 @@ void EditorOperations::EditorError(itk::ExceptionObject &excp)
     msgBox.exec();
     
     _dataManager->OperationCancel();
-    
-    return;   
 }
 
 // originally the image was saved directly from the vtkStructuredPoints in memory but, although the
@@ -752,7 +746,6 @@ void EditorOperations::SaveImage(const std::string filename)
     
     _progress->Ignore(writer);
     _progress->ManualReset();
-    return;
 }
 
 itk::SmartPointer<LabelMapType> EditorOperations::GetImageLabelMap()
@@ -808,10 +801,10 @@ void EditorOperations::SetWatershedLevel(const double value)
 	this->_watershedLevel = value;
 }
 
-void EditorOperations::ContiguousAreaSelection(Vector3ui point, const unsigned short label)
+void EditorOperations::ContiguousAreaSelection(const Vector3ui point)
 {
 	this->_progress->ManualSet("Threshold");
-	this->_selection->AddArea(point, label);
+	this->_selection->AddArea(point);
    	this->_progress->ManualReset();
 }
 
@@ -838,4 +831,9 @@ void EditorOperations::SetSliceViews(SliceVisualization* axialView, SliceVisuali
 void EditorOperations::ClearSelection(void)
 {
 	this->_selection->ClearSelection();
+}
+
+Selection::SelectionType EditorOperations::GetSelectionType(void)
+{
+	return this->_selection->GetSelectionType();
 }

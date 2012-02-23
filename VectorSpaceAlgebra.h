@@ -248,7 +248,6 @@ template<class T> inline Vector3<T> operator*=(const Vector3<T> a, const T c) th
         a[i] = a[i] * c;
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Matrix class
 //

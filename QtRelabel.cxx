@@ -60,6 +60,10 @@ void QtRelabel::SetInitialOptions(std::set<unsigned short> labels, Metadata* dat
 			std::string text = out.str();
 			QListWidgetItem *item = new QListWidgetItem(QIcon(icon), QString(text.c_str()));
 			newlabelbox->addItem(item);
+
+			// hide already hidden/deleted labels
+			if (0LL == dataManager->GetNumberOfVoxelsForLabel(i))
+				item->setHidden(true);
 		}
 
 		newlabelbox->addItem("New label");
@@ -102,6 +106,10 @@ void QtRelabel::SetInitialOptions(std::set<unsigned short> labels, Metadata* dat
 			std::string text = out.str();
 			QListWidgetItem *item = new QListWidgetItem(QIcon(icon), QString(text.c_str()));
 			newlabelbox->addItem(item);
+
+			// hide already hidden/deleted labels
+			if (0LL == dataManager->GetNumberOfVoxelsForLabel(i))
+				item->setHidden(true);
 		}
 		newlabelbox->addItem("New label");
 		newlabelbox->setCurrentRow(_maxcolors-1);

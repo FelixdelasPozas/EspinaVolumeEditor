@@ -49,6 +49,7 @@
 #include "QtAbout.h"
 #include "QtPreferences.h"
 #include "itkvtkpipeline.h"
+#include "Selection.h"
 
 EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWindow(p)
 {
@@ -95,9 +96,8 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
     connect(sagittalslider, SIGNAL(valueChanged(int)), this, SLOT(MoveSagittalSlider(int)));
     connect(sagittalslider, SIGNAL(sliderReleased()), this, SLOT(SliceSliderReleased()));
     connect(sagittalslider, SIGNAL(sliderPressed()), this, SLOT(SliceSliderPressed()));
-    
+
     connect(labelselector, SIGNAL(itemSelectionChanged()), this, SLOT(LabelSelectionChanged()));
-    connect(labelselector, SIGNAL(clicked(const QModelIndex &)), this, SLOT(LabelSelectionUserInteraction(const QModelIndex &)));
     
     connect(XspinBox, SIGNAL(valueChanged(int)), this, SLOT(ChangeXspinBox(int)));
     connect(YspinBox, SIGNAL(valueChanged(int)), this, SLOT(ChangeYspinBox(int)));
@@ -654,6 +654,10 @@ void EspinaVolumeEditor::EditorOpen(void)
     // start session timer
     _sessionTimer->start(_saveSessionTime, true);
 
+    // put the name of the opened file in the window title
+    std::string caption = std::string("Espina Volume Editor - ") + filename.toStdString();
+    this->setCaption(QString(caption.c_str()));
+
     _progress->ManualReset();
 }
 
@@ -1073,6 +1077,12 @@ void EspinaVolumeEditor::FillColorLabels()
         out << _fileMetadata->GetObjectSegmentName(i) << " " << _dataManager->GetScalarForLabel(i);
         newItem = new QListWidgetItem(QIcon(icon), QString(out.str().c_str()));
         labelselector->insertItem(i, newItem);
+
+       	if (0LL == this->_dataManager->GetNumberOfVoxelsForLabel(i))
+       	{
+       		labelselector->item(i)->setHidden(true);
+       		labelselector->item(i)->setSelected(false);
+       	}
     }
 
     // select the selected labels in the qlistwidget or, if the set is empty, select the background label
@@ -1091,21 +1101,31 @@ void EspinaVolumeEditor::FillColorLabels()
 
 void EspinaVolumeEditor::LabelSelectionChanged(void)
 {
-    if (!labelselector->isEnabled())
+	if (!labelselector->isEnabled())
         return;
 
-    // find the selected items group in the labelselector widget
+	labelselector->blockSignals(true);
+
+	// we allow multiple label selections except in these cases, where only the current item is
+	// selected
+	if (paintbutton->isChecked() && erasebutton->isChecked())
+	{
+		labelselector->clearSelection();
+		labelselector->currentItem()->setSelected(true);
+	}
+
+    // get the selected items group in the labelselector widget and get their indexes
 	std::set<unsigned short> labelsList;
     QList<QListWidgetItem*> selectedItems = labelselector->selectedItems();
 
     QList<QListWidgetItem*>::iterator items_it;
     for (items_it = selectedItems.begin(); items_it != selectedItems.end(); items_it++)
     {
+    	// we need to deselect the background label or, if it's left as selected, will interfere with the rest of the
+    	// function
     	if (0 == labelselector->row(*items_it))
     	{
-    		labelselector->blockSignals(true);
         	labelselector->item(0)->setSelected(false);
-            labelselector->blockSignals(false);
     		continue;
     	}
 
@@ -1116,14 +1136,12 @@ void EspinaVolumeEditor::LabelSelectionChanged(void)
     switch (labelsList.size())
     {
     	case 0: // background label selected or no label selected
-    		labelselector->blockSignals(true);
         	labelselector->clearSelection();
         	labelselector->item(0)->setSelected(true);
-            labelselector->blockSignals(false);
         	_dataManager->ColorDimAll();
         	_volumeRender->ColorDimAll();
     		break;
-    	case 1: // single or extended selection, but only one label.
+    	case 1: // single or extended selection, but only one label. brackets needed because of declaration of the iterator
     	{
     		std::set<unsigned short>::iterator it = labelsList.begin();
            	_dataManager->ColorHighlightExclusive(*it);
@@ -1150,105 +1168,87 @@ void EspinaVolumeEditor::LabelSelectionChanged(void)
     		break;
     	}
     }
+    labelselector->blockSignals(false);
 
-	this->_volumeRender->UpdateColorTable();
-	this->_volumeRender->UpdateFocusExtent();
-
-	// manage buttons and actions available for current selection
-	CheckConsistentState();
-
+    // TODO: comprobar aquí la validez de la selección con respecto de la operación seleccionada
+    // y luego se realiza el update de colores, extent y vistas.
     switch (labelsList.size())
     {
     	case 0:
     		cutbutton->setEnabled(false);
-   			rendertypebutton->setEnabled(!renderview->isEnabled());
-   			relabelbutton->setEnabled(selectbutton->isChecked());
+    		rendertypebutton->setEnabled(false);
+    		relabelbutton->setEnabled((selectbutton->isChecked()) && (Selection::CUBE == this->_editorOperations->GetSelectionType()));
     		EnableFilters(false);
     		break;
     	case 1:
     		cutbutton->setEnabled(true);
+    		rendertypebutton->setEnabled(true);
     		relabelbutton->setEnabled(true);
-   			rendertypebutton->setEnabled(renderview->isEnabled());
-    		EnableFilters(true);
+    		EnableFilters(!wandButton->isChecked());
     		break;
     	default:
-			cutbutton->setEnabled(true);
-			relabelbutton->setEnabled(true);
-   			rendertypebutton->setEnabled(renderview->isEnabled());
-			EnableFilters(false);
+    		cutbutton->setEnabled(true);
+    		rendertypebutton->setEnabled(true);
+    		relabelbutton->setEnabled(true);
+    		EnableFilters(false);
     		break;
     }
 
 	this->_volumeRender->UpdateColorTable();
-	this->_volumeRender->UpdateFocusExtent();
+    this->_volumeRender->UpdateFocusExtent();
 
-	// if there is more than one segmentation this slot is responsible for updating the views,
-	// the other case is handled by LabelSelectionUserInteraction
-    if ((labelselector->selectedItems().size() > 1) || pickerbutton->isChecked())
-    	UpdateViewports(All);
-}
-
-void EspinaVolumeEditor::LabelSelectionUserInteraction(const QModelIndex &value)
-{
-	// only want to change POI when the user selects one item from the list by clicking on it
-	// and it's not painting
-    if (labelselector->selectedItems().size() != 1)
-    	return;
-
-    // POI not updated if painting, picking a color or doing a cube selection
-    if (paintbutton->isChecked() || pickerbutton->isChecked() || selectbutton->isChecked())
+    // if we have only one segmentation selected then center the slice views over the centroid of the segmentation,
+    // but only if the user is not picking colours, selecting a box, erasing or painting.
+    if ((this->_dataManager->GetSelectedLabelSetSize() == 1) && !pickerbutton->isChecked() && !selectbutton->isChecked() && !erasebutton->isChecked() && !paintbutton->isChecked())
     {
-    	UpdateViewports(All);
-    	return;
+    	std::set<unsigned short>::iterator it = this->_dataManager->GetSelectedLabelsSet().begin();
+		if (0LL != _dataManager->GetNumberOfVoxelsForLabel(*it))
+		{
+			// center slice views in the centroid of the object
+			Vector3d newPOI = _dataManager->GetCentroidForObject(*it);
+
+			// to prevent unwanted updates to the view it's not enough to blocksignals() of the
+			// involved qt elements
+			updateSliceRenderers = false;
+			updateVoxelRenderer = false;
+			updatePointLabel = false;
+
+			// POI values start in 0, spinboxes start in 1
+			_POI[0] = static_cast<unsigned int>(newPOI[0]);
+			_POI[1] = static_cast<unsigned int>(newPOI[1]);
+			_POI[2] = static_cast<unsigned int>(newPOI[2]);
+			ZspinBox->setValue(_POI[2] + 1);
+			YspinBox->setValue(_POI[1] + 1);
+			XspinBox->setValue(_POI[0] + 1);
+
+			_sagittalSliceVisualization->Update(_POI);
+			_coronalSliceVisualization->Update(_POI);
+			_axialSliceVisualization->Update(_POI);
+			_axesRender->Update(_POI);
+			GetPointLabel();
+
+			// change slice view to the new label
+			Vector3d spacing = _orientationData->GetImageSpacing();
+			double coords[3];
+			_axialViewRenderer->GetActiveCamera()->GetPosition(coords);
+			_axialViewRenderer->GetActiveCamera()->SetPosition(_POI[0] * spacing[0], _POI[1] * spacing[1], coords[2]);
+			_axialViewRenderer->GetActiveCamera()->SetFocalPoint(_POI[0] * spacing[0], _POI[1] * spacing[1], 0.0);
+			_axialSliceVisualization->ZoomEvent();
+			_coronalViewRenderer->GetActiveCamera()->GetPosition(coords);
+			_coronalViewRenderer->GetActiveCamera()->SetPosition(_POI[0] * spacing[0], _POI[2] * spacing[2], coords[2]);
+			_coronalViewRenderer->GetActiveCamera()->SetFocalPoint(_POI[0] * spacing[0], _POI[2] * spacing[2], 0.0);
+			_coronalSliceVisualization->ZoomEvent();
+			_sagittalViewRenderer->GetActiveCamera()->GetPosition(coords);
+			_sagittalViewRenderer->GetActiveCamera()->SetPosition(_POI[1] * spacing[1], _POI[2] * spacing[2], coords[2]);
+			_sagittalViewRenderer->GetActiveCamera()->SetFocalPoint(_POI[1] * spacing[1], _POI[2] * spacing[2], 0.0);
+			_sagittalSliceVisualization->ZoomEvent();
+
+			updatePointLabel = true;
+			updateSliceRenderers = true;
+			updateVoxelRenderer = true;
+		}
     }
-
-    // if segmentation has no voxels it has no centroid, check first
-    if (0LL != _dataManager->GetNumberOfVoxelsForLabel(value.row()))
-    {
-		// center slice views in the centroid of the object
-		Vector3d newPOI = _dataManager->GetCentroidForObject(value.row());
-
-		// to prevent unwanted updates to the view it's not enough to blocksignals() of the
-		// involved qt elements
-		updateSliceRenderers = false;
-		updateVoxelRenderer = false;
-		updatePointLabel = false;
-
-		// POI values start in 0, spinboxes start in 1
-		_POI[0] = static_cast<unsigned int>(newPOI[0]);
-		_POI[1] = static_cast<unsigned int>(newPOI[1]);
-		_POI[2] = static_cast<unsigned int>(newPOI[2]);
-		ZspinBox->setValue(_POI[2] + 1);
-		YspinBox->setValue(_POI[1] + 1);
-		XspinBox->setValue(_POI[0] + 1);
-
-		_sagittalSliceVisualization->Update(_POI);
-		_coronalSliceVisualization->Update(_POI);
-		_axialSliceVisualization->Update(_POI);
-		_axesRender->Update(_POI);
-		GetPointLabel();
-
-		// change slice view to the new label
-		Vector3d spacing = _orientationData->GetImageSpacing();
-		double coords[3];
-		_axialViewRenderer->GetActiveCamera()->GetPosition(coords);
-		_axialViewRenderer->GetActiveCamera()->SetPosition(_POI[0] * spacing[0], _POI[1] * spacing[1], coords[2]);
-		_axialViewRenderer->GetActiveCamera()->SetFocalPoint(_POI[0] * spacing[0], _POI[1] * spacing[1], 0.0);
-		_axialSliceVisualization->ZoomEvent();
-		_coronalViewRenderer->GetActiveCamera()->GetPosition(coords);
-		_coronalViewRenderer->GetActiveCamera()->SetPosition(_POI[0] * spacing[0], _POI[2] * spacing[2], coords[2]);
-		_coronalViewRenderer->GetActiveCamera()->SetFocalPoint(_POI[0] * spacing[0], _POI[2] * spacing[2], 0.0);
-		_coronalSliceVisualization->ZoomEvent();
-		_sagittalViewRenderer->GetActiveCamera()->GetPosition(coords);
-		_sagittalViewRenderer->GetActiveCamera()->SetPosition(_POI[1] * spacing[1], _POI[2] * spacing[2], coords[2]);
-		_sagittalViewRenderer->GetActiveCamera()->SetFocalPoint(_POI[1] * spacing[1], _POI[2] * spacing[2], 0.0);
-		_sagittalSliceVisualization->ZoomEvent();
-
-		updatePointLabel = true;
-		updateSliceRenderers = true;
-		updateVoxelRenderer = true;
-		UpdateViewports(All);
-    }
+   	UpdateViewports(All);
 }
 
 void EspinaVolumeEditor::Preferences()
@@ -1387,6 +1387,27 @@ void EspinaVolumeEditor::EditorCut()
 	QMutexLocker locker(actionLock);
 
     _editorOperations->Cut(this->_dataManager->GetSelectedLabelsSet());
+
+    std::set<unsigned short>::iterator it;
+    std::set<unsigned short> labels = this->_dataManager->GetSelectedLabelsSet();
+
+    // hide completely "deleted" labels
+    labelselector->blockSignals(true);
+    for(it = labels.begin(); it != labels.end(); it++)
+    	if (0LL == this->_dataManager->GetNumberOfVoxelsForLabel(*it))
+    	{
+    		labelselector->item(*it)->setHidden(true);
+    		labelselector->item(*it)->setSelected(false);
+    		labels.erase(*it);
+    	}
+
+    // check if we must select background label becase other labels have been deleted
+    if (labels.empty())
+    	labelselector->item(0)->setSelected(true);
+
+    labelselector->blockSignals(false);
+    LabelSelectionChanged();
+
     GetPointLabel();
     UpdateUndoRedoMenu();
     UpdateViewports(All);
@@ -1406,6 +1427,19 @@ void EspinaVolumeEditor::EditorRelabel()
     		RestartVoxelRender();
 			FillColorLabels();
     	}
+
+    	// hide "deleted" labels it they have no voxels
+        std::set<unsigned short>::iterator it;
+        std::set<unsigned short> oldLabels = this->_dataManager->GetSelectedLabelsSet();
+
+        labelselector->blockSignals(true);
+        for(it = oldLabels.begin(); it != oldLabels.end(); it++)
+        	if (0LL == this->_dataManager->GetNumberOfVoxelsForLabel(*it))
+        	{
+        		labelselector->item(*it)->setHidden(true);
+        		labelselector->item(*it)->setSelected(false);
+        	}
+        labelselector->blockSignals(false);
 
     	SelectLabelGroup(*labels);
         GetPointLabel();
@@ -1474,6 +1508,17 @@ void EspinaVolumeEditor::ErodeVolume()
 	std::set<unsigned short>::iterator it = this->_dataManager->GetSelectedLabelsSet().begin();
 
     _editorOperations->Erode(*it);
+
+    // the label could be empty right now
+   	if (0LL == this->_dataManager->GetNumberOfVoxelsForLabel(*it))
+   	{
+   	    labelselector->blockSignals(true);
+   		labelselector->item(*it)->setHidden(true);
+   		labelselector->item(*it)->setSelected(false);
+   		labelselector->item(0)->setSelected(true);
+   	   	labelselector->blockSignals(false);
+   	   	LabelSelectionChanged();
+   	}
 
     GetPointLabel();
     UpdateUndoRedoMenu();
@@ -1569,6 +1614,16 @@ void EspinaVolumeEditor::OperationUndo()
     RestartVoxelRender();
     GetPointLabel();
     FillColorLabels();
+
+    // scroll to last selected label
+    if (this->_dataManager->GetSelectedLabelsSet().empty())
+    	labelselector->item(0)->setSelected(true);
+    else
+    {
+		std::set<unsigned short>::reverse_iterator rit = this->_dataManager->GetSelectedLabelsSet().rbegin();
+		labelselector->scrollToItem(labelselector->item(*rit), QAbstractItemView::PositionAtBottom);
+    }
+
     UpdateUndoRedoMenu();
     UpdateViewports(All);
     _progress->ManualReset();
@@ -1589,7 +1644,24 @@ void EspinaVolumeEditor::OperationRedo()
     RestartVoxelRender();
     GetPointLabel();
     FillColorLabels();
-    CheckConsistentState();
+
+    // scroll to last selected label
+    if (this->_dataManager->GetSelectedLabelsSet().empty())
+    	labelselector->item(0)->setSelected(true);
+    else
+    {
+		std::set<unsigned short>::reverse_iterator rit = this->_dataManager->GetSelectedLabelsSet().rbegin();
+		labelselector->scrollToItem(labelselector->item(*rit), QAbstractItemView::PositionAtBottom);
+    }
+
+    // TODO: now the operation is in the undo buffer to be undone, check the operation and
+    // put the interface in a state consistent with the operation
+    if (std::string("Paint").compare(this->_dataManager->GetUndoActionString()) == 0)
+    	paintbutton->setChecked(true);
+
+    if (std::string("Erase").compare(this->_dataManager->GetUndoActionString()) == 0)
+    	erasebutton->setChecked(true);
+
     UpdateUndoRedoMenu();
     UpdateViewports(All);
     _progress->ManualReset();
@@ -1772,6 +1844,18 @@ void EspinaVolumeEditor::SliceXYPick(const unsigned long event, SliceVisualizati
         if ((erasebutton->isChecked() || paintbutton->isChecked()) && previousPick == SliceVisualization::Slice && actualPick == SliceVisualization::Slice)
         {
             _dataManager->OperationEnd();
+
+            // some labels could be empty after a paint or a erase operation
+            labelselector->blockSignals(true);
+            for (unsigned short i = 1; i < this->_dataManager->GetNumberOfLabels(); i++)
+            	if (0LL == this->_dataManager->GetNumberOfVoxelsForLabel(i))
+            	{
+            		labelselector->item(i)->setHidden(true);
+            		labelselector->item(i)->setSelected(false);
+            	}
+            labelselector->blockSignals(false);
+            LabelSelectionChanged();
+
             _volumeRender->UpdateFocusExtent();
             UpdateUndoRedoMenu();
         }
@@ -1853,7 +1937,10 @@ void EspinaVolumeEditor::SliceXYPick(const unsigned long event, SliceVisualizati
     updatePointLabel = true;
 
     if (previousPick == SliceVisualization::Slice && actualPick == SliceVisualization::Slice)
+    {
     	ApplyUserAction();
+    	this->_volumeRender->UpdateFocusExtent();
+    }
         
     // we will render the viewports as rendersliceviews == false now
     UpdateViewports(Slices);
@@ -2494,34 +2581,15 @@ void EspinaVolumeEditor::InitiateSessionGUI(void)
     UpdateViewports(All);
 }
 
-void EspinaVolumeEditor::ToggleWandButton(bool value)
-{
-	switch(value)
-	{
-		case true:
-			EnableFilters(false);
-
-		    // do usual button operations
-		    this->ToggleDefaultButton(true);
-			break;
-		case false:
-			// put the filters back in place
-			if (!this->_dataManager->GetSelectedLabelsSet().empty())
-				EnableFilters(true);
-			break;
-		default: // can't happen
-			break;
-	}
-}
-
 void EspinaVolumeEditor::ToggleDefaultButton(bool value)
 {
 	switch(value)
 	{
 		case true:
-		    _editorOperations->ClearSelection();
-		    _volumeRender->UpdateFocusExtent();
-		    relabelbutton->setEnabled(selectbutton->isChecked());
+		    this->_editorOperations->ClearSelection();
+		    this->_volumeRender->UpdateFocusExtent();
+		    relabelbutton->setEnabled(this->_dataManager->GetSelectedLabelSetSize() != 0);
+		    cutbutton->setEnabled(this->_dataManager->GetSelectedLabelSetSize() != 0);
 		    UpdateViewports(All);
 			break;
 		case false:
@@ -2546,8 +2614,32 @@ void EspinaVolumeEditor::ToggleEraseOrPaintButton(bool value)
 			break;
 	}
 
-	labelselector->clearSelection();
+	if (this->_dataManager->GetSelectedLabelSetSize() > 1)
+		labelselector->clearSelection();
+
 	this->ToggleDefaultButton(value);
+}
+
+void EspinaVolumeEditor::ToggleWandButton(bool value)
+{
+	switch(value)
+	{
+		case true:
+			this->_editorOperations->ClearSelection();
+			labelselector->blockSignals(true);
+			labelselector->clearSelection();
+			labelselector->blockSignals(false);
+			labelselector->item(0)->setSelected(true);
+		    relabelbutton->setEnabled(false);
+		    cutbutton->setEnabled(false);
+		    UpdateViewports(All);
+			break;
+		case false:
+			this->_editorOperations->ClearSelection();
+			break;
+		default: // can't happen
+			break;
+	}
 }
 
 void EspinaVolumeEditor::EnableFilters(const bool value)
@@ -2585,16 +2677,13 @@ void EspinaVolumeEditor::SelectLabelGroup(std::set<unsigned short> labels)
 
 	labelselector->blockSignals(false);
 
+	// scroll to the last one created label
 	std::set<unsigned short>::reverse_iterator rit = labels.rbegin();
 	labelselector->scrollToItem(labelselector->item(*rit), QAbstractItemView::EnsureVisible);
 
+	// need to do this because we were blocking labelselector signals and want to update
+	// the selected labels on one call
 	LabelSelectionChanged();
-}
-
-void EspinaVolumeEditor::CheckConsistentState(void)
-{
-	// TODO: comprobaciones tras las operaciones y tras undo/redo de que el estado
-	// de los botones es consistente con la selección de etiquetas
 }
 
 void EspinaVolumeEditor::ApplyUserAction(void)
@@ -2603,41 +2692,50 @@ void EspinaVolumeEditor::ApplyUserAction(void)
 	{
 		// there should be just one label in the set
 		std::set<unsigned short>::iterator it = this->_dataManager->GetSelectedLabelsSet().begin();
-		_dataManager->SetVoxelScalar(_POI[0], _POI[1], _POI[2], (*it));
-	}
-
-	if ((erasebutton->isChecked()) && (0 != _pointScalar))
-	{
-		_dataManager->SetVoxelScalar(_POI[0], _POI[1], _POI[2], 0);
-		if (!this->_dataManager->GetIsColorSelected(_pointScalar))
-			labelselector->item(_pointScalar)->setSelected(true);
+		this->_dataManager->SetVoxelScalar(_POI[0], _POI[1], _POI[2], (*it));
+		GetPointLabel();
+		return;
 	}
 
 	if (selectbutton->isChecked())
+	{
 		_editorOperations->AddSelectionPoint(Vector3ui(_POI[0], _POI[1], _POI[2]));
+		relabelbutton->setEnabled(true);
+		return;
+	}
+
+	if (erasebutton->isChecked() && (0 != _pointScalar))
+	{
+		this->_dataManager->SetVoxelScalar(_POI[0], _POI[1], _POI[2], 0);
+
+		if (!this->_dataManager->IsColorSelected(_pointScalar))
+			labelselector->item(_pointScalar)->setSelected(true);
+
+		GetPointLabel();
+		return;
+	}
+
 
 	if ((pickerbutton->isChecked()) && (0 != _pointScalar))
-		labelselector->item(_pointScalar)->setSelected(true);
+	{
+		if (this->_dataManager->IsColorSelected(_pointScalar))
+			labelselector->item(_pointScalar)->setSelected(false);
+		else
+			labelselector->item(_pointScalar)->setSelected(true);
 
-	if (wandButton->isChecked())
+		return;
+	}
+
+	if (wandButton->isChecked() && (0 != _pointScalar))
 	{
 		QMutexLocker locker(actionLock);
 
 		cutbutton->setEnabled(true);
 		relabelbutton->setEnabled(true);
 
-		if (_pointScalar != 0)
-		{
-			if (_editorOperations->IsFirstColorSelected())
-			{
-				labelselector->blockSignals(true);
-				labelselector->clearSelection();
-				labelselector->blockSignals(false);
-			}
-			Vector3ui oldPOI = _POI;
-			labelselector->item(_pointScalar)->setSelected(true);
-			_editorOperations->ContiguousAreaSelection(oldPOI, _pointScalar);
-			_volumeRender->UpdateFocusExtent();
-		}
+		_editorOperations->ContiguousAreaSelection(_POI);
+
+		labelselector->item(_pointScalar)->setSelected(true);
+		this->_volumeRender->UpdateFocusExtent();
 	}
 }

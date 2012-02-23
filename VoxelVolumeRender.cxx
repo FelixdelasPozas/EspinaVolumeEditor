@@ -62,11 +62,13 @@ VoxelVolumeRender::~VoxelVolumeRender()
     // delete actors from renderers before leaving. volume actor always present
 	this->_renderer->RemoveActor(_volume);
 
-	std::map<unsigned short, vtkSmartPointer<vtkActor> >::iterator it;
+	std::map<unsigned short, struct ActorInformation* >::iterator it;
 	for (it = this->_actorList.begin(); it != this->_actorList.end(); it++)
 	{
-		this->_renderer->RemoveActor((*it).second);
-		(*it).second = NULL;
+		this->_renderer->RemoveActor((*it).second->meshActor);
+		(*it).second->meshActor = NULL;
+		delete (*it).second;
+		this->_actorList.erase((*it).first);
 	}
 }
 
@@ -79,13 +81,34 @@ void VoxelVolumeRender::ComputeMesh(const unsigned short label)
 {
     double rgba[4];
 
-    // delete previous actor, if any exists
+    struct VoxelVolumeRender::ActorInformation* actorInfo;
+
+    // delete previous actor if any exists and the actual object bounding box is bigger than the stored with the actor.
     if (this->_actorList.find(label) != this->_actorList.end())
     {
-    	this->_renderer->RemoveActor(this->_actorList[label]);
+    	actorInfo = this->_actorList[label];
+
+    	Vector3ui min = this->_dataManager->GetBoundingBoxMin(label);
+    	Vector3ui max = this->_dataManager->GetBoundingBoxMax(label);
+
+    	if ((actorInfo->actorMin[0] <= min[0]) && (actorInfo->actorMin[1] <= min[1]) && (actorInfo->actorMin[2] <= min[2]) &&
+    		(actorInfo->actorMax[0] >= max[0]) && (actorInfo->actorMax[1] >= max[1]) && (actorInfo->actorMax[2] >= max[2]))
+    	{
+    		// actual actor is sufficient and is not being clipped by the bounding box imposed at creation
+    		return;
+    	}
+
+    	this->_renderer->RemoveActor(this->_actorList[label]->meshActor);
+    	delete this->_actorList[label];
     	this->_actorList[label] = NULL;
     	this->_actorList.erase(label);
     }
+
+    actorInfo = new struct VoxelVolumeRender::ActorInformation();
+    actorInfo->actorMin = this->_dataManager->GetBoundingBoxMin(label);
+    actorInfo->actorMax = this->_dataManager->GetBoundingBoxMax(label);
+    actorInfo->meshActor = vtkSmartPointer<vtkActor>::New();
+    this->_actorList.insert(std::pair<const unsigned short, VoxelVolumeRender::ActorInformation*>(label, actorInfo));
 
 	// first crop the region and then use the vtk-itk pipeline to get a itk::Image of the region
 	Vector3ui objectMin = this->_dataManager->GetBoundingBoxMin(label);
@@ -164,16 +187,14 @@ void VoxelVolumeRender::ComputeMesh(const unsigned short label)
 	this->_progress->Ignore(isoMapper);
 
 	// create the actor a assign a color to it
-	vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
-	actor->SetMapper(isoMapper);
+	actorInfo->meshActor->SetMapper(isoMapper);
 	this->_dataManager->GetColorComponents(label, rgba);
-	actor->GetProperty()->SetColor(rgba[0], rgba[1], rgba[2]);
-	actor->GetProperty()->SetOpacity(1);
-	actor->GetProperty()->SetSpecular(0.2);
+	actorInfo->meshActor->GetProperty()->SetColor(rgba[0], rgba[1], rgba[2]);
+	actorInfo->meshActor->GetProperty()->SetOpacity(1);
+	actorInfo->meshActor->GetProperty()->SetSpecular(0.2);
 
 	// add the actor to the renderer
-	this->_renderer->AddActor(actor);
-	this->_actorList[label] = actor;
+	this->_renderer->AddActor(actorInfo->meshActor);
 }
 
 void VoxelVolumeRender::ComputeRayCastVolume()
@@ -242,8 +263,6 @@ void VoxelVolumeRender::UpdateFocusExtent(void)
 	double croppingCoords[6];
 	this->_volumemapper->GetCroppingRegionPlanes(croppingCoords);
 	this->_min = this->_max = Vector3ui(0,0,0);
-	Vector3d groupCentroid = Vector3d(0.0,0.0,0.0);
-	unsigned long long int groupSize = 0LL;
 
 	// calculate combined centroid for the group of segmentations
 	// NOTE: this is not really necesary and it's not the right thing to do, what we should be doing
@@ -256,19 +275,11 @@ void VoxelVolumeRender::UpdateFocusExtent(void)
 	this->_min = this->_dataManager->GetBoundingBoxMin((*it));
 	this->_max = this->_dataManager->GetBoundingBoxMax((*it));
 
-	// calculate bounding box and focus point
+	// calculate bounding box
 	for (it = this->_highlightedLabels.begin(); it != this->_highlightedLabels.end(); it++)
 	{
 		Vector3ui minBounds = this->_dataManager->GetBoundingBoxMin((*it));
 		Vector3ui maxBounds = this->_dataManager->GetBoundingBoxMax((*it));
-
-		// calculate group centroid
-		Vector3d segmentationCentroid = this->_dataManager->GetCentroidForObject(*it);
-		unsigned long long int segmentationSize = this->_dataManager->GetNumberOfVoxelsForLabel(*it);
-
-		// empty segmentations do not add anything
-		if (0LL == segmentationSize)
-			continue;
 
 		if (this->_min[0] > minBounds[0]) this->_min[0] = minBounds[0];
 		if (this->_min[1] > minBounds[1]) this->_min[1] = minBounds[1];
@@ -276,24 +287,12 @@ void VoxelVolumeRender::UpdateFocusExtent(void)
 		if (this->_max[0] < maxBounds[0]) this->_max[0] = maxBounds[0];
 		if (this->_max[1] < maxBounds[1]) this->_max[1] = maxBounds[1];
 		if (this->_max[2] < maxBounds[2]) this->_max[2] = maxBounds[2];
-
-		double coef_1 = groupSize / static_cast<double>(groupSize + segmentationSize);
-		double coef_2 = segmentationSize / static_cast<double>(groupSize + segmentationSize);
-
-		groupCentroid[0] = (groupCentroid[0] * coef_1) + (segmentationCentroid[0] * coef_2);
-		groupCentroid[1] = (groupCentroid[1] * coef_1) + (segmentationCentroid[1] * coef_2);
-		groupCentroid[2] = (groupCentroid[2] * coef_1) + (segmentationCentroid[2] * coef_2);
-
-		groupSize += segmentationSize;
 	}
 
-	// selected group could be empty, we return now to avoid NaN calculations
-	if (0LL == groupSize)
-		return;
-
-	// set focus point
+	// calculate and set focus point
+	Vector3d focuspoint = Vector3d((this->_min[0]+this->_max[0])/2.0,(this->_min[1]+this->_max[1])/2.0,(this->_min[2]+this->_max[2])/2.0);
 	Vector3d spacing = this->_dataManager->GetOrientationData()->GetImageSpacing();
-	this->_renderer->GetActiveCamera()->SetFocalPoint(groupCentroid[0]*spacing[0],groupCentroid[1]*spacing[1],groupCentroid[2]*spacing[2]);
+	this->_renderer->GetActiveCamera()->SetFocalPoint(focuspoint[0]*spacing[0],focuspoint[1]*spacing[1],focuspoint[2]*spacing[2]);
 
 	double bounds[6] = {
 			(this->_min[0]-1.5)*spacing[0], (this->_max[0]+1.5)*spacing[0],
@@ -345,12 +344,14 @@ void VoxelVolumeRender::ViewAsVolume(void)
 		return;
 
 	// delete all actors and while we're at it modify opacity values for volume rendering
-	std::map<unsigned short, vtkSmartPointer<vtkActor> >::iterator it;
+	std::map<unsigned short, struct ActorInformation* >::iterator it;
 	for (it = this->_actorList.begin(); it != this->_actorList.end(); it++)
 	{
-		this->_renderer->RemoveActor((*it).second);
+		this->_renderer->RemoveActor((*it).second->meshActor);
+		(*it).second->meshActor = NULL;
+		delete (*it).second;
 		this->_opacityfunction->AddPoint((*it).first, 1.0);
-		(*it).second = NULL;
+		this->_actorList.erase((*it).first);
 	}
 	this->_actorList.clear();
 	this->_opacityfunction->Modified();
@@ -399,8 +400,8 @@ void VoxelVolumeRender::ColorDim(const unsigned short label, float alpha)
 				break;
 			case false:
 				// actor MUST exist
-				this->_renderer->RemoveActor(this->_actorList[label]);
-				this->_actorList[label] = NULL;
+				this->_renderer->RemoveActor(this->_actorList[label]->meshActor);
+				delete this->_actorList[label];
 				this->_actorList.erase(label);
 				break;
 			default:

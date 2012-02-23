@@ -82,7 +82,14 @@ class VoxelVolumeRender
         Vector3ui											_min, _max;
         //
         // mesh actors list
-        std::map<unsigned short,vtkSmartPointer<vtkActor> >	_actorList;
+        struct ActorInformation
+        {
+        		vtkSmartPointer<vtkActor>	meshActor;
+        		Vector3ui 					actorMin;
+        		Vector3ui 					actorMax;
+        		ActorInformation(): actorMin(Vector3ui(0,0,0)), actorMax(Vector3ui(0,0,0)) { meshActor = NULL; };
+        };
+        std::map<const unsigned short, struct VoxelVolumeRender::ActorInformation* >	_actorList;
         //
         // mesh/volume rendering status
         bool												_renderingIsVolume;

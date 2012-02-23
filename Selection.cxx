@@ -209,7 +209,7 @@ const Selection::SelectionType Selection::GetSelectionType()
     return this->_selectionType;
 }
 
-void Selection::AddArea(Vector3ui point, const unsigned short label)
+void Selection::AddArea(const Vector3ui point)
 {
 	// if the user picked in an already selected area just return
 	if (VoxelIsInsideSelection(point[0], point[1], point[2]))
@@ -220,6 +220,8 @@ void Selection::AddArea(Vector3ui point, const unsigned short label)
 	seed[1] = point[1];
 	seed[2] = point[2];
 
+	unsigned short label = this->_dataManager->GetVoxelScalar(point[0], point[1], point[2]);
+	assert(label != 0);
     itk::SmartPointer<ImageType> image = ImageType::New();
     image = GetSegmentationItkImage(label);
 

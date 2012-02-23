@@ -1984,7 +1984,7 @@ QGroupBox::title {
      <x>0</x>
      <y>0</y>
      <width>770</width>
-     <height>25</height>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu_Menu">

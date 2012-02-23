@@ -149,8 +149,11 @@ class DataManager
         // get the set of selected labels
         const std::set<unsigned short> GetSelectedLabelsSet(void);
 
+        // get the selected label set size
+        const int GetSelectedLabelSetSize(void);
+
         // ask if a color is selected
-        const bool GetIsColorSelected(unsigned short);
+        const bool IsColorSelected(unsigned short);
 
         struct ObjectInformation
         {

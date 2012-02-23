@@ -105,6 +105,9 @@ void DataManager::Initialize(itk::SmartPointer<LabelMapType> labelMap, Coordinat
         labelChanger->SetChange(scalar,i);
     }
 
+    // start entering new labels at the end of the scalar range
+    this->_firstFreeValue = this->GetScalarForLabel(this->GetNumberOfLabels()-1)+1;
+
     // apply all the changes made to labels
     labelChanger->Update();
 
@@ -181,7 +184,6 @@ void DataManager::SetVoxelScalar(unsigned int x, unsigned int y, unsigned int z,
     
     if (scalar == *pixel)
         return;
-
 
     if (ActionInformationVector.find(*pixel) == ActionInformationVector.end())
     {
@@ -696,7 +698,7 @@ const std::set<unsigned short> DataManager::GetSelectedLabelsSet(void)
 	return this->_selectedLabels;
 }
 
-const bool DataManager::GetIsColorSelected(unsigned short color)
+const bool DataManager::IsColorSelected(unsigned short color)
 {
 	return (this->_selectedLabels.find(color) != this->_selectedLabels.end());
 }
@@ -704,4 +706,9 @@ const bool DataManager::GetIsColorSelected(unsigned short color)
 void DataManager::SetSelectedLabelsSet(std::set<unsigned short> labelSet)
 {
 	this->_selectedLabels = labelSet;
+}
+
+const int DataManager::GetSelectedLabelSetSize(void)
+{
+	return this->_selectedLabels.size();
 }

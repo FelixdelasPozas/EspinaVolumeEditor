@@ -84,7 +84,6 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         virtual void ChangeYspinBox(int);
         virtual void ChangeZspinBox(int);
         virtual void LabelSelectionChanged();
-        virtual void LabelSelectionUserInteraction(const QModelIndex &);
         virtual void ViewReset();
         virtual void SwitchAxesView();
         virtual void SwitchVoxelRender();
@@ -117,6 +116,7 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         // true if we are doing volume rendering and not mesh rendering
         bool renderIsAVolume;
 
+        // auxiliary methods
         void SliceXYPick(const unsigned long, SliceVisualization::OrientationType);
         void GetPointLabel();
         void FillColorLabels();
@@ -129,7 +129,6 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         void EnableFilters(const bool);
         void RestartVoxelRender();
         void SelectLabelGroup(std::set<unsigned short>);
-        void CheckConsistentState();
         void ApplyUserAction(void);
         
         // renderers for four QVTKWidget viewports
