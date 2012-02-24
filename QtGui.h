@@ -84,6 +84,7 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         virtual void ChangeYspinBox(int);
         virtual void ChangeZspinBox(int);
         virtual void LabelSelectionChanged();
+        virtual void LabelSelectionUserInteraction(QListWidgetItem*, QListWidgetItem *);
         virtual void ViewReset();
         virtual void SwitchAxesView();
         virtual void SwitchVoxelRender();
@@ -104,7 +105,7 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         virtual void SaveSessionProgress(int);
         virtual void ToggleWandButton(bool);
         virtual void ToggleEraseOrPaintButton(bool);
-        virtual void ToggleDefaultButton(bool);
+        virtual void ToggleButtonDefault(bool);
     private:
         typedef enum { All, Slices, Voxel, Axial, Coronal, Sagittal } VIEWPORTSENUM;
         

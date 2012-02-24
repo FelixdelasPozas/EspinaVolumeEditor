@@ -98,6 +98,7 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
     connect(sagittalslider, SIGNAL(sliderPressed()), this, SLOT(SliceSliderPressed()));
 
     connect(labelselector, SIGNAL(itemSelectionChanged()), this, SLOT(LabelSelectionChanged()));
+    connect(labelselector, SIGNAL(currentItemChanged(QListWidgetItem *, QListWidgetItem*)), this, SLOT(LabelSelectionUserInteraction(QListWidgetItem*, QListWidgetItem *)));
     
     connect(XspinBox, SIGNAL(valueChanged(int)), this, SLOT(ChangeXspinBox(int)));
     connect(YspinBox, SIGNAL(valueChanged(int)), this, SLOT(ChangeYspinBox(int)));
@@ -112,13 +113,13 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
     connect(rendertypebutton, SIGNAL(clicked(bool)), this, SLOT(SwitchVoxelRender()));
     connect(axestypebutton, SIGNAL(clicked(bool)), this, SLOT(SwitchAxesView()));
     
-    connect(viewbutton, SIGNAL(toggled(bool)), this, SLOT(ToggleDefaultButton(bool)));
+    connect(viewbutton, SIGNAL(toggled(bool)), this, SLOT(ToggleButtonDefault(bool)));
     connect(paintbutton, SIGNAL(toggled(bool)), this, SLOT(ToggleEraseOrPaintButton(bool)));
     connect(erasebutton, SIGNAL(toggled(bool)), this, SLOT(ToggleEraseOrPaintButton(bool)));
     connect(cutbutton, SIGNAL(clicked(bool)), this, SLOT(EditorCut()));
     connect(relabelbutton, SIGNAL(clicked(bool)), this, SLOT(EditorRelabel()));
-    connect(pickerbutton, SIGNAL(clicked(bool)), this, SLOT(ToggleDefaultButton(bool)));
-    connect(selectbutton, SIGNAL(clicked(bool)), this, SLOT(ToggleDefaultButton(bool)));
+    connect(pickerbutton, SIGNAL(clicked(bool)), this, SLOT(ToggleButtonDefault(bool)));
+    connect(selectbutton, SIGNAL(clicked(bool)), this, SLOT(ToggleButtonDefault(bool)));
     connect(wandButton, SIGNAL(toggled(bool)), this, SLOT(ToggleWandButton(bool)));
 
     connect(axialresetbutton, SIGNAL(clicked(bool)), this, SLOT(ViewReset()));
@@ -1099,20 +1100,18 @@ void EspinaVolumeEditor::FillColorLabels()
     labelselector->setEnabled(true);
 }
 
+void EspinaVolumeEditor::LabelSelectionUserInteraction(QListWidgetItem *current, QListWidgetItem *previous)
+{
+	if (wandButton->isChecked())
+		viewbutton->setChecked(true);
+}
+
 void EspinaVolumeEditor::LabelSelectionChanged(void)
 {
 	if (!labelselector->isEnabled())
         return;
 
 	labelselector->blockSignals(true);
-
-	// we allow multiple label selections except in these cases, where only the current item is
-	// selected
-	if (paintbutton->isChecked() && erasebutton->isChecked())
-	{
-		labelselector->clearSelection();
-		labelselector->currentItem()->setSelected(true);
-	}
 
     // get the selected items group in the labelselector widget and get their indexes
 	std::set<unsigned short> labelsList;
@@ -1121,8 +1120,8 @@ void EspinaVolumeEditor::LabelSelectionChanged(void)
     QList<QListWidgetItem*>::iterator items_it;
     for (items_it = selectedItems.begin(); items_it != selectedItems.end(); items_it++)
     {
-    	// we need to deselect the background label or, if it's left as selected, will interfere with the rest of the
-    	// function
+    	// we need to deselect the background label or, if it's left as selected, will interfere
+    	// with the rest of the function
     	if (0 == labelselector->row(*items_it))
     	{
         	labelselector->item(0)->setSelected(false);
@@ -1146,6 +1145,7 @@ void EspinaVolumeEditor::LabelSelectionChanged(void)
     		std::set<unsigned short>::iterator it = labelsList.begin();
            	_dataManager->ColorHighlightExclusive(*it);
            	_volumeRender->ColorHighlightExclusive(*it);
+           	labelselector->setCurrentItem(labelselector->item(*it), QItemSelectionModel::ClearAndSelect);
     	    break;
     	}
     	default: // multiple labels selection
@@ -1170,25 +1170,25 @@ void EspinaVolumeEditor::LabelSelectionChanged(void)
     }
     labelselector->blockSignals(false);
 
-    // TODO: comprobar aquí la validez de la selección con respecto de la operación seleccionada
-    // y luego se realiza el update de colores, extent y vistas.
+    // adjust interface according to the selected group of labels
     switch (labelsList.size())
     {
     	case 0:
     		cutbutton->setEnabled(false);
-    		rendertypebutton->setEnabled(false);
+    		if (renderview->isEnabled())
+    			rendertypebutton->setEnabled(false);
     		relabelbutton->setEnabled((selectbutton->isChecked()) && (Selection::CUBE == this->_editorOperations->GetSelectionType()));
     		EnableFilters(false);
     		break;
     	case 1:
     		cutbutton->setEnabled(true);
-    		rendertypebutton->setEnabled(true);
+    		rendertypebutton->setEnabled(renderview->isEnabled());
     		relabelbutton->setEnabled(true);
     		EnableFilters(!wandButton->isChecked());
     		break;
     	default:
     		cutbutton->setEnabled(true);
-    		rendertypebutton->setEnabled(true);
+    		rendertypebutton->setEnabled(renderview->isEnabled());
     		relabelbutton->setEnabled(true);
     		EnableFilters(false);
     		break;
@@ -1606,23 +1606,29 @@ void EspinaVolumeEditor::OperationUndo()
 	std::string text = std::string("Undo ") + _dataManager->GetUndoActionString();
     _progress->ManualSet(text);
 
-    // we need to put the program in an state where the redo operation makes sense
-	viewbutton->setChecked(true);
-
     _dataManager->DoUndoOperation();
 
     RestartVoxelRender();
     GetPointLabel();
     FillColorLabels();
+    LabelSelectionChanged();
 
     // scroll to last selected label
-    if (this->_dataManager->GetSelectedLabelsSet().empty())
-    	labelselector->item(0)->setSelected(true);
-    else
+    if (!this->_dataManager->GetSelectedLabelsSet().empty())
     {
 		std::set<unsigned short>::reverse_iterator rit = this->_dataManager->GetSelectedLabelsSet().rbegin();
 		labelselector->scrollToItem(labelselector->item(*rit), QAbstractItemView::PositionAtBottom);
     }
+
+    // the operation is now on the redo buffer, get it's type and put the interface in
+    // that state, any other operation than paint or erase will go to view state
+    if (std::string("Paint").compare(this->_dataManager->GetRedoActionString()) == 0)
+    	paintbutton->setChecked(true);
+    else
+    	if (std::string("Erase").compare(this->_dataManager->GetRedoActionString()) == 0)
+    		erasebutton->setChecked(true);
+    	else
+    		viewbutton->setChecked(true);
 
     UpdateUndoRedoMenu();
     UpdateViewports(All);
@@ -1636,31 +1642,29 @@ void EspinaVolumeEditor::OperationRedo()
 	std::string text = std::string("Redo ") + _dataManager->GetRedoActionString();
     _progress->ManualSet(text);
     
-    // we need to put the program in an state where the redo operation makes sense
-	viewbutton->setChecked(true);
-
     _dataManager->DoRedoOperation();
 
     RestartVoxelRender();
     GetPointLabel();
     FillColorLabels();
+    LabelSelectionChanged();
 
     // scroll to last selected label
-    if (this->_dataManager->GetSelectedLabelsSet().empty())
-    	labelselector->item(0)->setSelected(true);
-    else
+    if (!this->_dataManager->GetSelectedLabelsSet().empty())
     {
 		std::set<unsigned short>::reverse_iterator rit = this->_dataManager->GetSelectedLabelsSet().rbegin();
 		labelselector->scrollToItem(labelselector->item(*rit), QAbstractItemView::PositionAtBottom);
     }
 
-    // TODO: now the operation is in the undo buffer to be undone, check the operation and
-    // put the interface in a state consistent with the operation
+    // the operation is now on the undo buffer, get it's type and put the interface in
+    // that state, any other operation than paint or erase will go to view state
     if (std::string("Paint").compare(this->_dataManager->GetUndoActionString()) == 0)
     	paintbutton->setChecked(true);
-
-    if (std::string("Erase").compare(this->_dataManager->GetUndoActionString()) == 0)
-    	erasebutton->setChecked(true);
+    else
+    	if (std::string("Erase").compare(this->_dataManager->GetUndoActionString()) == 0)
+    		erasebutton->setChecked(true);
+    	else
+    		viewbutton->setChecked(true);
 
     UpdateUndoRedoMenu();
     UpdateViewports(All);
@@ -2581,21 +2585,17 @@ void EspinaVolumeEditor::InitiateSessionGUI(void)
     UpdateViewports(All);
 }
 
-void EspinaVolumeEditor::ToggleDefaultButton(bool value)
+void EspinaVolumeEditor::ToggleButtonDefault(bool value)
 {
 	switch(value)
 	{
 		case true:
 		    this->_editorOperations->ClearSelection();
-		    this->_volumeRender->UpdateFocusExtent();
-		    relabelbutton->setEnabled(this->_dataManager->GetSelectedLabelSetSize() != 0);
-		    cutbutton->setEnabled(this->_dataManager->GetSelectedLabelSetSize() != 0);
 		    UpdateViewports(All);
 			break;
 		case false:
-			// nothing, handled by another button toggle
 			break;
-		default: // can't happen
+		default:
 			break;
 	}
 }
@@ -2605,7 +2605,25 @@ void EspinaVolumeEditor::ToggleEraseOrPaintButton(bool value)
 	switch (value)
 	{
 		case true:
+			this->_editorOperations->ClearSelection();
+			// only one label allowed so we will choose the last one, if it exists
+			if (this->_dataManager->GetSelectedLabelSetSize() > 1)
+			{
+				std::set<unsigned short> labels = this->_dataManager->GetSelectedLabelsSet();
+				std::set<unsigned short>::reverse_iterator rit = labels.rbegin();
+				if (rit != labels.rend())
+				{
+					labelselector->blockSignals(true);
+					labelselector->clearSelection();
+					labelselector->blockSignals(false);
+					labelselector->item(*rit)->setSelected(true);
+					labelselector->scrollToItem(labelselector->item(*rit));
+				}
+				else
+					labelselector->clearSelection();
+			}
 			labelselector->setSelectionMode(QAbstractItemView::SingleSelection);
+			UpdateViewports(All);
 			break;
 		case false:
 			labelselector->setSelectionMode(QAbstractItemView::ExtendedSelection);
@@ -2613,11 +2631,6 @@ void EspinaVolumeEditor::ToggleEraseOrPaintButton(bool value)
 		default:
 			break;
 	}
-
-	if (this->_dataManager->GetSelectedLabelSetSize() > 1)
-		labelselector->clearSelection();
-
-	this->ToggleDefaultButton(value);
 }
 
 void EspinaVolumeEditor::ToggleWandButton(bool value)
@@ -2626,12 +2639,12 @@ void EspinaVolumeEditor::ToggleWandButton(bool value)
 	{
 		case true:
 			this->_editorOperations->ClearSelection();
+			// as this operation could select only connected parts of a segmentation, we deselect the currently selected set
 			labelselector->blockSignals(true);
 			labelselector->clearSelection();
 			labelselector->blockSignals(false);
 			labelselector->item(0)->setSelected(true);
-		    relabelbutton->setEnabled(false);
-		    cutbutton->setEnabled(false);
+			labelselector->scrollToItem(labelselector->item(0));
 		    UpdateViewports(All);
 			break;
 		case false:
