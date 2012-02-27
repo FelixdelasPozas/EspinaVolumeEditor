@@ -30,7 +30,7 @@ class QtPreferences: public QDialog, private Ui_Preferences
         ~QtPreferences();
         
         // set initial options
-        void SetInitialOptions(unsigned long int, unsigned long int, unsigned int, double, int, unsigned int, bool);
+        void SetInitialOptions(unsigned long int, unsigned long int, unsigned int, double, int, unsigned int, bool, unsigned int);
 
         // get the capacity
         unsigned long int GetSize(void);
@@ -55,6 +55,9 @@ class QtPreferences: public QDialog, private Ui_Preferences
 
         // get if the save session data option is enabled
         bool GetSaveSessionEnabled(void);
+
+        // get the paint/erase operation radius
+        unsigned int GetPaintEraseRadius(void);
     public slots:
         // slots for signals
         virtual void SelectSize(int);
@@ -62,6 +65,7 @@ class QtPreferences: public QDialog, private Ui_Preferences
         virtual void SelectLevel(double);
         virtual void SelectOpacity(int);
         virtual void SelectSaveTime(int);
+        virtual void SelectPaintEraseRadius(int);
         
     private slots:
         void AcceptedData();
@@ -76,6 +80,9 @@ class QtPreferences: public QDialog, private Ui_Preferences
         // open/close/dilate/erode filters' radius
         unsigned int _filtersRadius;
         
+        // paint/erase operations radius
+        unsigned int _paintEraseRadius;
+
         // watershed filter flood level
         double _watershedLevel;
         

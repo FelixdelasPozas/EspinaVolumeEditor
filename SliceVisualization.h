@@ -87,6 +87,9 @@ class SliceVisualization
         // set selection volume to reslice and create actos
         void SetSelectionVolume(const vtkSmartPointer<vtkImageData>);
 
+        // set paint/erase actor
+        void SetPaintEraseActor(unsigned int, unsigned int, unsigned int, unsigned int, SliceVisualization::OrientationType);
+
         // clear selection
         void ClearSelections();
     private:
@@ -135,6 +138,7 @@ class SliceVisualization
         vtkSmartPointer<vtkActor>       		_vertactor;
         vtkSmartPointer<vtkActor>				_squareActor;
         vtkSmartPointer<vtkActor> 				_sliceActor;
+        vtkSmartPointer<vtkActor>				_paintEraseActor;
         //
         // source for imageactors
         vtkSmartPointer<vtkImageMapToColors> 	_segmentationcolors;

@@ -8,7 +8,8 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 // qt includes 
-#include <QtGui>        // including <QtGui> saves us to include every class user, <QString>, <QFileDialog>,... 
+#include <QtGui>        // including <QtGui> saves us to include every class user, <QString>, <QFileDialog>,...
+#include <QMetaType>
 #include "QtGui.h"
 
 // itk includes
@@ -135,10 +136,30 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
     connect(renderdisablebutton, SIGNAL(clicked(bool)), this, SLOT(DisableRenderView()));
     connect(eyebutton, SIGNAL(clicked(bool)), this, SLOT(SwitchSegmentationView()));
 
-    // create session timer and connect
-    _saveSessionTime = 20 * 60 * 1000;
-    _sessionTimer = new QTimer;
-    _saveSessionEnabled = true;
+    QSettings editorSettings("UPM", "Espina Volume Editor");
+
+    // get timer settings, create session timer and connect signals
+    if (false == editorSettings.contains("Editor/Autosave Session Data"))
+    {
+    	this->_saveSessionEnabled = true;
+    	this->_saveSessionTime = 20 * 60 * 1000;
+    	editorSettings.setValue("Editor/Autosave Session Data", true);
+    	editorSettings.setValue("Editor/Autosave Session Time", 20);
+    	editorSettings.sync();
+    }
+    else
+    {
+    	bool *returnValue = new bool(false);
+    	this->_saveSessionEnabled = editorSettings.value("Editor/Autosave Session Data").toBool();
+    	this->_saveSessionTime = editorSettings.value("Editor/Autosave Session Time").toUInt(returnValue) * 60 * 1000;
+
+    	if (false == *returnValue)
+    		this->_saveSessionTime = 20 * 60 * 1000;
+
+    	delete returnValue;
+    }
+
+    this->_sessionTimer = new QTimer;
     connect(_sessionTimer, SIGNAL(timeout()), this, SLOT(SaveSession()));
 
     XspinBox->setReadOnly(false);
@@ -315,12 +336,68 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
     this->_coronalSliceVisualization = new SliceVisualization(SliceVisualization::Coronal);
     this->_axialSliceVisualization = new SliceVisualization(SliceVisualization::Axial);
 
+    // get editor configuration
+    if (false == editorSettings.contains("Editor/UndoRedo System Buffer Size"))
+    {
+    	editorSettings.setValue("Editor/UndoRedo System Buffer Size",  150 * 1024 * 1024);
+    	editorSettings.setValue("Editor/Filters Radius", 1);
+    	editorSettings.setValue("Editor/Watershed Flood Level", 0.50);
+    	editorSettings.setValue("Editor/Segmentation Opacity", 75);
+    	editorSettings.setValue("Editor/Paint-Erase Radius", 1);
+    	// no need to set values, classes have their own default values at init
+    }
+    else
+    {
+    	bool *returnValue = new bool(false);
+
+    	unsigned long size = editorSettings.value("Editor/UndoRedo System Buffer Size").toULongLong(returnValue);
+    	if (false == *returnValue)
+    	{
+    		this->_dataManager->SetUndoRedoBufferSize(150*1024*1024);
+        	editorSettings.setValue("Editor/UndoRedo System Buffer Size",  150 * 1024 * 1024);
+    	}
+    	else
+    		this->_dataManager->SetUndoRedoBufferSize(size);
+
+    	this->_editorOperations->SetFiltersRadius(editorSettings.value("Editor/Filters Radius").toInt(returnValue));
+    	if (false == *returnValue)
+    	{
+    		this->_editorOperations->SetFiltersRadius(1);
+    		editorSettings.setValue("Editor/Filters Radius", 1);
+    	}
+
+    	this->_editorOperations->SetWatershedLevel(editorSettings.value("Editor/Watershed Flood Level").toDouble(returnValue));
+    	if (false == *returnValue)
+    	{
+    		this->_editorOperations->SetWatershedLevel(0.50);
+    		editorSettings.setValue("Editor/Watershed Flood Level", 0.50);
+    	}
+
+    	unsigned int opacity = editorSettings.value("Editor/Segmentation Opacity").toUInt(returnValue);
+    	if (false == *returnValue)
+    	{
+    		opacity = 75;
+    		editorSettings.setValue("Editor/Segmentation Opacity", 75);
+    	}
+    	this->_sagittalSliceVisualization->SetSegmentationOpacity(opacity);
+    	this->_axialSliceVisualization->SetSegmentationOpacity(opacity);
+    	this->_coronalSliceVisualization->SetSegmentationOpacity(opacity);
+
+    	this->_paintEraseRadius = editorSettings.value("Editor/Paint-Erase Radius").toUInt(returnValue);
+    	if (false == *returnValue)
+    	{
+    		this->_paintEraseRadius = 1;
+    		editorSettings.setValue("Editor/Paint-Erase Radius", 1);
+    	}
+    }
+	editorSettings.sync();
+
     // initialize editor progress bar
     this->_progress = new ProgressAccumulator(app);
     this->_progress->SetProgressBar(progressBar, progressLabel);
     this->_progress->Reset();
 
-    _segmentationsAreVisible = true;
+    this->_segmentationsAreVisible = true;
 
     // create mutex for mutual exclusion sections
     actionLock = new QMutex();
@@ -653,11 +730,35 @@ void EspinaVolumeEditor::EditorOpen(void)
     _hasReferenceImage = false;
     
     // start session timer
-    _sessionTimer->start(_saveSessionTime, true);
+    if (this->_saveSessionEnabled)
+    	this->_sessionTimer->start(this->_saveSessionTime, true);
 
     // put the name of the opened file in the window title
     std::string caption = std::string("Espina Volume Editor - ") + filename.toStdString();
     this->setCaption(QString(caption.c_str()));
+
+    // get the working set of labels for this file, if exists.
+    // change the disallowed chars first in the filename, hope it doesn't collide with another file
+    filename.replace(QChar('/'), QChar('\\'));
+    QSettings editorSettings("UPM", "Espina Volume Editor");
+    editorSettings.beginGroup("UserData");
+
+    // get working set of labels for this file and apply it, if it exists
+    // NOTE: Qlist<qvariant> to std::set<label scalars> to std::set<label indexes> and set the last one as selected the selected labels set
+    if ((editorSettings.value(filename).isValid()) && (true == editorSettings.contains(filename)))
+    {
+   		QList<QVariant> labelList = editorSettings.value(filename).toList();
+
+   		std::set<unsigned short> labelScalars;
+    	for (int i = 0; i < labelList.size(); i++)
+    		labelScalars.insert(static_cast<unsigned short>(labelList.at(i).toUInt()));
+
+    	std::set<unsigned short> labelIndexes;
+    	for (std::set<unsigned short>::iterator it = labelScalars.begin(); it != labelScalars.end(); it++)
+        	labelIndexes.insert(this->_dataManager->GetLabelForScalar(*it));
+
+        SelectLabelGroup(labelIndexes);
+    }
 
     _progress->ManualReset();
 }
@@ -875,6 +976,25 @@ void EspinaVolumeEditor::EditorSave()
 		msgBox.setText(text.c_str());
 		msgBox.exec();
 	}
+
+    // save the set of labels as settings, not the indexes but the scalars
+	QSettings editorSettings("UPM", "Espina Volume Editor");
+	filename.replace(QChar('/'), QChar('\\'));
+	editorSettings.beginGroup("UserData");
+
+	std::set<unsigned short> labelIndexes = this->_dataManager->GetSelectedLabelsSet();
+	std::set<unsigned short> labelScalars;
+
+	for (std::set<unsigned short>::iterator it = labelIndexes.begin(); it != labelIndexes.end(); it++)
+		labelScalars.insert(this->_dataManager->GetScalarForLabel(*it));
+
+	QList<QVariant> labelList;
+	for (std::set<unsigned short>::iterator it = labelScalars.begin(); it != labelScalars.end(); it++)
+		labelList.append(static_cast<int>(*it));
+
+	QVariant variant;
+	variant.setValue(labelList);
+	editorSettings.setValue(filename, variant);
 }
 
 void EspinaVolumeEditor::EditorExit()
@@ -1262,7 +1382,8 @@ void EspinaVolumeEditor::Preferences()
     		_editorOperations->GetWatershedLevel(), 
     		_axialSliceVisualization->GetSegmentationOpacity(),
     		_saveSessionTime,
-    		_saveSessionEnabled);
+    		_saveSessionEnabled,
+    		_paintEraseRadius);
     
     if (true == _hasReferenceImage)
     	configdialog.EnableVisualizationBox();
@@ -1272,37 +1393,50 @@ void EspinaVolumeEditor::Preferences()
     if (!configdialog.ModifiedData())
         return;
 
-    _editorOperations->SetFiltersRadius(configdialog.GetRadius());
-    _editorOperations->SetWatershedLevel(configdialog.GetLevel());
-    _dataManager->SetUndoRedoBufferSize(configdialog.GetSize());
+    // save settings
+    QSettings editorSettings("UPM", "Espina Volume Editor");
+	editorSettings.setValue("Editor/UndoRedo System Buffer Size", static_cast<unsigned long long>(configdialog.GetSize()));
+	editorSettings.setValue("Editor/Filters Radius", configdialog.GetRadius());
+	editorSettings.setValue("Editor/Watershed Flood Level", configdialog.GetLevel());
+	editorSettings.setValue("Editor/Segmentation Opacity", configdialog.GetSegmentationOpacity());
+	editorSettings.setValue("Editor/Paint-Erase Radius", configdialog.GetPaintEraseRadius());
+	editorSettings.setValue("Editor/Autosave Session Data", configdialog.GetSaveSessionEnabled());
+	editorSettings.setValue("Editor/Autosave Session Time", configdialog.GetSaveSessionTime());
+	editorSettings.sync();
 
-    if (_saveSessionTime != (configdialog.GetSaveSessionTime() * 60 * 1000))
+	// configure editor
+    this->_editorOperations->SetFiltersRadius(configdialog.GetRadius());
+    this->_editorOperations->SetWatershedLevel(configdialog.GetLevel());
+    this->_dataManager->SetUndoRedoBufferSize(configdialog.GetSize());
+    this->_paintEraseRadius = configdialog.GetPaintEraseRadius();
+
+    if (this->_saveSessionTime != (configdialog.GetSaveSessionTime() * 60 * 1000))
     {
     	// time for saving session data changed, just update the timer
-    	_saveSessionTime = configdialog.GetSaveSessionTime() * 60 * 1000;
-    	_sessionTimer->changeInterval(_saveSessionTime);
+    	this->_saveSessionTime = configdialog.GetSaveSessionTime() * 60 * 1000;
+    	this->_sessionTimer->changeInterval(_saveSessionTime);
     }
 
     if (false == configdialog.GetSaveSessionEnabled())
     {
-    	_saveSessionEnabled = false;
-    	_sessionTimer->stop();
+    	this->_saveSessionEnabled = false;
+    	this->_sessionTimer->stop();
     }
     else
     {
-    	_saveSessionEnabled = true;
-       	if (!_sessionTimer->isActive() && (_segmentationFileName != std::string()))
-    		_sessionTimer->start(_saveSessionTime, true);
+    	this->_saveSessionEnabled = true;
+       	if (!this->_sessionTimer->isActive() && (this->_segmentationFileName != std::string()))
+    		this->_sessionTimer->start(_saveSessionTime, true);
     }
 
     // the undo/redo system size could have been modified and then some actions could have been deleted
     UpdateUndoRedoMenu();
     
-    if (true == _hasReferenceImage)
+    if (true == this->_hasReferenceImage)
     {
-		_axialSliceVisualization->SetSegmentationOpacity(configdialog.GetSegmentationOpacity());
-		_sagittalSliceVisualization->SetSegmentationOpacity(configdialog.GetSegmentationOpacity());
-		_coronalSliceVisualization->SetSegmentationOpacity(configdialog.GetSegmentationOpacity());
+		this->_axialSliceVisualization->SetSegmentationOpacity(configdialog.GetSegmentationOpacity());
+		this->_sagittalSliceVisualization->SetSegmentationOpacity(configdialog.GetSegmentationOpacity());
+		this->_coronalSliceVisualization->SetSegmentationOpacity(configdialog.GetSegmentationOpacity());
 	    // the visualization options could have been modified so we must update the slices
 	    UpdateViewports(Slices);
     }
@@ -1682,7 +1816,7 @@ void EspinaVolumeEditor::SliceInteraction(vtkObject* object, unsigned long event
     static bool middleButtonStillDown = false;
     SliceVisualization::OrientationType sliceView;
 
-    // to pass events forward
+    // identify view to pass events forward
     vtkSmartPointer<vtkInteractorStyle> style = vtkInteractorStyle::SafeDownCast(object);
 
     if (style.GetPointer() == axialview->GetRenderWindow()->GetInteractor()->GetInteractorStyle())
@@ -1756,14 +1890,17 @@ void EspinaVolumeEditor::SliceInteraction(vtkObject* object, unsigned long event
         case vtkCommand::MouseMoveEvent:
             if (!leftButtonStillDown && !rightButtonStillDown && !middleButtonStillDown)
             {
+            	if (paintbutton->isChecked() || erasebutton->isChecked())
+            		SliceXYPick(event, sliceView);
+
                 style->OnMouseMove();
                 return;
             }
             
             if (leftButtonStillDown)
             {
-                style->OnMouseMove();
                 SliceXYPick(event, sliceView);
+                style->OnMouseMove();
                 return;
             }
             
@@ -1825,15 +1962,53 @@ void EspinaVolumeEditor::SliceXYPick(const unsigned long event, SliceVisualizati
 			break;
 	}
 
-    if ((SliceVisualization::None == actualPick) && (vtkCommand::LeftButtonReleaseEvent == event))
-    {
-      	// fix a glitch in rendering when the user picks a zone out of the slice
-   		updateVoxelRenderer = true;
-        updateSliceRenderers = true;
-        UpdateViewports(All);
-        previousPick = SliceVisualization::None;
-      	return;
-    }
+	// return if picked out of the slice area
+	if (SliceVisualization::None == actualPick)
+	{
+	    if ((vtkCommand::LeftButtonReleaseEvent == event) || (vtkCommand::LeftButtonPressEvent == event))
+	    {
+	      	// fix a glitch in rendering when the user picks a zone out of the slice
+	   		updateVoxelRenderer = true;
+	        updateSliceRenderers = true;
+	        UpdateViewports(All);
+	        previousPick = SliceVisualization::None;
+	    }
+
+		return;
+	}
+
+	// handle mouse movements when the user is painting or erasing
+	if ((vtkCommand::MouseMoveEvent == event) && (SliceVisualization::Slice == actualPick))
+	{
+		unsigned int x,y,z;
+		switch (sliceView)
+		{
+			case SliceVisualization::Axial:
+				x = X+1;
+				y = Y+1;
+				z = _POI[0];
+				break;
+			case SliceVisualization::Coronal:
+				x = X+1;
+				y = _POI[1];
+				z = Y+1;
+				break;
+			case SliceVisualization::Sagittal:
+				x = _POI[0];
+				y = X+1;
+				z = Y+1;
+				break;
+			default: // can't happen, used to avoid a compiler warning
+				x = y = z = 0;
+				break;
+		}
+
+		this->_axialSliceVisualization->SetPaintEraseActor(x,y,z,this->_paintEraseRadius, sliceView);
+		this->_coronalSliceVisualization->SetPaintEraseActor(x,y,z,this->_paintEraseRadius, sliceView);
+		this->_sagittalSliceVisualization->SetPaintEraseActor(x,y,z,this->_paintEraseRadius, sliceView);
+		UpdateViewports(Slices);
+		return;
+	}
     
     // we need to know if we have started picking or we've picked something before
     if (SliceVisualization::None == previousPick)
@@ -2676,8 +2851,12 @@ void EspinaVolumeEditor::RestartVoxelRender(void)
 void EspinaVolumeEditor::SelectLabelGroup(std::set<unsigned short> labels)
 {
 	// can't select a group of labels if it contains the background label
-	if (labels.find(0) != labels.end())
+	if ((labels.find(0) != labels.end()) || labels.empty())
+	{
+		labelselector->item(0)->setSelected(true);
+		labelselector->scrollToItem(labelselector->item(0), QAbstractItemView::EnsureVisible);
 		return;
+	}
 
 	std::set<unsigned short>::iterator it;
 
@@ -2720,10 +2899,6 @@ void EspinaVolumeEditor::ApplyUserAction(void)
 	if (erasebutton->isChecked() && (0 != _pointScalar))
 	{
 		this->_dataManager->SetVoxelScalar(_POI[0], _POI[1], _POI[2], 0);
-
-		if (!this->_dataManager->IsColorSelected(_pointScalar))
-			labelselector->item(_pointScalar)->setSelected(true);
-
 		GetPointLabel();
 		return;
 	}
@@ -2749,6 +2924,5 @@ void EspinaVolumeEditor::ApplyUserAction(void)
 		_editorOperations->ContiguousAreaSelection(_POI);
 
 		labelselector->item(_pointScalar)->setSelected(true);
-		this->_volumeRender->UpdateFocusExtent();
 	}
 }

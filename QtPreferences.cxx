@@ -24,6 +24,7 @@ QtPreferences::QtPreferences(QWidget *p, Qt::WindowFlags f) : QDialog(p,f)
     _watershedLevel = 0.0;
     _segmentationOpacity = 0;
     _saveTime = 0;
+    _paintEraseRadius = 0;
 }
 
 QtPreferences::~QtPreferences()
@@ -31,7 +32,7 @@ QtPreferences::~QtPreferences()
     // empty, nothing to be freed
 }
 
-void QtPreferences::SetInitialOptions(unsigned long int size, unsigned long int capacity, unsigned int radius, double level, int opacity, unsigned int saveTime, bool saveEnabled)
+void QtPreferences::SetInitialOptions(unsigned long int size, unsigned long int capacity, unsigned int radius, double level, int opacity, unsigned int saveTime, bool saveEnabled, unsigned int paintRadius)
 {
     _undoSize = size;
     _undoCapacity = capacity;
@@ -39,6 +40,7 @@ void QtPreferences::SetInitialOptions(unsigned long int size, unsigned long int 
     _watershedLevel = level;
     _segmentationOpacity = opacity;
     _saveTime = saveTime / (60 * 1000);
+    _paintEraseRadius = paintRadius;
 
     if (!saveEnabled)
     	saveSessionBox->setChecked(false);
@@ -49,6 +51,7 @@ void QtPreferences::SetInitialOptions(unsigned long int size, unsigned long int 
     levelBox->setValue(_watershedLevel);
     opacityBox->setValue(_segmentationOpacity);
     saveTimeBox->setValue(_saveTime);
+    paintRadiusBox->setValue(_paintEraseRadius);
 
     // configure widgets
     connect(sizeBox, SIGNAL(valueChanged(int)), this, SLOT(SelectSize(int)));
@@ -56,6 +59,7 @@ void QtPreferences::SetInitialOptions(unsigned long int size, unsigned long int 
     connect(opacityBox, SIGNAL(valueChanged(int)), this, SLOT(SelectOpacity(int)));
     connect(levelBox, SIGNAL(valueChanged(double)), this, SLOT(SelectLevel(double)));
     connect(saveTimeBox, SIGNAL(valueChanged(int)), this, SLOT(SelectSaveTime(int)));
+    connect(paintRadiusBox, SIGNAL(valueChanged(int)), this, SLOT(SelectPaintEraseRadius(int)));
     
     connect(acceptbutton, SIGNAL(accepted()), this, SLOT(AcceptedData()));
 }
@@ -115,6 +119,11 @@ void QtPreferences::SelectSaveTime(int value)
 	_saveTime = value;
 }
 
+void QtPreferences::SelectPaintEraseRadius(int value)
+{
+	_paintEraseRadius = static_cast<unsigned int>(value);
+}
+
 void QtPreferences::AcceptedData()
 {
     _modified = true;
@@ -128,4 +137,9 @@ bool QtPreferences::ModifiedData()
 bool QtPreferences::GetSaveSessionEnabled()
 {
 	return saveSessionBox->isChecked();
+}
+
+unsigned int QtPreferences::GetPaintEraseRadius()
+{
+	return this->_paintEraseRadius;
 }

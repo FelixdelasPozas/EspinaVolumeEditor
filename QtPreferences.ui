@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>324</width>
-    <height>443</height>
+    <height>519</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -22,13 +22,13 @@
   <property name="minimumSize">
    <size>
     <width>324</width>
-    <height>443</height>
+    <height>519</height>
    </size>
   </property>
   <property name="maximumSize">
    <size>
     <width>324</width>
-    <height>443</height>
+    <height>519</height>
    </size>
   </property>
   <property name="contextMenuPolicy">
@@ -78,6 +78,18 @@ QGroupBox::title {
        <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,0">
         <item>
          <widget class="QLabel" name="label_2">
+          <property name="minimumSize">
+           <size>
+            <width>212</width>
+            <height>27</height>
+           </size>
+          </property>
+          <property name="maximumSize">
+           <size>
+            <width>212</width>
+            <height>27</height>
+           </size>
+          </property>
           <property name="toolTip">
            <string>System capacity in Megabytes</string>
           </property>
@@ -88,6 +100,12 @@ QGroupBox::title {
         </item>
         <item>
          <widget class="QSpinBox" name="sizeBox">
+          <property name="minimumSize">
+           <size>
+            <width>62</width>
+            <height>27</height>
+           </size>
+          </property>
           <property name="maximum">
            <number>4000</number>
           </property>
@@ -100,6 +118,9 @@ QGroupBox::title {
       </item>
       <item>
        <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="1,1">
+        <property name="sizeConstraint">
+         <enum>QLayout::SetMinAndMaxSize</enum>
+        </property>
         <item>
          <widget class="QLabel" name="label_3">
           <property name="toolTip">
@@ -112,9 +133,15 @@ QGroupBox::title {
         </item>
         <item>
          <widget class="QProgressBar" name="capacityBar">
+          <property name="minimumSize">
+           <size>
+            <width>137</width>
+            <height>16</height>
+           </size>
+          </property>
           <property name="maximumSize">
            <size>
-            <width>16777215</width>
+            <width>137</width>
             <height>16</height>
            </size>
           </property>
@@ -256,6 +283,56 @@ QGroupBox::title {
           </property>
           <property name="singleStep">
            <double>0.050000000000000</double>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="groupBox_3">
+     <property name="styleSheet">
+      <string notr="true"> QGroupBox {
+	 font: bold gray;
+	color: rgb(84, 84, 84);
+     border: 1px solid gray;
+     border-radius: 5px;
+     margin-top: 2ex; /* leave space at the top for the title */
+     padding: 2px
+ }
+
+QGroupBox::title {
+     font: bold 10px;
+     subcontrol-origin: margin;
+     subcontrol-position: left top; /* position at the top center */
+     padding: 2px;
+ }</string>
+     </property>
+     <property name="title">
+      <string>Paint/Erase Operations</string>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayout_6">
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayout_6" stretch="1,0">
+        <item>
+         <widget class="QLabel" name="label_8">
+          <property name="text">
+           <string>Radius</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QSpinBox" name="paintRadiusBox">
+          <property name="minimum">
+           <number>1</number>
+          </property>
+          <property name="maximum">
+           <number>15</number>
+          </property>
+          <property name="value">
+           <number>1</number>
           </property>
          </widget>
         </item>

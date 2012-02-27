@@ -555,6 +555,9 @@ unsigned long long int DataManager::GetNumberOfVoxelsForLabel(unsigned short lab
 
 unsigned short DataManager::GetScalarForLabel(unsigned short label)
 {
+	if (label > ObjectVector.size())
+		return 0;
+
 	return ObjectVector[label]->scalar;
 }
 

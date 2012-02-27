@@ -172,6 +172,9 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         // names of files for saving session or reopening a failed session
         std::string 						   _segmentationFileName;
         std::string							   _referenceFileName;
+
+        // misc editor options
+        unsigned int 						   _paintEraseRadius;
 };
 
 #endif
