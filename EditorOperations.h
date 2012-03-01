@@ -27,7 +27,7 @@
 #include "DataManager.h"
 #include "Metadata.h"
 #include "Selection.h"
-
+#include "SliceVisualization.h"
 // qt includes
 #include <QtGui>
 
@@ -59,6 +59,9 @@ class EditorOperations
         // save volume to disk in MHA format
         void SaveImage(const std::string);
         
+        // used for paint a selected area (paint/erase)
+        void Paint(unsigned short);
+
         // get the labelmap representation of the volume
         itk::SmartPointer<LabelMapType> GetImageLabelMap();
         
@@ -88,6 +91,7 @@ class EditorOperations
         Selection::SelectionType GetSelectionType(void);
         const bool IsFirstColorSelected(void);
         void SetSliceViews(SliceVisualization*, SliceVisualization*, SliceVisualization*);
+        void UpdatePaintEraseActors(int, int, int, int, SliceVisualization*);
 
         // SaveSessionThread need to touch private attributes
         friend class SaveSessionThread;

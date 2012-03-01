@@ -181,7 +181,7 @@ void EditorOperations::Cut(std::set<unsigned short> labels)
 								_dataManager->SetVoxelScalar(x, y, z, 0);
     		}
     		break;
-    	default: // can't happen
+    	default:
     		break;
     }
     _progress->ManualReset();
@@ -263,7 +263,7 @@ bool EditorOperations::Relabel(QWidget *parent, Metadata *data, std::set<unsigne
 						if (labels->find(_dataManager->GetVoxelScalar(x, y, z)) != labels->end())
 							_dataManager->SetVoxelScalar(x, y, z, newlabel);
     		break;
-    	default: // can't happen
+    	default:
     		break;
     }
 
@@ -836,4 +836,23 @@ void EditorOperations::ClearSelection(void)
 Selection::SelectionType EditorOperations::GetSelectionType(void)
 {
 	return this->_selection->GetSelectionType();
+}
+
+void EditorOperations::UpdatePaintEraseActors(int x, int y, int z, int radius, SliceVisualization* sliceView)
+{
+	this->_selection->SetSelectionDisc(x,y,z,radius, sliceView);
+}
+
+void EditorOperations::Paint(unsigned short label)
+{
+	if (Selection::DISC == this->_selection->GetSelectionType())
+	{
+		Vector3ui min = this->_selection->GetSelectedMinimumBouds();
+		Vector3ui max = this->_selection->GetSelectedMaximumBouds();
+	    for (unsigned int x = min[0]; x <= max[0]; x++)
+			for (unsigned int y = min[1]; y <= max[1]; y++)
+				for (unsigned int z = min[2]; z <= max[2]; z++)
+					if (this->_selection->VoxelIsInsideSelection(x, y, z))
+						_dataManager->SetVoxelScalar(x, y, z, label);
+	}
 }

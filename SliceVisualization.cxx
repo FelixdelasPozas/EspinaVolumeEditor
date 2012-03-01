@@ -46,7 +46,6 @@ SliceVisualization::SliceVisualization(OrientationType orientation)
 	this->_thumbRenderer = NULL;
 	this->_renderer = NULL;
 	this->_orientation = orientation;
-	this->_paintEraseActor = NULL;
 
 	// create 2D actors texture
 	vtkSmartPointer<vtkImageCanvasSource2D> volumeTextureIcon = vtkSmartPointer<vtkImageCanvasSource2D>::New();
@@ -55,10 +54,10 @@ SliceVisualization::SliceVisualization(OrientationType orientation)
 	volumeTextureIcon->SetNumberOfScalarComponents(4);
 	volumeTextureIcon->SetDrawColor(0, 0, 0, 0);
 	volumeTextureIcon->FillBox(0, 23, 0, 7);
-	volumeTextureIcon->SetDrawColor(0, 0, 0, 75);
+	volumeTextureIcon->SetDrawColor(0, 0, 0, 100);
 	volumeTextureIcon->FillBox(16, 19, 0, 3);
 	volumeTextureIcon->FillBox(20, 24, 4, 7);
-	volumeTextureIcon->SetDrawColor(255, 255, 255, 75);
+	volumeTextureIcon->SetDrawColor(255, 255, 255, 100);
 	volumeTextureIcon->FillBox(16, 19, 4, 7);
 	volumeTextureIcon->FillBox(20, 24, 0, 3);
 
@@ -146,13 +145,6 @@ SliceVisualization::~SliceVisualization()
 {
 	// remove segmentation actors
 	ClearSelections();
-
-	// remove paint-erase actor
-	if (this->_paintEraseActor)
-	{
-		this->_renderer->RemoveActor(this->_paintEraseActor);
-		this->_paintEraseActor = NULL;
-	}
 
 	// remove thumb renderer
 	if (this->_thumbRenderer)
@@ -679,7 +671,7 @@ void SliceVisualization::ModifyActorVisibility(struct ActorData* actorInformatio
 	}
 }
 
-void SliceVisualization::SetSelectionVolume(const vtkSmartPointer<vtkImageData> selectionBuffer)
+void SliceVisualization::SetSelectionVolume(const vtkSmartPointer<vtkImageData> selectionBuffer, bool useActorBounds)
 {
 	vtkSmartPointer<vtkImageReslice> reslice = vtkSmartPointer<vtkImageReslice> ::New();
 	reslice->SetOptimization(true);
@@ -735,6 +727,7 @@ void SliceVisualization::SetSelectionVolume(const vtkSmartPointer<vtkImageData> 
     actor->SetMapper(mapper);
     actor->SetTexture(this->_texture);
     actor->SetDragable(false);
+    actor->UseBoundsOff();
 
     // TODO: vtkActors change order of rendering in lower end machines when adding this one?
     // remedy: use layers of actors?
@@ -749,16 +742,40 @@ void SliceVisualization::SetSelectionVolume(const vtkSmartPointer<vtkImageData> 
     switch (_orientation)
     {
         case Sagittal:
-        	actorInformation->minSlice = static_cast<int>(bounds[0]/_spacing[0]);
-        	actorInformation->maxSlice = static_cast<int>(bounds[1]/_spacing[0]);
+        	if (useActorBounds)
+        	{
+				actorInformation->minSlice = static_cast<int>(bounds[0]/_spacing[0]);
+				actorInformation->maxSlice = static_cast<int>(bounds[1]/_spacing[0]);
+        	}
+        	else
+        	{
+				actorInformation->minSlice = 0;
+				actorInformation->maxSlice = this->_size[0];
+        	}
             break;
         case Coronal:
-        	actorInformation->minSlice = static_cast<int>(bounds[2]/_spacing[1]);
-        	actorInformation->maxSlice = static_cast<int>(bounds[3]/_spacing[1]);
+        	if (useActorBounds)
+        	{
+				actorInformation->minSlice = static_cast<int>(bounds[2]/_spacing[1]);
+				actorInformation->maxSlice = static_cast<int>(bounds[3]/_spacing[1]);
+        	}
+        	else
+        	{
+        		actorInformation->minSlice = 0;
+        		actorInformation->maxSlice = this->_size[1];
+        	}
             break;
         case Axial:
-        	actorInformation->minSlice = static_cast<int>(bounds[4]/_spacing[2]);
-        	actorInformation->maxSlice = static_cast<int>(bounds[5]/_spacing[2]);
+        	if (useActorBounds)
+        	{
+				actorInformation->minSlice = static_cast<int>(bounds[4]/_spacing[2]);
+				actorInformation->maxSlice = static_cast<int>(bounds[5]/_spacing[2]);
+        	}
+        	else
+        	{
+        		actorInformation->minSlice = 0;
+        		actorInformation->maxSlice = this->_size[2];
+        	}
             break;
         default:
             break;
@@ -768,188 +785,7 @@ void SliceVisualization::SetSelectionVolume(const vtkSmartPointer<vtkImageData> 
     ModifyActorVisibility(actorInformation);
 }
 
-// TODO: arreglar esto
-void SliceVisualization::SetPaintEraseActor(unsigned int x, unsigned int y, unsigned int z, unsigned int radius, SliceVisualization::OrientationType orientation)
+SliceVisualization::OrientationType SliceVisualization::GetOrientationType(void)
 {
-	// get correct coordinates
-	const int r = static_cast<int>(radius)-1;
-	double centerX, centerY;
-	double spacingX, spacingY;
-
-	switch(orientation)
-	{
-		case SliceVisualization::Axial:
-			centerX = static_cast<int>(x);
-			centerY = static_cast<int>(y);
-			spacingX = this->_spacing[0];
-			spacingY = this->_spacing[1];
-			break;
-		case SliceVisualization::Coronal:
-			centerX = static_cast<int>(x);
-			centerY = static_cast<int>(z);
-			spacingX = this->_spacing[0];
-			spacingY = this->_spacing[2];
-			break;
-		case SliceVisualization::Sagittal:
-			centerX = static_cast<int>(y);
-			centerY = static_cast<int>(z);
-			spacingX = this->_spacing[1];
-			spacingY = this->_spacing[2];
-			break;
-		default:
-			centerX = centerY = 0;
-			spacingX = spacingY = 0.0;
-			break;
-	}
-
-	// create actor if it doesn't exists
-	if (NULL == this->_paintEraseActor)
-	{
-		int extent[6] = { 0,0,0,0,0,0 };
-		int dimension = (radius * 2) + 1;
-
-		vtkSmartPointer<vtkImageData> image = vtkSmartPointer<vtkImageData>::New();
-		switch(this->_orientation == orientation)
-		{
-			case true:
-			{
-				extent[1] = dimension-1;
-				extent[3] = dimension-1;
-				image->SetExtent(extent);
-				image->SetScalarTypeToInt();
-				image->AllocateScalars();
-				image->SetOrigin(0.0,0.0,0.0);
-				image->SetSpacing(spacingX, spacingY, 1);
-				for (int a = 0; a <= extent[1]; a++)
-				{
-					for (int b = 0; b <= extent[3]; b++)
-					{
-						int *pointer = static_cast<int*>(image->GetScalarPointer(a,b,0));
-						if (((pow(abs(r - a), 2) + pow(abs(r - b), 2))) <= pow(r,2))
-							*pointer = static_cast<int>(Selection::VOXEL_SELECTED);
-						else
-							*pointer = static_cast<int>(Selection::VOXEL_UNSELECTED);
-					}
-				}
-				break;
-			}
-			case false:
-				extent[1] = dimension - 1;
-				image->SetExtent(extent);
-				image->SetScalarTypeToInt();
-				image->AllocateScalars();
-				image->SetOrigin(0.0,0.0,0.0);
-				image->SetSpacing(spacingX, spacingY, 1);
-				for (int a = 0; a <= extent[1]; a++)
-				{
-						int *pointer = static_cast<int*>(image->GetScalarPointer(a,0,0));
-						*pointer = Selection::VOXEL_SELECTED;
-				}
-				break;
-			default:
-				break;
-		}
-		image->Update();
-
-		// transform the vtkImageData to vtkPolyData
-		vtkSmartPointer<vtkImageDataGeometryFilter> imageDataGeometryFilter = vtkSmartPointer<vtkImageDataGeometryFilter>::New();
-		imageDataGeometryFilter->SetInput(image);
-		imageDataGeometryFilter->SetGlobalWarningDisplay(false);
-		imageDataGeometryFilter->SetThresholdCells(true);
-		imageDataGeometryFilter->SetThresholdValue(Selection::SELECTION_UNUSED_VALUE);
-		imageDataGeometryFilter->Update();
-
-	    // create filter to apply the same texture to every point in the set
-		vtkSmartPointer<vtkIconGlyphFilter> iconFilter = vtkSmartPointer<vtkIconGlyphFilter>::New();
-	    iconFilter->SetInput(imageDataGeometryFilter->GetOutput());
-	    iconFilter->SetIconSize(8,8);
-	    iconFilter->SetUseIconSize(false);
-
-	    // if spacing < 1, we're fucked, literally
-	    switch (_orientation)
-	    {
-	        case Sagittal:
-	        	iconFilter->SetDisplaySize(static_cast<int>(_spacing[1]),static_cast<int>(_spacing[2]));
-	            break;
-	        case Coronal:
-	        	iconFilter->SetDisplaySize(static_cast<int>(_spacing[0]),static_cast<int>(_spacing[2]));
-	            break;
-	        case Axial:
-	        	iconFilter->SetDisplaySize(static_cast<int>(_spacing[0]),static_cast<int>(_spacing[1]));
-	            break;
-	        default:
-	            break;
-	    }
-	    iconFilter->SetIconSheetSize(24,8);
-	    iconFilter->SetGravityToCenterCenter();
-
-	    // actor mapper
-	    vtkSmartPointer<vtkPolyDataMapper> mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-	    mapper->SetInputConnection(iconFilter->GetOutputPort());
-
-	    // create a new actor
-	    this->_paintEraseActor = vtkSmartPointer<vtkActor>::New();
-	    this->_paintEraseActor->SetMapper(mapper);
-	    this->_paintEraseActor->SetTexture(this->_texture);
-	    this->_paintEraseActor->SetDragable(false);
-
-		this->_renderer->AddActor(this->_paintEraseActor);
-	}
-
-	switch(this->_orientation == orientation)
-	{
-		case true:
-			this->_paintEraseActor->SetPosition((centerX-radius)*spacingX,(centerY-radius)*spacingY, 0);
-			break;
-		case false:
-		{
-			switch(orientation)
-			{
-				case SliceVisualization::Axial:
-					switch(this->_orientation)
-					{
-						case SliceVisualization::Coronal:
-							this->_paintEraseActor->SetPosition((centerX-radius)*spacingX,(centerY)*spacingY, 0);
-							break;
-						case SliceVisualization::Sagittal:
-							this->_paintEraseActor->SetPosition((centerX-radius)*spacingX,(centerY)*spacingY, 0);
-							break;
-						default:
-							break;
-					}
-					break;
-				case SliceVisualization::Coronal:
-					switch(this->_orientation)
-					{
-						case SliceVisualization::Axial:
-							this->_paintEraseActor->SetPosition((centerX-radius)*spacingX,(centerY)*spacingY, 0);
-							break;
-						case SliceVisualization::Sagittal:
-							this->_paintEraseActor->SetPosition((centerX-radius)*spacingX,(centerY)*spacingY, 0);
-							break;
-						default:
-							break;
-					}
-					break;
-				case SliceVisualization::Sagittal:
-					switch(this->_orientation)
-					{
-						case SliceVisualization::Axial:
-							this->_paintEraseActor->SetPosition((centerX-radius)*spacingX,(centerY)*spacingY, 0);
-							break;
-						case SliceVisualization::Coronal:
-							this->_paintEraseActor->SetPosition((centerX-radius)*spacingX,(centerY)*spacingY, 0);
-							break;
-						default:
-							break;
-					}
-					break;
-				default:
-					break;
-			}
-			break;
-		}
-		default:
-			break;
-	}
+	return this->_orientation;
 }

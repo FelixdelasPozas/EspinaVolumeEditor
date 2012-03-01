@@ -404,8 +404,7 @@ void VoxelVolumeRender::ColorDim(const unsigned short label, float alpha)
 				delete this->_actorList[label];
 				this->_actorList.erase(label);
 				break;
-			default:
-				// can't happen
+			default: // can't happen
 				break;
 		}
 		this->_highlightedLabels.erase(label);

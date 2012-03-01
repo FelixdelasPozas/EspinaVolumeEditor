@@ -181,7 +181,7 @@ unsigned short DataManager::GetVoxelScalar(unsigned int x, unsigned int y, unsig
 void DataManager::SetVoxelScalar(unsigned int x, unsigned int y, unsigned int z, unsigned short scalar)
 {
     unsigned short* pixel = static_cast<unsigned short*> (_structuredPoints->GetScalarPointer(x,y,z));
-    
+
     if (scalar == *pixel)
         return;
 

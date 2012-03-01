@@ -1814,25 +1814,25 @@ void EspinaVolumeEditor::SliceInteraction(vtkObject* object, unsigned long event
     static bool leftButtonStillDown = false;
     static bool rightButtonStillDown = false;
     static bool middleButtonStillDown = false;
-    SliceVisualization::OrientationType sliceView;
+    SliceVisualization* sliceView;
 
     // identify view to pass events forward
     vtkSmartPointer<vtkInteractorStyle> style = vtkInteractorStyle::SafeDownCast(object);
 
     if (style.GetPointer() == axialview->GetRenderWindow()->GetInteractor()->GetInteractorStyle())
-    	sliceView = SliceVisualization::Axial;
+    	sliceView = this->_axialSliceVisualization;
 
     if (style.GetPointer() == coronalview->GetRenderWindow()->GetInteractor()->GetInteractorStyle())
-    	sliceView = SliceVisualization::Coronal;
+    	sliceView = this->_coronalSliceVisualization;
 
     if (style.GetPointer() == sagittalview->GetRenderWindow()->GetInteractor()->GetInteractorStyle())
-    	sliceView = SliceVisualization::Sagittal;
+    	sliceView = this->_sagittalSliceVisualization;
 
     switch(event)
     {
     	// sliders go [1-size], spinboxes go [0-(size-1)], that's the reason of the values added to POI.
         case vtkCommand::MouseWheelForwardEvent:
-        	switch(sliceView)
+        	switch(sliceView->GetOrientationType())
         	{
         		case SliceVisualization::Axial:
         			axialslider->setSliderPosition(_POI[2]+2);
@@ -1846,9 +1846,10 @@ void EspinaVolumeEditor::SliceInteraction(vtkObject* object, unsigned long event
         		default:
         			break;
         	}
+        	SliceXYPick(event, sliceView);
             break;
         case vtkCommand::MouseWheelBackwardEvent:
-        	switch(sliceView)
+        	switch(sliceView->GetOrientationType())
         	{
         		case SliceVisualization::Axial:
         			axialslider->setSliderPosition(_POI[2]);
@@ -1862,6 +1863,7 @@ void EspinaVolumeEditor::SliceInteraction(vtkObject* object, unsigned long event
         		default:
         			break;
         	}
+        	SliceXYPick(event, sliceView);
             break;
         case vtkCommand::RightButtonPressEvent:
             rightButtonStillDown = true;
@@ -1907,17 +1909,18 @@ void EspinaVolumeEditor::SliceInteraction(vtkObject* object, unsigned long event
             if (rightButtonStillDown || middleButtonStillDown)
             {
                 style->OnMouseMove();
-                switch(sliceView)
+                switch(sliceView->GetOrientationType())
                 {
                 	case SliceVisualization::Axial:
                 		_axialSliceVisualization->ZoomEvent();
                 		break;
-
                 	case SliceVisualization::Coronal:
                 		_coronalSliceVisualization->ZoomEvent();
                 		break;
                 	case SliceVisualization::Sagittal:
                 		_sagittalSliceVisualization->ZoomEvent();
+                		break;
+                	default:
                 		break;
                 }
                 return;
@@ -1929,9 +1932,11 @@ void EspinaVolumeEditor::SliceInteraction(vtkObject* object, unsigned long event
     }
 }
 
-void EspinaVolumeEditor::SliceXYPick(const unsigned long event, SliceVisualization::OrientationType sliceView)
+void EspinaVolumeEditor::SliceXYPick(const unsigned long event, SliceVisualization* sliceView)
 {
-	// if we are modifing the volume get the lock first
+    static bool leftButtonStillDown = false;
+
+    // if we are modifing the volume get the lock first
 	if (paintbutton->isChecked() || erasebutton->isChecked())
 		QMutexLocker locker(actionLock);
 
@@ -1941,7 +1946,7 @@ void EspinaVolumeEditor::SliceXYPick(const unsigned long event, SliceVisualizati
     
     int X,Y;
 
-	switch (sliceView)
+	switch (sliceView->GetOrientationType())
 	{
 		case SliceVisualization::Axial:
 		    X = axialview->GetRenderWindow()->GetInteractor()->GetEventPosition()[0];
@@ -1967,47 +1972,57 @@ void EspinaVolumeEditor::SliceXYPick(const unsigned long event, SliceVisualizati
 	{
 	    if ((vtkCommand::LeftButtonReleaseEvent == event) || (vtkCommand::LeftButtonPressEvent == event))
 	    {
+    		leftButtonStillDown = false;
+
+    		// handle a special case when the user starts an operation in the slice but moves out of it and releases the button,
+    		// we have to finish the operation and update the undo/redo menu.
+    		if (this->_dataManager->GetActualActionString() != std::string(""))
+    		{
+    			this->_dataManager->OperationEnd();
+    			UpdateUndoRedoMenu();
+    			this->_volumeRender->UpdateFocusExtent();
+    		}
+
 	      	// fix a glitch in rendering when the user picks a zone out of the slice
 	   		updateVoxelRenderer = true;
 	        updateSliceRenderers = true;
 	        UpdateViewports(All);
 	        previousPick = SliceVisualization::None;
 	    }
-
 		return;
 	}
 
 	// handle mouse movements when the user is painting or erasing
-	if ((vtkCommand::MouseMoveEvent == event) && (SliceVisualization::Slice == actualPick))
+	if (((vtkCommand::MouseWheelBackwardEvent == event) || (vtkCommand::MouseWheelForwardEvent == event) || (vtkCommand::MouseMoveEvent == event)) &&
+		(SliceVisualization::Slice == actualPick) && (paintbutton->isChecked() || erasebutton->isChecked()))
 	{
-		unsigned int x,y,z;
-		switch (sliceView)
+		int x,y,z;
+		switch (sliceView->GetOrientationType())
 		{
 			case SliceVisualization::Axial:
 				x = X+1;
 				y = Y+1;
-				z = _POI[0];
+				z = this->axialslider->value()-1;
 				break;
 			case SliceVisualization::Coronal:
 				x = X+1;
-				y = _POI[1];
+				y = this->coronalslider->value()-1;
 				z = Y+1;
 				break;
 			case SliceVisualization::Sagittal:
-				x = _POI[0];
+				x = this->sagittalslider->value()-1;
 				y = X+1;
 				z = Y+1;
 				break;
-			default: // can't happen, used to avoid a compiler warning
+			default:
 				x = y = z = 0;
 				break;
 		}
 
-		this->_axialSliceVisualization->SetPaintEraseActor(x,y,z,this->_paintEraseRadius, sliceView);
-		this->_coronalSliceVisualization->SetPaintEraseActor(x,y,z,this->_paintEraseRadius, sliceView);
-		this->_sagittalSliceVisualization->SetPaintEraseActor(x,y,z,this->_paintEraseRadius, sliceView);
+		this->_editorOperations->UpdatePaintEraseActors(x,y,z, this->_paintEraseRadius, sliceView);
 		UpdateViewports(Slices);
-		return;
+		if (false == leftButtonStillDown)
+			return;
 	}
     
     // we need to know if we have started picking or we've picked something before
@@ -2017,8 +2032,15 @@ void EspinaVolumeEditor::SliceXYPick(const unsigned long event, SliceVisualizati
     // if we were picking or painting but released the button, draw voxel view's final state
     if (vtkCommand::LeftButtonReleaseEvent == event)
     {
+    	leftButtonStillDown = false;
         updateVoxelRenderer = true;
         updateSliceRenderers = true;
+
+        // this is to handle cases where the user clicks out of the slice and enters in the slice and releases the button,
+        // it's a useless case (as the user doesn't do any operation) but crashed the editor as there is no operation
+        // on course
+		if (this->_dataManager->GetActualActionString() == std::string(""))
+			return;
 
         if ((erasebutton->isChecked() || paintbutton->isChecked()) && previousPick == SliceVisualization::Slice && actualPick == SliceVisualization::Slice)
         {
@@ -2047,6 +2069,8 @@ void EspinaVolumeEditor::SliceXYPick(const unsigned long event, SliceVisualizati
 
     if (vtkCommand::LeftButtonPressEvent == event)
     {
+    	leftButtonStillDown = true;
+
         if (paintbutton->isChecked() && previousPick == SliceVisualization::Slice && actualPick == SliceVisualization::Slice)
             _dataManager->OperationStart("Paint");
 
@@ -2056,11 +2080,14 @@ void EspinaVolumeEditor::SliceXYPick(const unsigned long event, SliceVisualizati
 
     updateVoxelRenderer = false;
     updateSliceRenderers = false;
-    updatePointLabel = false;
     
+    // get pixel value or pick a label if color picker is activated (managed in GetPointLabel())
+    GetPointLabel();
+
+
     // updating slider positions updates POI 
-    if (actualPick == previousPick)
-    	switch (sliceView)
+    if ((actualPick == previousPick) && leftButtonStillDown)
+    	switch (sliceView->GetOrientationType())
     	{
     		case SliceVisualization::Axial:
     	        sagittalslider->setSliderPosition(X+1);
@@ -2075,6 +2102,11 @@ void EspinaVolumeEditor::SliceXYPick(const unsigned long event, SliceVisualizati
     	            _axialViewRenderer->GetActiveCamera()->SetPosition(X*spacing[0],Y*spacing[1],coords[2]);
     	            _axialViewRenderer->GetActiveCamera()->SetFocalPoint(X*spacing[0],Y*spacing[1],0.0);
     	            _axialSliceVisualization->ZoomEvent();
+    	        }
+    	        else
+    	        {
+    	        	ApplyUserAction();
+    	        	this->_volumeRender->UpdateFocusExtent();
     	        }
     			break;
     		case SliceVisualization::Coronal:
@@ -2091,6 +2123,11 @@ void EspinaVolumeEditor::SliceXYPick(const unsigned long event, SliceVisualizati
     	            _coronalViewRenderer->GetActiveCamera()->SetFocalPoint(X*spacing[0],Y*spacing[2],0.0);
     	            _coronalSliceVisualization->ZoomEvent();
     	        }
+    	        else
+    	        {
+    	        	ApplyUserAction();
+    	        	this->_volumeRender->UpdateFocusExtent();
+    	        }
     			break;
     		case SliceVisualization::Sagittal:
     	        coronalslider->setSliderPosition(X+1);
@@ -2106,20 +2143,15 @@ void EspinaVolumeEditor::SliceXYPick(const unsigned long event, SliceVisualizati
     	            _sagittalViewRenderer->GetActiveCamera()->SetFocalPoint(X*spacing[1],Y*spacing[2],0.0);
     	            _sagittalSliceVisualization->ZoomEvent();
     	        }
+    	        else
+    	        {
+    	        	ApplyUserAction();
+    	        	this->_volumeRender->UpdateFocusExtent();
+    	        }
     			break;
     		default:
     			break;
     	}
-    
-    // get pixel value or pick a label if color picker is activated (managed in GetPointLabel())
-    GetPointLabel();
-    updatePointLabel = true;
-
-    if (previousPick == SliceVisualization::Slice && actualPick == SliceVisualization::Slice)
-    {
-    	ApplyUserAction();
-    	this->_volumeRender->UpdateFocusExtent();
-    }
         
     // we will render the viewports as rendersliceviews == false now
     UpdateViewports(Slices);
@@ -2884,7 +2916,10 @@ void EspinaVolumeEditor::ApplyUserAction(void)
 	{
 		// there should be just one label in the set
 		std::set<unsigned short>::iterator it = this->_dataManager->GetSelectedLabelsSet().begin();
-		this->_dataManager->SetVoxelScalar(_POI[0], _POI[1], _POI[2], (*it));
+		if (it == this->_dataManager->GetSelectedLabelsSet().end())
+			this->_editorOperations->Paint(0);
+		else
+			this->_editorOperations->Paint(*it);
 		GetPointLabel();
 		return;
 	}
@@ -2896,15 +2931,14 @@ void EspinaVolumeEditor::ApplyUserAction(void)
 		return;
 	}
 
-	if (erasebutton->isChecked() && (0 != _pointScalar))
+	if (erasebutton->isChecked())
 	{
-		this->_dataManager->SetVoxelScalar(_POI[0], _POI[1], _POI[2], 0);
+		this->_editorOperations->Paint(0);
 		GetPointLabel();
 		return;
 	}
 
-
-	if ((pickerbutton->isChecked()) && (0 != _pointScalar))
+	if (pickerbutton->isChecked() && (0 != _pointScalar))
 	{
 		if (this->_dataManager->IsColorSelected(_pointScalar))
 			labelselector->item(_pointScalar)->setSelected(false);

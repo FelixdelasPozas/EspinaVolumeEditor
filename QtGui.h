@@ -118,7 +118,7 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         bool renderIsAVolume;
 
         // auxiliary methods
-        void SliceXYPick(const unsigned long, SliceVisualization::OrientationType);
+        void SliceXYPick(const unsigned long, SliceVisualization*);
         void GetPointLabel();
         void FillColorLabels();
         void UpdateViewports(VIEWPORTSENUM);

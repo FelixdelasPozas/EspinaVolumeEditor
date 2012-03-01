@@ -40,7 +40,7 @@ class SliceVisualization
         // type for orientation
         typedef enum
         {
-            Sagittal, Coronal, Axial
+            Sagittal, Coronal, Axial, NoOrientation
         } OrientationType;
         
         // type for picking
@@ -85,13 +85,13 @@ class SliceVisualization
         void ToggleSegmentationView(void);
 
         // set selection volume to reslice and create actos
-        void SetSelectionVolume(const vtkSmartPointer<vtkImageData>);
-
-        // set paint/erase actor
-        void SetPaintEraseActor(unsigned int, unsigned int, unsigned int, unsigned int, SliceVisualization::OrientationType);
+        void SetSelectionVolume(const vtkSmartPointer<vtkImageData>, bool = true);
 
         // clear selection
         void ClearSelections();
+
+        // get orientation type of the object
+        SliceVisualization::OrientationType GetOrientationType(void);
     private:
         // private methods
         //
@@ -138,7 +138,6 @@ class SliceVisualization
         vtkSmartPointer<vtkActor>       		_vertactor;
         vtkSmartPointer<vtkActor>				_squareActor;
         vtkSmartPointer<vtkActor> 				_sliceActor;
-        vtkSmartPointer<vtkActor>				_paintEraseActor;
         //
         // source for imageactors
         vtkSmartPointer<vtkImageMapToColors> 	_segmentationcolors;

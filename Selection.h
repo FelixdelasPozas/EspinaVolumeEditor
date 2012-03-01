@@ -15,6 +15,8 @@
 #include <vtkRenderer.h>
 #include <vtkActor.h>
 #include <vtkStructuredPoints.h>
+#include <vtkImageChangeInformation.h>
+#include <vtkImageClip.h>
 
 // project includes
 #include "VectorSpaceAlgebra.h"
@@ -44,7 +46,7 @@ class Selection
         // type of selections
         typedef enum
         {
-            EMPTY, CUBE, VOLUME
+            EMPTY, CUBE, VOLUME, DISC
         } SelectionType;
 
         // initilize class
@@ -83,6 +85,8 @@ class Selection
 
         // set the views to pass selection volumes
         void SetSliceViews(SliceVisualization*, SliceVisualization*, SliceVisualization*);
+
+        void SetSelectionDisc(int, int, int, int, SliceVisualization*);
 
         // values used in the selection buffer
         enum SelectionValues
@@ -143,6 +147,10 @@ class Selection
 
         // list of selection volumes (unsigned char scalar size)
         std::vector<vtkSmartPointer<vtkImageData> >			_selectionVolumesList;
+
+        // to change origin for erase/paint volume on the fly
+        vtkSmartPointer<vtkImageChangeInformation> 			_changer;
+        vtkSmartPointer<vtkImageClip> 						_clipper;
 };
 
 #endif // _SELECTION_H_
