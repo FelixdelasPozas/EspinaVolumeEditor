@@ -15,6 +15,7 @@
 #include <vtkImageCanvasSource2D.h>
 #include <vtkProperty.h>
 #include <vtkImageClip.h>
+#include <vtkRenderWindow.h>
 
 // itk includes
 #include <itkConnectedThresholdImageFilter.h>
@@ -720,6 +721,7 @@ void Selection::SetSelectionDisc(int x, int y, int z, int radius, SliceVisualiza
 	}
 	else
 	{
+		// recompute volume when the user changes parameters or goes from one view to another
 		if ((selectionOrientation != sliceView->GetOrientationType()) || (selectionRadius != radius))
 		{
 			this->_axialView->ClearSelections();
@@ -730,6 +732,7 @@ void Selection::SetSelectionDisc(int x, int y, int z, int radius, SliceVisualiza
 		}
 		else
 		{
+			// else update the disc representation according to new parameters
 			int clipperExtent[6] = { 0,0,0,0,0,0 };
 			switch(sliceView->GetOrientationType())
 			{

@@ -107,7 +107,7 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         virtual void ToggleEraseOrPaintButton(bool);
         virtual void ToggleButtonDefault(bool);
     private:
-        typedef enum { All, Slices, Voxel, Axial, Coronal, Sagittal } VIEWPORTSENUM;
+        typedef enum { All, Slices, Render, Axial, Coronal, Sagittal } VIEWPORTSENUM;
         
         // useful variables to minimize drawing time
         bool updateVoxelRenderer;

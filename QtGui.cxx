@@ -1044,7 +1044,7 @@ void EspinaVolumeEditor::MoveAxialSlider(int value)
     {
         _axesRender->Update(_POI);
         if (_axesRender->isVisible())
-            UpdateViewports(Voxel);
+            UpdateViewports(Render);
     }
 }
 
@@ -1073,7 +1073,7 @@ void EspinaVolumeEditor::MoveCoronalSlider(int value)
     {
         _axesRender->Update(_POI);
         if (_axesRender->isVisible())
-            UpdateViewports(Voxel);
+            UpdateViewports(Render);
     }
 }
 
@@ -1102,7 +1102,7 @@ void EspinaVolumeEditor::MoveSagittalSlider(int value)
     {
         _axesRender->Update(_POI);
         if (_axesRender->isVisible())
-            UpdateViewports(Voxel);
+            UpdateViewports(Render);
     }
 
 }
@@ -1119,7 +1119,7 @@ void EspinaVolumeEditor::SliceSliderReleased(void)
 {
     updateVoxelRenderer = true;
     _axesRender->Update(_POI);
-    UpdateViewports(Voxel);
+    UpdateViewports(Render);
 }
 
 void EspinaVolumeEditor::ChangeXspinBox(int value)
@@ -1470,7 +1470,7 @@ void EspinaVolumeEditor::ViewReset()
     if (button == voxelresetbutton)
     {
         _voxelViewRenderer->ResetCamera();
-        UpdateViewports(Voxel);
+        UpdateViewports(Render);
     }
 }
 
@@ -1496,24 +1496,25 @@ void EspinaVolumeEditor::SwitchVoxelRender()
     }
     
     renderIsAVolume = !renderIsAVolume;
-    UpdateViewports(Voxel);
+    UpdateViewports(Render);
 }
 
 void EspinaVolumeEditor::SwitchAxesView()
 {
-    if (_axesRender->isVisible())
+    if (this->_axesRender->isVisible())
     {
-        _axesRender->setVisible(false);
+        this->_axesRender->setVisible(false);
         axestypebutton->setIcon(QIcon(":newPrefix/icons/axes.png"));
         axestypebutton->setToolTip(tr("Turn on axes planes rendering"));
     }
     else
     {
-        _axesRender->setVisible(true);
+    	this->_axesRender->Update(_POI);
+        this->_axesRender->setVisible(true);
         axestypebutton->setIcon(QIcon(":newPrefix/icons/noaxes.png"));
         axestypebutton->setToolTip(tr("Turn off axes planes rendering"));
     }
-    UpdateViewports(Voxel);
+    UpdateViewports(Render);
 }
 
 void EspinaVolumeEditor::EditorCut()
@@ -1591,7 +1592,7 @@ void EspinaVolumeEditor::UpdateViewports(VIEWPORTSENUM view)
     // only when the users minimize a view updating is enabled again
     switch (view)
     {
-        case Voxel:
+        case Render:
             if (renderview->isVisible())
                 _voxelViewRenderer->GetRenderWindow()->Render();
             break;
@@ -1945,7 +1946,6 @@ void EspinaVolumeEditor::SliceXYPick(const unsigned long event, SliceVisualizati
     SliceVisualization::PickingType actualPick = SliceVisualization::None;
     
     int X,Y;
-
 	switch (sliceView->GetOrientationType())
 	{
 		case SliceVisualization::Axial:
@@ -1973,6 +1973,7 @@ void EspinaVolumeEditor::SliceXYPick(const unsigned long event, SliceVisualizati
 	    if ((vtkCommand::LeftButtonReleaseEvent == event) || (vtkCommand::LeftButtonPressEvent == event))
 	    {
     		leftButtonStillDown = false;
+    		previousPick = SliceVisualization::None;
 
     		// handle a special case when the user starts an operation in the slice but moves out of it and releases the button,
     		// we have to finish the operation and update the undo/redo menu.
@@ -1983,18 +1984,50 @@ void EspinaVolumeEditor::SliceXYPick(const unsigned long event, SliceVisualizati
     			this->_volumeRender->UpdateFocusExtent();
     		}
 
-	      	// fix a glitch in rendering when the user picks a zone out of the slice
 	   		updateVoxelRenderer = true;
 	        updateSliceRenderers = true;
 	        UpdateViewports(All);
-	        previousPick = SliceVisualization::None;
 	    }
 		return;
 	}
 
+    // we need to know if we have started picking or we've picked something before
+    if (SliceVisualization::None == previousPick)
+        previousPick = actualPick;
+    else
+    	if (previousPick != actualPick)
+    	{
+    	    if ((vtkCommand::LeftButtonReleaseEvent == event) || (vtkCommand::LeftButtonPressEvent == event))
+    	    {
+        		leftButtonStillDown = false;
+        		previousPick = SliceVisualization::None;
+
+        		// handle a special case when the user starts an operation in the slice but moves out of it and releases the button,
+        		// we have to finish the operation and update the undo/redo menu.
+        		if (this->_dataManager->GetActualActionString() != std::string(""))
+        		{
+        			this->_dataManager->OperationEnd();
+        			UpdateUndoRedoMenu();
+        			this->_volumeRender->UpdateFocusExtent();
+        		}
+
+    	   		updateVoxelRenderer = true;
+    	        updateSliceRenderers = true;
+    	        UpdateViewports(All);
+    	    }
+
+    	    // handle when the users crosses one prop while working with the other
+    	    if ((vtkCommand::MouseMoveEvent == event) && !leftButtonStillDown)
+    	    	previousPick = actualPick;
+
+    		return;
+    	}
+
+    // NOTE: from now on previousPick = actualPick
+
 	// handle mouse movements when the user is painting or erasing
 	if (((vtkCommand::MouseWheelBackwardEvent == event) || (vtkCommand::MouseWheelForwardEvent == event) || (vtkCommand::MouseMoveEvent == event)) &&
-		(SliceVisualization::Slice == actualPick) && (paintbutton->isChecked() || erasebutton->isChecked()))
+		(paintbutton->isChecked() || erasebutton->isChecked()) && (SliceVisualization::Slice == actualPick))
 	{
 		int x,y,z;
 		switch (sliceView->GetOrientationType())
@@ -2021,13 +2054,11 @@ void EspinaVolumeEditor::SliceXYPick(const unsigned long event, SliceVisualizati
 
 		this->_editorOperations->UpdatePaintEraseActors(x,y,z, this->_paintEraseRadius, sliceView);
 		UpdateViewports(Slices);
-		if (false == leftButtonStillDown)
+
+		// return if not doing an operation
+		if (!leftButtonStillDown)
 			return;
 	}
-    
-    // we need to know if we have started picking or we've picked something before
-    if (SliceVisualization::None == previousPick)
-        previousPick = actualPick;
     
     // if we were picking or painting but released the button, draw voxel view's final state
     if (vtkCommand::LeftButtonReleaseEvent == event)
@@ -2039,27 +2070,25 @@ void EspinaVolumeEditor::SliceXYPick(const unsigned long event, SliceVisualizati
         // this is to handle cases where the user clicks out of the slice and enters in the slice and releases the button,
         // it's a useless case (as the user doesn't do any operation) but crashed the editor as there is no operation
         // on course
-		if (this->_dataManager->GetActualActionString() == std::string(""))
-			return;
+		if ((erasebutton->isChecked() || paintbutton->isChecked()) && actualPick == SliceVisualization::Slice && !(this->_dataManager->GetActualActionString() == std::string("")))
+		{
+			_dataManager->OperationEnd();
 
-        if ((erasebutton->isChecked() || paintbutton->isChecked()) && previousPick == SliceVisualization::Slice && actualPick == SliceVisualization::Slice)
-        {
-            _dataManager->OperationEnd();
+			// some labels could be empty after a paint or a erase operation
+			labelselector->blockSignals(true);
+			for (unsigned short i = 1; i < this->_dataManager->GetNumberOfLabels(); i++)
+				if (0LL == this->_dataManager->GetNumberOfVoxelsForLabel(i))
+				{
+					labelselector->item(i)->setHidden(true);
+					labelselector->item(i)->setSelected(false);
+				}
+			labelselector->blockSignals(false);
+			LabelSelectionChanged();
 
-            // some labels could be empty after a paint or a erase operation
-            labelselector->blockSignals(true);
-            for (unsigned short i = 1; i < this->_dataManager->GetNumberOfLabels(); i++)
-            	if (0LL == this->_dataManager->GetNumberOfVoxelsForLabel(i))
-            	{
-            		labelselector->item(i)->setHidden(true);
-            		labelselector->item(i)->setSelected(false);
-            	}
-            labelselector->blockSignals(false);
-            LabelSelectionChanged();
+			_volumeRender->UpdateFocusExtent();
+			UpdateUndoRedoMenu();
+		}
 
-            _volumeRender->UpdateFocusExtent();
-            UpdateUndoRedoMenu();
-        }
         _axesRender->Update(_POI);
         UpdateViewports(All);
 
@@ -2071,10 +2100,10 @@ void EspinaVolumeEditor::SliceXYPick(const unsigned long event, SliceVisualizati
     {
     	leftButtonStillDown = true;
 
-        if (paintbutton->isChecked() && previousPick == SliceVisualization::Slice && actualPick == SliceVisualization::Slice)
+        if (paintbutton->isChecked() && actualPick == SliceVisualization::Slice)
             _dataManager->OperationStart("Paint");
 
-        if (erasebutton->isChecked() && previousPick == SliceVisualization::Slice && actualPick == SliceVisualization::Slice)
+        if (erasebutton->isChecked() && actualPick == SliceVisualization::Slice)
             _dataManager->OperationStart("Erase");
     }
 
@@ -2084,9 +2113,8 @@ void EspinaVolumeEditor::SliceXYPick(const unsigned long event, SliceVisualizati
     // get pixel value or pick a label if color picker is activated (managed in GetPointLabel())
     GetPointLabel();
 
-
     // updating slider positions updates POI 
-    if ((actualPick == previousPick) && leftButtonStillDown)
+    if (leftButtonStillDown)
     	switch (sliceView->GetOrientationType())
     	{
     		case SliceVisualization::Axial:
@@ -2152,8 +2180,6 @@ void EspinaVolumeEditor::SliceXYPick(const unsigned long event, SliceVisualizati
     		default:
     			break;
     	}
-        
-    // we will render the viewports as rendersliceviews == false now
     UpdateViewports(Slices);
 }
 
@@ -2358,7 +2384,7 @@ void EspinaVolumeEditor::DisableRenderView(void)
 			renderdisablebutton->setIcon(QIcon(":/newPrefix/icons/cog_delete.png"));
             renderdisablebutton->setStatusTip(tr("Disable render view"));
             renderdisablebutton->setToolTip(tr("Disables the rendering view of the volume"));
-            UpdateViewports(Voxel);
+            UpdateViewports(Render);
 			break;
 		default:
 			break;
