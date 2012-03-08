@@ -548,20 +548,19 @@ void DataManager::StatisticsActionJoin(void)
     }
 }
 
-unsigned long long int DataManager::GetNumberOfVoxelsForLabel(unsigned short label)
+unsigned long long int DataManager::GetNumberOfVoxelsForLabel(const unsigned short label)
 {
+	assert(label < ObjectVector.size());
     return ObjectVector[label]->sizeInVoxels;
 }
 
-unsigned short DataManager::GetScalarForLabel(unsigned short label)
+unsigned short DataManager::GetScalarForLabel(const unsigned short label)
 {
-	if (label > ObjectVector.size())
-		return 0;
-
+	assert(label < ObjectVector.size());
 	return ObjectVector[label]->scalar;
 }
 
-unsigned short DataManager::GetLabelForScalar(unsigned short scalar)
+unsigned short DataManager::GetLabelForScalar(const unsigned short scalar)
 {
     std::map<unsigned short, struct ObjectInformation*>::iterator it;
     
@@ -574,18 +573,21 @@ unsigned short DataManager::GetLabelForScalar(unsigned short scalar)
 	return 0;
 }
 
-Vector3d DataManager::GetCentroidForObject(unsigned short int label)
+Vector3d DataManager::GetCentroidForObject(const unsigned short int label)
 {
+	assert(label < ObjectVector.size());
 	return ObjectVector[label]->centroid;
 }
 
-Vector3ui DataManager::GetBoundingBoxMin(unsigned short label)
+Vector3ui DataManager::GetBoundingBoxMin(const unsigned short label)
 {
+	assert(label < ObjectVector.size());
 	return ObjectVector[label]->min;
 }
 
-Vector3ui DataManager::GetBoundingBoxMax(unsigned short label)
+Vector3ui DataManager::GetBoundingBoxMax(const unsigned short label)
 {
+	assert(label < ObjectVector.size());
 	return ObjectVector[label]->max;
 }
 

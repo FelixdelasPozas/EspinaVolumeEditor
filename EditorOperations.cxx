@@ -142,10 +142,8 @@ void EditorOperations::Cut(std::set<unsigned short> labels)
 
     switch(this->_selection->GetSelectionType())
     {
+    	case Selection::DISC:
     	case Selection::EMPTY:
-    		if (labels.empty())
-    			return;
-
     		for (it = labels.begin(); it != labels.end(); it++)
     		{
 				min = this->_dataManager->GetBoundingBoxMin(*it);
@@ -167,9 +165,6 @@ void EditorOperations::Cut(std::set<unsigned short> labels)
     						_dataManager->SetVoxelScalar(x, y, z, 0);
     		break;
     	case Selection::CUBE:
-    		if (labels.empty())
-    			return;
-
     		for (it = labels.begin(); it != labels.end(); it++)
     		{
 				min = this->_selection->GetSelectedMinimumBouds();
@@ -230,6 +225,7 @@ bool EditorOperations::Relabel(QWidget *parent, Metadata *data, std::set<unsigne
 
     switch(this->_selection->GetSelectionType())
     {
+    	case Selection::DISC:
     	case Selection::EMPTY:
     		for (it = labels->begin(); it != labels->end(); it++)
     		{
@@ -289,7 +285,7 @@ void EditorOperations::Erode(const unsigned short label)
 
     itk::SmartPointer<ImageType> image = ImageType::New();
     image = this->_selection->GetSelectionItkImage(label, _filtersRadius);
-    
+
     // BEWARE: radius on erode is _filtersRadius-1 because erode seems to be too strong. it seems to work fine with that value.
     //		   the less it can be is 0 as _filterRadius >= 1 always. It erodes the volume with a value of 0, although using 0
     //         with dilate produces no dilate effect.

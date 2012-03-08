@@ -15,6 +15,8 @@
 #include <vtkImageCanvasSource2D.h>
 #include <vtkProperty.h>
 #include <vtkImageClip.h>
+#include <vtkWidgetRepresentation.h>
+#include <vtkBoxRepresentation.h>
 #include <vtkRenderWindow.h>
 
 // itk includes
@@ -91,9 +93,11 @@ void Selection::AddSelectionPoint(const Vector3ui point)
     switch (this->_selectedPoints.size())
     {
         case 0:
+        {
         	this->_selectionType = CUBE;
         	this->_selectedPoints.push_back(point);
             break;
+        }
         case 2:
         	this->_selectedPoints.pop_back();
         	this->_selectedPoints.push_back(point);
@@ -358,14 +362,11 @@ itk::SmartPointer<ImageType> Selection::GetSelectionItkImage(const unsigned shor
 	switch(this->_selectionType)
 	{
 		case EMPTY:
-			objectMin = _dataManager->GetBoundingBoxMin(label);
-			objectMax = _dataManager->GetBoundingBoxMax(label);
-			break;
 		case DISC:
 			objectMin = _dataManager->GetBoundingBoxMin(label);
 			objectMax = _dataManager->GetBoundingBoxMax(label);
 			break;
-		default:
+		default: // VOLUME, CUBE
 			objectMin = this->_min;
 			objectMax = this->_max;
 			break;
@@ -654,61 +655,15 @@ void Selection::SetSelectionDisc(int x, int y, int z, int radius, SliceVisualiza
 		}
 		image->Update();
 
+		// create clipper and changer to set the pipeline, but update them later
 		int clipperExtent[6] = { 0,0,0,0,0,0 };
-		switch(sliceView->GetOrientationType())
-		{
-			case SliceVisualization::Axial:
-				clipperExtent[0] = ((x-radius) < 0) ? abs(x-radius) : 0;
-				clipperExtent[1] = ((x+radius) > this->_size[0]) ? (radius - x + this->_size[0]) : (radius * 2) - 2;
-				clipperExtent[2] = ((y-radius) < 0) ? abs(y-radius) : 0;
-				clipperExtent[3] = ((y+radius) > this->_size[1]) ? (radius - y + this->_size[1]) : (radius * 2) - 2;
-				break;
-			case SliceVisualization::Coronal:
-				clipperExtent[0] = ((x-radius) < 0) ? abs(x-radius) : 0;
-				clipperExtent[1] = ((x+radius) > this->_size[0]) ? (radius - x + this->_size[0]) : (radius * 2) - 2;
-				clipperExtent[4] = ((z-radius) < 0) ? abs(z-radius) : 0;
-				clipperExtent[5] = ((z+radius) > this->_size[2]) ? (radius - z + this->_size[2]) : (radius * 2) - 2;
-				break;
-			case SliceVisualization::Sagittal:
-				clipperExtent[2] = ((y-radius) < 0) ? abs(y-radius) : 0;
-				clipperExtent[3] = ((y+radius) > this->_size[1]) ? (radius - y + this->_size[1]) : (radius * 2) - 2;
-				clipperExtent[4] = ((z-radius) < 0) ? abs(z-radius) : 0;
-				clipperExtent[5] = ((z+radius) > this->_size[2]) ? (radius - z + this->_size[2]) : (radius * 2) - 2;
-				break;
-			default:
-				break;
-		}
-
 		this->_clipper = vtkSmartPointer<vtkImageClip>::New();
 		this->_clipper->SetInput(image);
 		this->_clipper->ClipDataOn();
 		this->_clipper->SetOutputWholeExtent(clipperExtent);
-		this->_clipper->Update();
 
 		this->_changer = vtkSmartPointer<vtkImageChangeInformation>::New();
 		this->_changer->SetInput(this->_clipper->GetOutput());
-
-		switch(sliceView->GetOrientationType())
-		{
-			case SliceVisualization::Axial:
-				this->_changer->SetOutputOrigin((x-radius)*_spacing[0], (y-radius)*_spacing[1], z*_spacing[2]);
-				this->_min = Vector3ui(((x-radius) > 0 ? (x-radius) : 0), ((y-radius) > 0 ? (y-radius) : 0) , z);
-				this->_max = Vector3ui(((x+radius) < this->_size[0] ? (x+radius) : this->_size[0]), ((y+radius) < this->_size[1] ? (y+radius) : this->_size[1]), static_cast<unsigned int>(z));
-				break;
-			case SliceVisualization::Coronal:
-				this->_changer->SetOutputOrigin((x-radius)*_spacing[0], y*_spacing[1], (z-radius)*_spacing[2]);
-				this->_min = Vector3ui(((x-radius) > 0 ? (x-radius) : 0), y, ((z-radius) > 0 ? (z-radius) : 0));
-				this->_max = Vector3ui(((x+radius) < this->_size[0] ? (x+radius) : this->_size[0]), static_cast<unsigned int>(y), ((z+radius) < this->_size[2] ? (z+radius) : this->_size[2]));
-				break;
-			case SliceVisualization::Sagittal:
-				this->_changer->SetOutputOrigin(x*_spacing[0], (y-radius)*_spacing[1], (z-radius)*_spacing[2]);
-				this->_min = Vector3ui(x, ((y-radius) > 0 ? (y-radius) : 0), ((z-radius) > 0 ? (z-radius) : 0));
-				this->_max = Vector3ui(static_cast<unsigned int>(x), ((y+radius) < this->_size[1] ? (y+radius) : this->_size[1]), ((z+radius) < this->_size[2] ? (z+radius) : this->_size[2]));
-				break;
-			default:
-				break;
-		}
-		this->_changer->Update();
 
 		vtkSmartPointer<vtkImageData> translatedVolume = this->_changer->GetOutput();
 		this->_selectionVolumesList.push_back(translatedVolume);
@@ -720,67 +675,67 @@ void Selection::SetSelectionDisc(int x, int y, int z, int radius, SliceVisualiza
 		this->_selectionType = Selection::DISC;
 	}
 	else
-	{
-		// recompute volume when the user changes parameters or goes from one view to another
 		if ((selectionOrientation != sliceView->GetOrientationType()) || (selectionRadius != radius))
 		{
+			// recompute volume when the user changes parameters or goes from one view to another
 			this->_axialView->ClearSelections();
 			this->_coronalView->ClearSelections();
 			this->_sagittalView->ClearSelections();
 			this->_selectionVolumesList.pop_back();
 			this->SetSelectionDisc(x,y,z,radius,sliceView);
 		}
-		else
-		{
-			// else update the disc representation according to new parameters
-			int clipperExtent[6] = { 0,0,0,0,0,0 };
-			switch(sliceView->GetOrientationType())
-			{
-				case SliceVisualization::Axial:
-					clipperExtent[0] = ((x-radius) < 0) ? abs(x-radius) : 0;
-					clipperExtent[1] = ((x+radius) > this->_size[0]) ? (radius - x + this->_size[0]) : (radius * 2) - 2;
-					clipperExtent[2] = ((y-radius) < 0) ? abs(y-radius) : 0;
-					clipperExtent[3] = ((y+radius) > this->_size[1]) ? (radius - y + this->_size[1]) : (radius * 2) - 2;
-					break;
-				case SliceVisualization::Coronal:
-					clipperExtent[0] = ((x-radius) < 0) ? abs(x-radius) : 0;
-					clipperExtent[1] = ((x+radius) > this->_size[0]) ? (radius - x + this->_size[0]) : (radius * 2) - 2;
-					clipperExtent[4] = ((z-radius) < 0) ? abs(z-radius) : 0;
-					clipperExtent[5] = ((z+radius) > this->_size[2]) ? (radius - z + this->_size[2]) : (radius * 2) - 2;
-					break;
-				case SliceVisualization::Sagittal:
-					clipperExtent[2] = ((y-radius) < 0) ? abs(y-radius) : 0;
-					clipperExtent[3] = ((y+radius) > this->_size[1]) ? (radius - y + this->_size[1]) : (radius * 2) - 2;
-					clipperExtent[4] = ((z-radius) < 0) ? abs(z-radius) : 0;
-					clipperExtent[5] = ((z+radius) > this->_size[2]) ? (radius - z + this->_size[2]) : (radius * 2) - 2;
-					break;
-				default:
-					break;
-			}
-			this->_clipper->SetOutputWholeExtent(clipperExtent);
-			this->_clipper->Update();
 
-			switch(sliceView->GetOrientationType())
-			{
-				case SliceVisualization::Axial:
-					this->_changer->SetOutputOrigin((x-radius)*_spacing[0], (y-radius)*_spacing[1], z*_spacing[2]);
-					this->_min = Vector3ui(((x-radius) > 0 ? (x-radius) : 0), ((y-radius) > 0 ? (y-radius) : 0) , z);
-					this->_max = Vector3ui(((x+radius) < this->_size[0] ? (x+radius) : this->_size[0]), ((y+radius) < this->_size[1] ? (y+radius) : this->_size[1]), static_cast<unsigned int>(z));
-					break;
-				case SliceVisualization::Coronal:
-					this->_changer->SetOutputOrigin((x-radius)*_spacing[0], y*_spacing[1], (z-radius)*_spacing[2]);
-					this->_min = Vector3ui(((x-radius) > 0 ? (x-radius) : 0), y, ((z-radius) > 0 ? (z-radius) : 0));
-					this->_max = Vector3ui(((x+radius) < this->_size[0] ? (x+radius) : this->_size[0]), static_cast<unsigned int>(y), ((z+radius) < this->_size[2] ? (z+radius) : this->_size[2]));
-					break;
-				case SliceVisualization::Sagittal:
-					this->_changer->SetOutputOrigin(x*_spacing[0], (y-radius)*_spacing[1], (z-radius)*_spacing[2]);
-					this->_min = Vector3ui(x, ((y-radius) > 0 ? (y-radius) : 0), ((z-radius) > 0 ? (z-radius) : 0));
-					this->_max = Vector3ui(static_cast<unsigned int>(x), ((y+radius) < this->_size[1] ? (y+radius) : this->_size[1]), ((z+radius) < this->_size[2] ? (z+radius) : this->_size[2]));
-					break;
-				default:
-					break;
-			}
-			this->_changer->Update();
-		}
+	// update the disc representation according to parameters
+	int clipperExtent[6] = { 0, 0, 0, 0, 0, 0 };
+	switch (sliceView->GetOrientationType())
+	{
+		case SliceVisualization::Axial:
+			clipperExtent[0] = ((x - radius) < 0) ? abs(x - radius) : 0;
+			clipperExtent[1] = ((x + radius) > this->_size[0]) ? (radius - x + this->_size[0]) : (radius * 2) - 2;
+			clipperExtent[2] = ((y - radius) < 0) ? abs(y - radius) : 0;
+			clipperExtent[3] = ((y + radius) > this->_size[1]) ? (radius - y + this->_size[1]) : (radius * 2) - 2;
+			break;
+		case SliceVisualization::Coronal:
+			clipperExtent[0] = ((x - radius) < 0) ? abs(x - radius) : 0;
+			clipperExtent[1] = ((x + radius) > this->_size[0]) ? (radius - x + this->_size[0]) : (radius * 2) - 2;
+			clipperExtent[4] = ((z - radius) < 0) ? abs(z - radius) : 0;
+			clipperExtent[5] = ((z + radius) > this->_size[2]) ? (radius - z + this->_size[2]) : (radius * 2) - 2;
+			break;
+		case SliceVisualization::Sagittal:
+			clipperExtent[2] = ((y - radius) < 0) ? abs(y - radius) : 0;
+			clipperExtent[3] = ((y + radius) > this->_size[1]) ? (radius - y + this->_size[1]) : (radius * 2) - 2;
+			clipperExtent[4] = ((z - radius) < 0) ? abs(z - radius) : 0;
+			clipperExtent[5] = ((z + radius) > this->_size[2]) ? (radius - z + this->_size[2]) : (radius * 2) - 2;
+			break;
+		default:
+			break;
 	}
+	this->_clipper->SetOutputWholeExtent(clipperExtent);
+	this->_clipper->Update();
+
+	switch (sliceView->GetOrientationType())
+	{
+		case SliceVisualization::Axial:
+			this->_changer->SetOutputOrigin((x - radius) * _spacing[0], (y - radius) * _spacing[1], z * _spacing[2]);
+			this->_min = Vector3ui(((x - radius) > 0 ? (x - radius) : 0), ((y - radius) > 0 ? (y - radius) : 0), z);
+			this->_max = Vector3ui(((x + radius) < this->_size[0] ? (x + radius) : this->_size[0]),
+					((y + radius) < this->_size[1] ? (y + radius) : this->_size[1]), static_cast<unsigned int>(z));
+			break;
+		case SliceVisualization::Coronal:
+			this->_changer->SetOutputOrigin((x - radius) * _spacing[0], y * _spacing[1], (z - radius) * _spacing[2]);
+			this->_min = Vector3ui(((x - radius) > 0 ? (x - radius) : 0), y, ((z - radius) > 0 ? (z - radius) : 0));
+			this->_max = Vector3ui(((x + radius) < this->_size[0] ? (x + radius) : this->_size[0]), static_cast<unsigned int>(y),
+					((z + radius) < this->_size[2] ? (z + radius) : this->_size[2]));
+			break;
+		case SliceVisualization::Sagittal:
+			this->_changer->SetOutputOrigin(x * _spacing[0], (y - radius) * _spacing[1], (z - radius) * _spacing[2]);
+			this->_min = Vector3ui(x, ((y - radius) > 0 ? (y - radius) : 0), ((z - radius) > 0 ? (z - radius) : 0));
+			this->_max = Vector3ui(static_cast<unsigned int>(x), ((y + radius) < this->_size[1] ? (y + radius) : this->_size[1]),
+					((z + radius) < this->_size[2] ? (z + radius) : this->_size[2]));
+			break;
+		default:
+			break;
+	}
+	this->_changer->Update();
 }
+

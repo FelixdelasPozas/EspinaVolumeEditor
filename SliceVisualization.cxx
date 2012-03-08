@@ -789,3 +789,8 @@ SliceVisualization::OrientationType SliceVisualization::GetOrientationType(void)
 {
 	return this->_orientation;
 }
+
+vtkSmartPointer<vtkRenderer> SliceVisualization::GetViewRenderer(void)
+{
+	return this->_renderer;
+}

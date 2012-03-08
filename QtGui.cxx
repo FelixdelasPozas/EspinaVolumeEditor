@@ -189,6 +189,7 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
     axialinteractorstyle->AutoAdjustCameraClippingRangeOn();
     this->_axialViewRenderer = vtkSmartPointer<vtkRenderer>::New();
     this->_axialViewRenderer->SetBackground(0, 0, 0);
+    this->_axialViewRenderer->GetActiveCamera()->SetParallelProjection(true);
     axialview->GetRenderWindow()->AddRenderer(_axialViewRenderer);
     axialview->GetRenderWindow()->GetInteractor()->SetInteractorStyle(axialinteractorstyle);
     axialinteractorstyle->RemoveAllObservers();
@@ -197,6 +198,7 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
     coronalinteractorstyle->AutoAdjustCameraClippingRangeOn();
     this->_coronalViewRenderer = vtkSmartPointer<vtkRenderer>::New();
     this->_coronalViewRenderer->SetBackground(0, 0, 0);
+    this->_coronalViewRenderer->GetActiveCamera()->SetParallelProjection(true);
     coronalview->GetRenderWindow()->AddRenderer(_coronalViewRenderer);
     coronalview->GetRenderWindow()->GetInteractor()->SetInteractorStyle(coronalinteractorstyle);
 
@@ -204,6 +206,7 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
     sagittalinteractorstyle->AutoAdjustCameraClippingRangeOn();
     this->_sagittalViewRenderer = vtkSmartPointer<vtkRenderer>::New();
     this->_sagittalViewRenderer->SetBackground(0, 0, 0);
+    this->_sagittalViewRenderer->GetActiveCamera()->SetParallelProjection(true);
     sagittalview->GetRenderWindow()->AddRenderer(_sagittalViewRenderer);
     sagittalview->GetRenderWindow()->GetInteractor()->SetInteractorStyle(sagittalinteractorstyle);
 
@@ -1640,16 +1643,16 @@ void EspinaVolumeEditor::About()
 void EspinaVolumeEditor::ErodeVolume()
 {
 	QMutexLocker locker(actionLock);
-	std::set<unsigned short>::iterator it = this->_dataManager->GetSelectedLabelsSet().begin();
+	const unsigned short label = this->_dataManager->GetSelectedLabelsSet().begin().operator *();
 
-    _editorOperations->Erode(*it);
+	_editorOperations->Erode(label);
 
     // the label could be empty right now
-   	if (0LL == this->_dataManager->GetNumberOfVoxelsForLabel(*it))
+   	if (0LL == this->_dataManager->GetNumberOfVoxelsForLabel(label))
    	{
    	    labelselector->blockSignals(true);
-   		labelselector->item(*it)->setHidden(true);
-   		labelselector->item(*it)->setSelected(false);
+   		labelselector->item(label)->setHidden(true);
+   		labelselector->item(label)->setSelected(false);
    		labelselector->item(0)->setSelected(true);
    	   	labelselector->blockSignals(false);
    	   	LabelSelectionChanged();
@@ -1663,9 +1666,9 @@ void EspinaVolumeEditor::ErodeVolume()
 void EspinaVolumeEditor::DilateVolume()
 {
 	QMutexLocker locker(actionLock);
-	std::set<unsigned short>::iterator it = this->_dataManager->GetSelectedLabelsSet().begin();
+	const unsigned short label = this->_dataManager->GetSelectedLabelsSet().begin().operator *();
 
-    _editorOperations->Dilate(*it);
+	_editorOperations->Dilate(label);
 
     GetPointLabel();
     UpdateUndoRedoMenu();
@@ -1676,9 +1679,9 @@ void EspinaVolumeEditor::DilateVolume()
 void EspinaVolumeEditor::OpenVolume()
 {
 	QMutexLocker locker(actionLock);
-	std::set<unsigned short>::iterator it = this->_dataManager->GetSelectedLabelsSet().begin();
+	const unsigned short label = this->_dataManager->GetSelectedLabelsSet().begin().operator *();
 
-    _editorOperations->Open(*it);
+	_editorOperations->Open(label);
 
     GetPointLabel();
     UpdateUndoRedoMenu();
@@ -1689,9 +1692,9 @@ void EspinaVolumeEditor::OpenVolume()
 void EspinaVolumeEditor::CloseVolume()
 {
 	QMutexLocker locker(actionLock);
-	std::set<unsigned short>::iterator it = this->_dataManager->GetSelectedLabelsSet().begin();
+	const unsigned short label = this->_dataManager->GetSelectedLabelsSet().begin().operator *();
 
-    _editorOperations->Close(*it);
+    _editorOperations->Close(label);
 
     GetPointLabel();
     UpdateUndoRedoMenu();
@@ -1702,8 +1705,8 @@ void EspinaVolumeEditor::CloseVolume()
 void EspinaVolumeEditor::WatershedVolume()
 {
 	QMutexLocker locker(actionLock);
-	std::set<unsigned short>::iterator it = this->_dataManager->GetSelectedLabelsSet().begin();
-    std::set<unsigned short> generatedLabels = _editorOperations->Watershed(*it);
+	const unsigned short label = this->_dataManager->GetSelectedLabelsSet().begin().operator *();
+    std::set<unsigned short> generatedLabels = _editorOperations->Watershed(label);
 
     RestartVoxelRender();
     FillColorLabels();
@@ -1935,14 +1938,14 @@ void EspinaVolumeEditor::SliceInteraction(vtkObject* object, unsigned long event
 
 void EspinaVolumeEditor::SliceXYPick(const unsigned long event, SliceVisualization* sliceView)
 {
-    static bool leftButtonStillDown = false;
-
     // if we are modifing the volume get the lock first
 	if (paintbutton->isChecked() || erasebutton->isChecked())
 		QMutexLocker locker(actionLock);
 
-    // static var stores data between calls
+    // static vars stores data between calls
     static SliceVisualization::PickingType previousPick = SliceVisualization::None;
+    static bool leftButtonStillDown = false;
+
     SliceVisualization::PickingType actualPick = SliceVisualization::None;
     
     int X,Y;
@@ -1967,7 +1970,7 @@ void EspinaVolumeEditor::SliceXYPick(const unsigned long event, SliceVisualizati
 			break;
 	}
 
-	// return if picked out of the slice area
+	// picked out of area
 	if (SliceVisualization::None == actualPick)
 	{
 	    if ((vtkCommand::LeftButtonReleaseEvent == event) || (vtkCommand::LeftButtonPressEvent == event))
@@ -1988,7 +1991,11 @@ void EspinaVolumeEditor::SliceXYPick(const unsigned long event, SliceVisualizati
 	        updateSliceRenderers = true;
 	        UpdateViewports(All);
 	    }
-		return;
+
+	    if ((vtkCommand::MouseWheelBackwardEvent == event) || (vtkCommand::MouseWheelForwardEvent == event))
+	    	UpdateViewports(Slices);
+
+	    return;
 	}
 
     // we need to know if we have started picking or we've picked something before
@@ -2020,44 +2027,50 @@ void EspinaVolumeEditor::SliceXYPick(const unsigned long event, SliceVisualizati
     	    if ((vtkCommand::MouseMoveEvent == event) && !leftButtonStillDown)
     	    	previousPick = actualPick;
 
+    	    if ((vtkCommand::MouseWheelBackwardEvent == event) || (vtkCommand::MouseWheelForwardEvent == event))
+    	    	UpdateViewports(Slices);
+
     		return;
     	}
 
     // NOTE: from now on previousPick = actualPick
 
 	// handle mouse movements when the user is painting or erasing
-	if (((vtkCommand::MouseWheelBackwardEvent == event) || (vtkCommand::MouseWheelForwardEvent == event) || (vtkCommand::MouseMoveEvent == event)) &&
-		(paintbutton->isChecked() || erasebutton->isChecked()) && (SliceVisualization::Slice == actualPick))
+	if (((vtkCommand::MouseWheelBackwardEvent == event) || (vtkCommand::MouseWheelForwardEvent == event) || (vtkCommand::MouseMoveEvent == event)))
 	{
-		int x,y,z;
-		switch (sliceView->GetOrientationType())
+		if ((paintbutton->isChecked() || erasebutton->isChecked()) && (SliceVisualization::Slice == actualPick))
 		{
-			case SliceVisualization::Axial:
-				x = X+1;
-				y = Y+1;
-				z = this->axialslider->value()-1;
-				break;
-			case SliceVisualization::Coronal:
-				x = X+1;
-				y = this->coronalslider->value()-1;
-				z = Y+1;
-				break;
-			case SliceVisualization::Sagittal:
-				x = this->sagittalslider->value()-1;
-				y = X+1;
-				z = Y+1;
-				break;
-			default:
-				x = y = z = 0;
-				break;
+			int x,y,z;
+			switch (sliceView->GetOrientationType())
+			{
+				case SliceVisualization::Axial:
+					x = X+1;
+					y = Y+1;
+					z = this->axialslider->value()-1;
+					break;
+				case SliceVisualization::Coronal:
+					x = X+1;
+					y = this->coronalslider->value()-1;
+					z = Y+1;
+					break;
+				case SliceVisualization::Sagittal:
+					x = this->sagittalslider->value()-1;
+					y = X+1;
+					z = Y+1;
+					break;
+				default:
+					x = y = z = 0;
+					break;
+			}
+			this->_editorOperations->UpdatePaintEraseActors(x,y,z, this->_paintEraseRadius, sliceView);
 		}
 
-		this->_editorOperations->UpdatePaintEraseActors(x,y,z, this->_paintEraseRadius, sliceView);
-		UpdateViewports(Slices);
-
-		// return if not doing an operation
+		// return if we are not doing an operation
 		if (!leftButtonStillDown)
+		{
+			UpdateViewports(Slices);
 			return;
+		}
 	}
     
     // if we were picking or painting but released the button, draw voxel view's final state
@@ -2180,6 +2193,7 @@ void EspinaVolumeEditor::SliceXYPick(const unsigned long event, SliceVisualizati
     		default:
     			break;
     	}
+
     UpdateViewports(Slices);
 }
 

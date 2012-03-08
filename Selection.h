@@ -17,6 +17,8 @@
 #include <vtkStructuredPoints.h>
 #include <vtkImageChangeInformation.h>
 #include <vtkImageClip.h>
+#include <vtkBorderWidget.h>
+#include <vtkBoxWidget2.h>
 
 // project includes
 #include "VectorSpaceAlgebra.h"

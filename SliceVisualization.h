@@ -92,6 +92,9 @@ class SliceVisualization
 
         // get orientation type of the object
         SliceVisualization::OrientationType GetOrientationType(void);
+
+        // get the slice renderer
+        vtkSmartPointer<vtkRenderer> GetViewRenderer(void);
     private:
         // private methods
         //
