@@ -1818,7 +1818,7 @@ void EspinaVolumeEditor::SliceInteraction(vtkObject* object, unsigned long event
     static bool leftButtonStillDown = false;
     static bool rightButtonStillDown = false;
     static bool middleButtonStillDown = false;
-    SliceVisualization* sliceView;
+    SliceVisualization* sliceView = NULL;
 
     // identify view to pass events forward
     vtkSmartPointer<vtkInteractorStyle> style = vtkInteractorStyle::SafeDownCast(object);
@@ -1831,6 +1831,8 @@ void EspinaVolumeEditor::SliceInteraction(vtkObject* object, unsigned long event
 
     if (style.GetPointer() == sagittalview->GetRenderWindow()->GetInteractor()->GetInteractorStyle())
     	sliceView = this->_sagittalSliceVisualization;
+
+    assert(NULL != sliceView);
 
     switch(event)
     {

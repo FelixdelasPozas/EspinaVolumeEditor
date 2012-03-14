@@ -24,6 +24,8 @@
 #include "VectorSpaceAlgebra.h"
 #include "Coordinates.h"
 #include "DataManager.h"
+#include "BoxSelectionWidget.h"
+#include "BoxSelectionRepresentation2D.h"
 
 // c++ includes
 #include <vector>
@@ -153,6 +155,14 @@ class Selection
         // to change origin for erase/paint volume on the fly
         vtkSmartPointer<vtkImageChangeInformation> 			_changer;
         vtkSmartPointer<vtkImageClip> 						_clipper;
+
+        // widgets for box selection, one per each view
+        vtkSmartPointer<BoxSelectionRepresentation2D> 		_axialBoxRepresentation;
+        vtkSmartPointer<BoxSelectionRepresentation2D>		_coronalBoxRepresentation;
+        vtkSmartPointer<BoxSelectionRepresentation2D>		_sagittalBoxRepresentation;
+        vtkSmartPointer<BoxSelectionWidget>					_axialBoxWidget;
+        vtkSmartPointer<BoxSelectionWidget>					_coronalBoxWidget;
+        vtkSmartPointer<BoxSelectionWidget>					_sagittalBoxWidget;
 };
 
 #endif // _SELECTION_H_

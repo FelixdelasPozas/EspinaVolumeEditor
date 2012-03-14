@@ -19,6 +19,10 @@
 #include <vtkBoxRepresentation.h>
 #include <vtkRenderWindow.h>
 
+#include <vtkBorderWidget.h>
+#include <vtkBorderRepresentation.h>
+#include <vtkRenderWindowInteractor.h>
+
 // itk includes
 #include <itkConnectedThresholdImageFilter.h>
 #include <itkSmartPointer.h>
@@ -48,8 +52,11 @@ Selection::Selection()
 	this->_selectionType = EMPTY;
 	this->_size = this->_max = this->_min = Vector3ui(0,0,0);
 	this->_spacing = Vector3d(0.0,0.0,0.0);
-}
 
+    this->_axialBoxWidget = NULL;
+    this->_coronalBoxWidget = NULL;
+    this->_sagittalBoxWidget = NULL;
+}
 Selection::~Selection()
 {
     DeleteSelectionActors();
@@ -93,11 +100,38 @@ void Selection::AddSelectionPoint(const Vector3ui point)
     switch (this->_selectedPoints.size())
     {
         case 0:
-        {
         	this->_selectionType = CUBE;
         	this->_selectedPoints.push_back(point);
+
+        	this->_axialView->GetViewRenderer()->ViewToWorld();
+        	this->_axialBoxRepresentation = vtkSmartPointer<BoxSelectionRepresentation2D>::New();
+        	this->_axialBoxRepresentation->SetMinimumSelection(-(this->_spacing[0]/2.0), -(this->_spacing[1]/2.0));
+        	this->_axialBoxRepresentation->SetMaximumSelection((static_cast<double>(this->_size[0])+0.5)*this->_spacing[0], (static_cast<double>(this->_size[1])+0.5)*this->_spacing[1]);
+        	this->_axialBoxRepresentation->SetMinimumSize(this->_spacing[0], this->_spacing[1]);
+        	this->_axialBoxWidget = vtkSmartPointer<BoxSelectionWidget>::New();
+        	this->_axialBoxWidget->SetInteractor(this->_axialView->GetViewRenderer()->GetRenderWindow()->GetInteractor());
+        	this->_axialBoxWidget->SetRepresentation(this->_axialBoxRepresentation);
+        	this->_axialBoxWidget->On();
+
+        	this->_coronalBoxRepresentation = vtkSmartPointer<BoxSelectionRepresentation2D>::New();
+        	this->_coronalBoxRepresentation->SetMinimumSelection(-(this->_spacing[0]/2.0), -(this->_spacing[2]/2.0));
+        	this->_coronalBoxRepresentation->SetMaximumSelection((static_cast<double>(this->_size[0])+0.5)*this->_spacing[0], (static_cast<double>(this->_size[2])+0.5)*this->_spacing[2]);
+        	this->_coronalBoxRepresentation->SetMinimumSize(this->_spacing[0], this->_spacing[2]);
+        	this->_coronalBoxWidget = vtkSmartPointer<BoxSelectionWidget>::New();
+        	this->_coronalBoxWidget->SetInteractor(this->_coronalView->GetViewRenderer()->GetRenderWindow()->GetInteractor());
+        	this->_coronalBoxWidget->SetRepresentation(this->_coronalBoxRepresentation);
+        	this->_coronalBoxWidget->On();
+
+        	this->_sagittalBoxRepresentation = vtkSmartPointer<BoxSelectionRepresentation2D>::New();
+        	this->_sagittalBoxRepresentation->SetMinimumSelection(-(this->_spacing[1]/2.0), -(this->_spacing[2]/2.0));
+        	this->_sagittalBoxRepresentation->SetMaximumSelection((static_cast<double>(this->_size[1])+0.5)*this->_spacing[1], (static_cast<double>(this->_size[2])+0.5)*this->_spacing[2]);
+        	this->_sagittalBoxRepresentation->SetMinimumSize(this->_spacing[1], this->_spacing[2]);
+        	this->_sagittalBoxWidget = BoxSelectionWidget::New();
+        	this->_sagittalBoxWidget->SetInteractor(this->_sagittalView->GetViewRenderer()->GetRenderWindow()->GetInteractor());
+        	this->_sagittalBoxWidget->SetRepresentation(this->_sagittalBoxRepresentation);
+        	this->_sagittalBoxWidget->On();
+
             break;
-        }
         case 2:
         	this->_selectedPoints.pop_back();
         	this->_selectedPoints.push_back(point);
@@ -113,7 +147,7 @@ void Selection::AddSelectionPoint(const Vector3ui point)
 
 void Selection::ComputeSelectionCube()
 {
-    std::vector<Vector3ui>::iterator it;
+    std::vector<Vector3ui>::const_iterator it;
 
     // clear previously selected data before creating a new selection cube, if there is any
     DeleteSelectionActors();
@@ -205,7 +239,7 @@ void Selection::ClearSelection(void)
 	// clear selection points and bounds
     this->_selectedPoints.clear();
     this->_min = Vector3ui(0,0,0);
-    this->_max = _size;
+    this->_max = this->_size;
     this->_selectionType = EMPTY;
 }
 
