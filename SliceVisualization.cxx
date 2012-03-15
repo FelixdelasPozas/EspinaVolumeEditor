@@ -33,6 +33,8 @@
 // project includes
 #include "SliceVisualization.h"
 #include "Selection.h"
+#include "BoxSelectionWidget.h"
+#include "BoxSelectionRepresentation2D.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // SliceVisualization class
@@ -46,6 +48,7 @@ SliceVisualization::SliceVisualization(OrientationType orientation)
 	this->_thumbRenderer = NULL;
 	this->_renderer = NULL;
 	this->_orientation = orientation;
+	this->_boxWidget = NULL;
 
 	// create 2D actors texture
 	vtkSmartPointer<vtkImageCanvasSource2D> volumeTextureIcon = vtkSmartPointer<vtkImageCanvasSource2D>::New();
@@ -145,6 +148,9 @@ SliceVisualization::~SliceVisualization()
 {
 	// remove segmentation actors
 	ClearSelections();
+
+	if (this->_boxWidget)
+		this->_boxWidget = NULL;
 
 	// remove thumb renderer
 	if (this->_thumbRenderer)
@@ -646,7 +652,14 @@ void SliceVisualization::ModifyActorVisibility(struct ActorData* actorInformatio
 	unsigned int slice = 0;
 
 	if (this->_segmentationHidden)
+	{
 		actorInformation->actor->SetVisibility(false);
+		if (this->_boxWidget)
+		{
+			this->_boxWidget->GetBorderRepresentation()->SetVisibility(false);
+			this->_boxWidget->SetEnabled(false);
+		}
+	}
 	else
 	{
 	    switch (this->_orientation)
@@ -668,6 +681,19 @@ void SliceVisualization::ModifyActorVisibility(struct ActorData* actorInformatio
 			actorInformation->actor->SetVisibility(true);
 		else
 			actorInformation->actor->SetVisibility(false);
+
+		// the -1/+1 compensate the fact that volumes have a +1 empty bounds in all directions
+		if ((actorInformation->minSlice <= (slice-1)) && (actorInformation->maxSlice >= (slice+1)) && this->_boxWidget)
+		{
+			this->_boxWidget->GetBorderRepresentation()->SetVisibility(true);
+			this->_boxWidget->SetEnabled(true);
+		}
+		else
+		{
+			this->_boxWidget->GetBorderRepresentation()->SetVisibility(false);
+			this->_boxWidget->SetEnabled(false);
+		}
+
 	}
 }
 
@@ -793,4 +819,9 @@ SliceVisualization::OrientationType SliceVisualization::GetOrientationType(void)
 vtkSmartPointer<vtkRenderer> SliceVisualization::GetViewRenderer(void)
 {
 	return this->_renderer;
+}
+
+void SliceVisualization::SetBoxSelectionWidget(BoxSelectionWidget *widget)
+{
+	this->_boxWidget = widget;
 }

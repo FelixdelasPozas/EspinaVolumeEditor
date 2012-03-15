@@ -18,10 +18,17 @@
 #include <vtkWidgetCallbackMapper.h>
 #include <vtkEvent.h>
 #include <vtkWidgetEvent.h>
+#include <vtkFastNumericConversion.h>
 
 // project includes
 #include "BoxSelectionWidget.h"
 #include "BoxSelectionRepresentation2D.h"
+
+// qt includes
+#include <QApplication>
+
+// c++ includes
+#include <math.h>
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // BoxSelectionWidget class
@@ -46,28 +53,59 @@ BoxSelectionWidget::~BoxSelectionWidget()
 
 void BoxSelectionWidget::SetCursor(int cState)
 {
+	static bool cursorChanged = false;
+
 	if (!this->Resizable && cState != BoxSelectionRepresentation2D::Inside)
 	{
-		this->RequestCursorShape(VTK_CURSOR_DEFAULT);
+		if (cursorChanged)
+		{
+			cursorChanged = false;
+			QApplication::restoreOverrideCursor();
+		}
 		return;
 	}
 
 	switch (cState)
 	{
 		case BoxSelectionRepresentation2D::AdjustingP0:
+			if (!cursorChanged)
+			{
+				cursorChanged = true;
+				QApplication::setOverrideCursor(Qt::CrossCursor);
+			}
 			this->RequestCursorShape(VTK_CURSOR_SIZESW);
 			break;
 		case BoxSelectionRepresentation2D::AdjustingP1:
+			if (!cursorChanged)
+			{
+				cursorChanged = true;
+				QApplication::setOverrideCursor(Qt::CrossCursor);
+			}
 			this->RequestCursorShape(VTK_CURSOR_SIZESE);
 			break;
 		case BoxSelectionRepresentation2D::AdjustingP2:
+			if (!cursorChanged)
+			{
+				cursorChanged = true;
+				QApplication::setOverrideCursor(Qt::CrossCursor);
+			}
 			this->RequestCursorShape(VTK_CURSOR_SIZENE);
 			break;
 		case BoxSelectionRepresentation2D::AdjustingP3:
+			if (!cursorChanged)
+			{
+				cursorChanged = true;
+				QApplication::setOverrideCursor(Qt::CrossCursor);
+			}
 			this->RequestCursorShape(VTK_CURSOR_SIZENW);
 			break;
 		case BoxSelectionRepresentation2D::AdjustingE0:
 		case BoxSelectionRepresentation2D::AdjustingE2:
+			if (!cursorChanged)
+			{
+				cursorChanged = true;
+				QApplication::setOverrideCursor(Qt::CrossCursor);
+			}
 			this->RequestCursorShape(VTK_CURSOR_SIZENS);
 			break;
 		case BoxSelectionRepresentation2D::AdjustingE1:
@@ -75,17 +113,22 @@ void BoxSelectionWidget::SetCursor(int cState)
 			this->RequestCursorShape(VTK_CURSOR_SIZEWE);
 			break;
 		case BoxSelectionRepresentation2D::Inside:
+			if (!cursorChanged)
+			{
+				cursorChanged = true;
+				QApplication::setOverrideCursor(Qt::CrossCursor);
+			}
 			if (reinterpret_cast<BoxSelectionRepresentation2D*>(this->WidgetRep)->GetMoving())
-			{
 				this->RequestCursorShape(VTK_CURSOR_SIZEALL);
-			}
 			else
-			{
 				this->RequestCursorShape(VTK_CURSOR_HAND);
-			}
 			break;
 		default:
-			this->RequestCursorShape(VTK_CURSOR_DEFAULT);
+			if (cursorChanged)
+			{
+				cursorChanged = false;
+				QApplication::restoreOverrideCursor();
+			}
 			break;
 	}
 }
@@ -201,10 +244,26 @@ void BoxSelectionWidget::EndSelectAction(vtkAbstractWidget *w)
 	if (self->WidgetRep->GetInteractionState() == BoxSelectionRepresentation2D::Outside || self->WidgetState != BoxSelectionWidget::Selected)
 		return;
 
+	// Adjust to a grid specified by the image spacing by rounding the final coordinates of the border
+	BoxSelectionRepresentation2D* rep = reinterpret_cast<BoxSelectionRepresentation2D*>(self->WidgetRep);
+	double *pos1 = rep->GetPosition();
+	double *pos2 = rep->GetPosition2();
+	double *spacing = rep->GetSpacing();
+
+	// to better understand this you should look at BoxSelectionRepresentation2D::SetBoxCoordinates()
+	pos1[0] = floor(pos1[0]/spacing[0]) + 1; // plus one because we use Xcoord-0.5 to select voxel Xcoord, thats fine only with the upper right corner.
+	pos1[1] = floor(pos1[1]/spacing[1]) + 1;
+	pos2[0] = floor(pos2[0]/spacing[0]);
+	pos2[1] = floor(pos2[1]/spacing[1]);
+	rep->SetBoxCoordinates(static_cast<int>(pos1[0]), static_cast<int>(pos1[1]), static_cast<int>(pos2[0]), static_cast<int>(pos2[1]));
+
 	// Return state to not selected
 	self->ReleaseFocus();
 	self->WidgetState = BoxSelectionWidget::Start;
 	reinterpret_cast<BoxSelectionRepresentation2D*>(self->WidgetRep)->MovingOff();
+
+	// TODO: quitar este Render() y ponerlo en selection::
+	self->Interactor->GetRenderWindow()->Render();
 
 	// stop adjusting
 	self->EventCallbackCommand->SetAbortFlag(1);

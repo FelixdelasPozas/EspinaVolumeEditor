@@ -99,11 +99,17 @@ class Selection
         	SELECTION_UNUSED_VALUE,
         	VOXEL_SELECTED,
         };
+
+        //
+        // callback for widget interaction
+        static void BoxSelectionWidgetCallback (vtkObject*, unsigned long, void*, void *);
+
     private:
         // private methods
         //
-        // computes selection area
+        // computes box selection area actor and parameters
         void ComputeSelectionCube(void);
+        void ComputeSelectionBounds(void);
         //
         // computes actor from selected volume
         void ComputeActor(vtkSmartPointer<vtkImageData>);
@@ -163,6 +169,7 @@ class Selection
         vtkSmartPointer<BoxSelectionWidget>					_axialBoxWidget;
         vtkSmartPointer<BoxSelectionWidget>					_coronalBoxWidget;
         vtkSmartPointer<BoxSelectionWidget>					_sagittalBoxWidget;
+        vtkSmartPointer<vtkCallbackCommand> 				_boxWidgetsCallback;
 };
 
 #endif // _SELECTION_H_

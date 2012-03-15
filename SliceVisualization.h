@@ -31,6 +31,9 @@
 #include "VectorSpaceAlgebra.h"
 #include "EditorOperations.h"
 
+// forward declarations
+class BoxSelectionWidget;
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // SliceVisualization class
 //
@@ -95,6 +98,10 @@ class SliceVisualization
 
         // get the slice renderer
         vtkSmartPointer<vtkRenderer> GetViewRenderer(void);
+
+        // get a pointer to the box representation so we can hide and show it, also we need to
+        // deactivate/reactivate the widget depending on the slice
+        void SetBoxSelectionWidget(BoxSelectionWidget *);
     private:
         // private methods
         //
@@ -172,6 +179,8 @@ class SliceVisualization
         // hides or shows actors depending on the visibility
         void ModifyActorVisibility(struct ActorData*);
 
+        // box selection representation 2D
+        BoxSelectionWidget* _boxWidget;
 };
 
 #endif // _SLICEVISUALIZATION_H_

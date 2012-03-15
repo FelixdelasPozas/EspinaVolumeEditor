@@ -58,7 +58,6 @@ class VTK_WIDGETS_EXPORT BoxSelectionWidget: public vtkAbstractWidget
 		// Description:
 		// Create the default widget representation if one is not set.
 		virtual void CreateDefaultRepresentation();
-
 	protected:
 		BoxSelectionWidget();
 		~BoxSelectionWidget();

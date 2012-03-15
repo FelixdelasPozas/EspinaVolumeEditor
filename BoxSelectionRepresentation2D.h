@@ -84,6 +84,10 @@ class VTK_WIDGETS_EXPORT BoxSelectionRepresentation2D: public vtkWidgetRepresent
 		vtkSetVector2Macro(MaximumSelection,double);
 		vtkGetVector2Macro(MaximumSelection,double);
 
+		// image spacing
+		vtkSetVector2Macro(Spacing,double);
+		vtkGetVector2Macro(Spacing,double);
+
 //BTX
 		// Description:
 		// Define the various states that the representation can be in.
@@ -116,6 +120,7 @@ class VTK_WIDGETS_EXPORT BoxSelectionRepresentation2D: public vtkWidgetRepresent
 		virtual int RenderTranslucentPolygonalGeometry(vtkViewport*);
 		virtual int HasTranslucentPolygonalGeometry();
 		void TransformToWorldCoordinates(double *, double *);
+		void SetBoxCoordinates(int, int, int, int);
 	protected:
 		BoxSelectionRepresentation2D();
 		~BoxSelectionRepresentation2D();
@@ -155,8 +160,8 @@ class VTK_WIDGETS_EXPORT BoxSelectionRepresentation2D: public vtkWidgetRepresent
 		double MinimumSelection[2];
 		double MaximumSelection[2];
 
-		double _spacing[3];
-		double _dTolerance;
+		double Spacing[2];
+		double _tolerance;
 
 	private:
 		BoxSelectionRepresentation2D(const BoxSelectionRepresentation2D&);   //Not implemented

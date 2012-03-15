@@ -20,7 +20,6 @@
 #include <vtkTransformPolyDataFilter.h>
 #include <vtkObjectFactory.h>
 #include <vtkWindow.h>
-#include <vtkFastNumericConversion.h>
 
 // c++ includes (for fabs())
 #include <cmath>
@@ -89,11 +88,11 @@ BoxSelectionRepresentation2D::BoxSelectionRepresentation2D()
 	this->MaximumSelection[0] = 1000;
 	this->MaximumSelection[1] = 1000;
 
-	this->_spacing[0] = 1.0;
-	this->_spacing[1] = 1.0;
-	this->_spacing[2] = 1.0;
+	this->Spacing[0] = 1.0;
+	this->Spacing[1] = 1.0;
+	this->Spacing[2] = 1.0;
 
-	this->_dTolerance = 0.40;
+	this->_tolerance = 0.40;
 	this->Moving = 0;
 }
 
@@ -257,7 +256,7 @@ void BoxSelectionRepresentation2D::WidgetInteraction(double eventPos[2])
 			break;
 	}
 
-	// check for limits on the cases != moving
+	// check for limits when we're not translating the selection box
 	if (fpos1[0] < MinimumSelection[0])
 		fpos1[0] = MinimumSelection[0];
 	if (fpos1[1] < MinimumSelection[1])
@@ -297,15 +296,15 @@ int BoxSelectionRepresentation2D::ComputeInteractionState(int X, int Y, int vtkN
 	TransformToWorldCoordinates(&XF, &YF);
 
 	// Figure out where we are in the widget. Exclude outside case first.
-	if ((XF < (pos1[0] - this->_dTolerance)) || ((pos2[0] + this->_dTolerance) < XF) || (YF < (pos1[1] - this->_dTolerance)) || ((pos2[1] + this->_dTolerance) < YF))
+	if ((XF < (pos1[0] - this->_tolerance)) || ((pos2[0] + this->_tolerance) < XF) || (YF < (pos1[1] - this->_tolerance)) || ((pos2[1] + this->_tolerance) < YF))
 		this->InteractionState = BoxSelectionRepresentation2D::Outside;
 	else   // we are on the boundary or inside the border
 	{
 		// Now check for proximinity to edges and points
-		int e0 = (YF >= (pos1[1] - this->_dTolerance) && YF <= (pos1[1] + this->_dTolerance));
-		int e1 = (XF >= (pos2[0] - this->_dTolerance) && XF <= (pos2[0] + this->_dTolerance));
-		int e2 = (YF >= (pos2[1] - this->_dTolerance) && YF <= (pos2[1] + this->_dTolerance));
-		int e3 = (XF >= (pos1[0] - this->_dTolerance) && XF <= (pos1[0] + this->_dTolerance));
+		int e0 = (YF >= (pos1[1] - this->_tolerance) && YF <= (pos1[1] + this->_tolerance));
+		int e1 = (XF >= (pos2[0] - this->_tolerance) && XF <= (pos2[0] + this->_tolerance));
+		int e2 = (YF >= (pos2[1] - this->_tolerance) && YF <= (pos2[1] + this->_tolerance));
+		int e3 = (XF >= (pos1[0] - this->_tolerance) && XF <= (pos1[0] + this->_tolerance));
 
 		// Points
 		if (e0 && e1)
@@ -464,8 +463,11 @@ void BoxSelectionRepresentation2D::PrintSelf(ostream& os, vtkIndent indent)
 	os << indent << "Minimum Size: " << this->MinimumSize[0] << " " << this->MinimumSize[1] << endl;
 	os << indent << "Maximum Size: " << this->MaximumSize[0] << " " << this->MaximumSize[1] << endl;
 
+	os << indent << "Minimum Selection: " << this->MinimumSelection[0] << " " << this->MinimumSelection[1] << endl;
+	os << indent << "Maximum Selection: " << this->MaximumSelection[0] << " " << this->MaximumSelection[1] << endl;
+
 	os << indent << "Moving: " << (this->Moving ? "On\n" : "Off\n");
-	os << indent << "Tolerance: " << this->_dTolerance << "\n";
+	os << indent << "Tolerance: " << this->_tolerance << "\n";
 
 	os << indent << "Selection Point: (" << this->SelectionPoint[0] << "," << this->SelectionPoint[1] << "}\n";
 }
@@ -488,4 +490,16 @@ double BoxSelectionRepresentation2D::Distance(double x, double y)
 		return (fabs(x) + y);
 
 	return (y - x);
+}
+
+void BoxSelectionRepresentation2D::SetBoxCoordinates(int x1, int y1, int x2, int y2)
+{
+	double fpos1[2] = { (static_cast<double>(x1)-0.5) * this->Spacing[0] , (static_cast<double>(y1)-0.5) * this->Spacing[1] };
+	double fpos2[2] = { (static_cast<double>(x2)+0.5) * this->Spacing[0] , (static_cast<double>(y2)+0.5) * this->Spacing[1] };
+
+	this->PositionCoordinate->SetValue(fpos1[0], fpos1[1],0);
+	this->Position2Coordinate->SetValue(fpos2[0],fpos2[1],0);
+
+	this->BuildRepresentation();
+	this->Modified();
 }
