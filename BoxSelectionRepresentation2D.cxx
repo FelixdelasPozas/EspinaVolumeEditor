@@ -20,6 +20,8 @@
 #include <vtkTransformPolyDataFilter.h>
 #include <vtkObjectFactory.h>
 #include <vtkWindow.h>
+#include <vtkSmartPointer.h>
+#include <vtkCoordinate.h>
 
 // c++ includes (for fabs())
 #include <cmath>
@@ -28,16 +30,14 @@
 #include "BoxSelectionRepresentation2D.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// BoxSelectionRepresentation class
+// BoxSelectionRepresentation2D class
 //
 vtkStandardNewMacro(BoxSelectionRepresentation2D);
 
 BoxSelectionRepresentation2D::BoxSelectionRepresentation2D()
 {
 	this->InteractionState = BoxSelectionRepresentation2D::Outside;
-
-	this->ShowBorder = BORDER_ON;
-	this->SelectionPoint[0] = this->SelectionPoint[1] = 0.0;
+	this->_selectionPoint[0] = this->_selectionPoint[1] = 0.0;
 
 	// Initial positioning information
 	this->PositionCoordinate = vtkCoordinate::New();
@@ -48,7 +48,7 @@ BoxSelectionRepresentation2D::BoxSelectionRepresentation2D()
 	this->Position2Coordinate->SetValue(1, 1, 0);
 
 	// Create the geometry
-	vtkPoints *points = vtkPoints::New();
+	vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();
 	points->SetDataTypeToDouble();
 	points->SetNumberOfPoints(4);
 	points->SetPoint(0, 0.0, 0.0, 0.0);
@@ -56,7 +56,7 @@ BoxSelectionRepresentation2D::BoxSelectionRepresentation2D()
 	points->SetPoint(2, 1.0, 1.0, 0.0);
 	points->SetPoint(3, 0.0, 1.0, 0.0);
 
-	vtkCellArray *lines = vtkCellArray::New();
+	vtkSmartPointer<vtkCellArray> lines = vtkSmartPointer<vtkCellArray>::New();
 	lines->InsertNextCell(5);
 	lines->InsertCellPoint(0);
 	lines->InsertCellPoint(1);
@@ -64,33 +64,30 @@ BoxSelectionRepresentation2D::BoxSelectionRepresentation2D()
 	lines->InsertCellPoint(3);
 	lines->InsertCellPoint(0);
 
-	this->BWPolyData = vtkPolyData::New();
-	this->BWPolyData->SetPoints(points);
-	this->BWPolyData->SetLines(lines);
-	points->Delete();
-	lines->Delete();
+	this->_widgetPolyData = vtkSmartPointer<vtkPolyData>::New();
+	this->_widgetPolyData->SetPoints(points);
+	this->_widgetPolyData->SetLines(lines);
 
-	this->BWMapper = vtkPolyDataMapper::New();
-	this->BWMapper->SetInput(this->BWPolyData);
-	this->BWActor = vtkActor::New();
-	this->BWActor->SetMapper(this->BWMapper);
+	this->_widgetMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+	this->_widgetMapper->SetInput(this->_widgetPolyData);
+	this->_widgetActor = vtkSmartPointer<vtkActor>::New();
+	this->_widgetActor->SetMapper(this->_widgetMapper);
 
-	this->BorderProperty = vtkProperty::New();
-	this->BWActor->SetProperty(this->BorderProperty);
+	this->_widgetActorProperty = vtkProperty::New();
+	this->_widgetActor->SetProperty(this->_widgetActorProperty);
 
 	this->MinimumSize[0] = 1;
 	this->MinimumSize[1] = 1;
 	this->MaximumSize[0] = 1000;
 	this->MaximumSize[1] = 1000;
 
-	this->MinimumSelection[0] = 0;
-	this->MinimumSelection[1] = 0;
-	this->MaximumSelection[0] = 1000;
-	this->MaximumSelection[1] = 1000;
+	this->MinimumSelectionSize[0] = 0;
+	this->MinimumSelectionSize[1] = 0;
+	this->MaximumSelectionSize[0] = 1000;
+	this->MaximumSelectionSize[1] = 1000;
 
 	this->Spacing[0] = 1.0;
 	this->Spacing[1] = 1.0;
-	this->Spacing[2] = 1.0;
 
 	this->_tolerance = 0.40;
 	this->Moving = 0;
@@ -98,13 +95,14 @@ BoxSelectionRepresentation2D::BoxSelectionRepresentation2D()
 
 BoxSelectionRepresentation2D::~BoxSelectionRepresentation2D()
 {
+	this->Renderer->RemoveActor(this->_widgetActor);
+
+	// delete the three handled by pointers and not by smartpointers due to the use of vtk macros
 	this->PositionCoordinate->Delete();
 	this->Position2Coordinate->Delete();
+	this->_widgetActorProperty->Delete();
 
-	this->BWPolyData->Delete();
-	this->BWMapper->Delete();
-	this->BWActor->Delete();
-	this->BorderProperty->Delete();
+	// the rest are handled by smartpointers
 }
 
 void BoxSelectionRepresentation2D::StartWidgetInteraction(double eventPos[2])
@@ -242,13 +240,13 @@ void BoxSelectionRepresentation2D::WidgetInteraction(double eventPos[2])
 			}
 
 			// these separate ifs allow movement in one axis while being stopped in the other by the selection limits
-			if ((fpos1[0] < this->MinimumSelection[0]) || (fpos2[0] > this->MaximumSelection[0]))
+			if ((fpos1[0] < this->MinimumSelectionSize[0]) || (fpos2[0] > this->MaximumSelectionSize[0]))
 			{
 				fpos1[0] -= delX;
 				fpos2[0] -= delX;
 			}
 
-			if ((fpos1[1] < this->MinimumSelection[1]) || (fpos2[1] > this->MaximumSelection[1]))
+			if ((fpos1[1] < this->MinimumSelectionSize[1]) || (fpos2[1] > this->MaximumSelectionSize[1]))
 			{
 				fpos1[1] -= delY;
 				fpos2[1] -= delY;
@@ -257,14 +255,14 @@ void BoxSelectionRepresentation2D::WidgetInteraction(double eventPos[2])
 	}
 
 	// check for limits when we're not translating the selection box
-	if (fpos1[0] < MinimumSelection[0])
-		fpos1[0] = MinimumSelection[0];
-	if (fpos1[1] < MinimumSelection[1])
-		fpos1[1] = MinimumSelection[1];
-	if (fpos2[0] > MaximumSelection[0])
-		fpos2[0] = MaximumSelection[0];
-	if (fpos2[1] > MaximumSelection[1])
-		fpos2[1] = MaximumSelection[1];
+	if (fpos1[0] < MinimumSelectionSize[0])
+		fpos1[0] = MinimumSelectionSize[0];
+	if (fpos1[1] < MinimumSelectionSize[1])
+		fpos1[1] = MinimumSelectionSize[1];
+	if (fpos2[0] > MaximumSelectionSize[0])
+		fpos2[0] = MaximumSelectionSize[0];
+	if (fpos2[1] > MaximumSelectionSize[1])
+		fpos2[1] = MaximumSelectionSize[1];
 
 	// Modify the representation
 	if (fpos2[0] > fpos1[0] && fpos2[1] > fpos1[1])
@@ -278,10 +276,6 @@ void BoxSelectionRepresentation2D::WidgetInteraction(double eventPos[2])
 
 	this->BuildRepresentation();
 	this->Modified();
-}
-
-void BoxSelectionRepresentation2D::NegotiateLayout()
-{
 }
 
 int BoxSelectionRepresentation2D::ComputeInteractionState(int X, int Y, int vtkNotUsed(modify))
@@ -306,7 +300,7 @@ int BoxSelectionRepresentation2D::ComputeInteractionState(int X, int Y, int vtkN
 		int e2 = (YF >= (pos2[1] - this->_tolerance) && YF <= (pos2[1] + this->_tolerance));
 		int e3 = (XF >= (pos1[0] - this->_tolerance) && XF <= (pos1[0] + this->_tolerance));
 
-		// Points
+		// Corner points
 		if (e0 && e1)
 			this->InteractionState = BoxSelectionRepresentation2D::AdjustingP1;
 		else if (e1 && e2)
@@ -328,19 +322,8 @@ int BoxSelectionRepresentation2D::ComputeInteractionState(int X, int Y, int vtkN
 				this->InteractionState = BoxSelectionRepresentation2D::AdjustingE3;
 		}
 		else   // must be interior
-		{
-			if (this->Moving)
-			{
-				// FIXME: This must be wrong.  Moving is not an entry in the
-				// _InteractionState enum.  It is an ivar flag and it has no business
-				// being set to InteractionState.  This just happens to work because
-				// Inside happens to be 1, and this gets set when Moving is 1.
-				this->InteractionState = BoxSelectionRepresentation2D::Moving;
-			}
-			else
 				this->InteractionState = BoxSelectionRepresentation2D::Inside;
-		}
-	}        //else inside or on border
+	}
 
 	return this->InteractionState;
 }
@@ -354,7 +337,7 @@ void BoxSelectionRepresentation2D::BuildRepresentation()
 		double *pos2 = this->Position2Coordinate->GetValue();
 
 		// update the geometry according to new coordinates
-		vtkPoints *points = vtkPoints::New();
+		vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();
 		points->SetDataTypeToDouble();
 		points->SetNumberOfPoints(4);
 		points->SetPoint(0, pos1[0], pos1[1], 0.0);
@@ -362,7 +345,7 @@ void BoxSelectionRepresentation2D::BuildRepresentation()
 		points->SetPoint(2, pos2[0], pos2[1], 0.0);
 		points->SetPoint(3, pos1[0], pos2[1], 0.0);
 
-		vtkCellArray *lines = vtkCellArray::New();
+		vtkSmartPointer<vtkCellArray> lines = vtkSmartPointer<vtkCellArray>::New();
 		lines->InsertNextCell(5);
 		lines->InsertCellPoint(0);
 		lines->InsertCellPoint(1);
@@ -370,90 +353,74 @@ void BoxSelectionRepresentation2D::BuildRepresentation()
 		lines->InsertCellPoint(3);
 		lines->InsertCellPoint(0);
 
-		this->BWPolyData->Reset();
-		this->BWPolyData->SetPoints(points);
-		this->BWPolyData->SetLines(lines);
-		this->BWPolyData->Update();
-
-		points->Delete();
-		lines->Delete();
-
+		this->_widgetPolyData->Reset();
+		this->_widgetPolyData->SetPoints(points);
+		this->_widgetPolyData->SetLines(lines);
+		this->_widgetPolyData->Update();
 	    this->BuildTime.Modified();
 	}
 }
 
 void BoxSelectionRepresentation2D::GetActors2D(vtkPropCollection *pc)
 {
-	pc->AddItem(this->BWActor);
+	pc->AddItem(this->_widgetActor);
 }
 
 void BoxSelectionRepresentation2D::ReleaseGraphicsResources(vtkWindow *w)
 {
-	this->BWActor->ReleaseGraphicsResources(w);
+	this->_widgetActor->ReleaseGraphicsResources(w);
 }
 
 int BoxSelectionRepresentation2D::RenderOverlay(vtkViewport *w)
 {
 	this->BuildRepresentation();
-	if (!this->BWActor->GetVisibility())
+	if (!this->_widgetActor->GetVisibility())
 	{
 		return 0;
 	}
-	return this->BWActor->RenderOverlay(w);
+	return this->_widgetActor->RenderOverlay(w);
 }
 
 int BoxSelectionRepresentation2D::RenderOpaqueGeometry(vtkViewport *w)
 {
 	this->BuildRepresentation();
-	if (!this->BWActor->GetVisibility())
+	if (!this->_widgetActor->GetVisibility())
 	{
 		return 0;
 	}
-	return this->BWActor->RenderOpaqueGeometry(w);
+	return this->_widgetActor->RenderOpaqueGeometry(w);
 }
 
 int BoxSelectionRepresentation2D::RenderTranslucentPolygonalGeometry(vtkViewport *w)
 {
 	this->BuildRepresentation();
-	if (!this->BWActor->GetVisibility())
+	if (!this->_widgetActor->GetVisibility())
 	{
 		return 0;
 	}
-	return this->BWActor->RenderTranslucentPolygonalGeometry(w);
+	return this->_widgetActor->RenderTranslucentPolygonalGeometry(w);
 }
 
 int BoxSelectionRepresentation2D::HasTranslucentPolygonalGeometry()
 {
 	this->BuildRepresentation();
-	if (!this->BWActor->GetVisibility())
+	if (!this->_widgetActor->GetVisibility())
 	{
 		return 0;
 	}
-	return this->BWActor->HasTranslucentPolygonalGeometry();
+	return this->_widgetActor->HasTranslucentPolygonalGeometry();
 }
 
 void BoxSelectionRepresentation2D::PrintSelf(ostream& os, vtkIndent indent)
 {
 	this->Superclass::PrintSelf(os, indent);
 
-	os << indent << "Show Border: ";
-	if (this->ShowBorder == BORDER_OFF)
-	{
-		os << "Off\n";
-	}
-	else if (this->ShowBorder == BORDER_ON)
-	{
-		os << "On\n";
-	}
-	else   //if ( this->ShowBorder == BORDER_ACTIVE)
-	{
-		os << "Active\n";
-	}
+	os << indent << "Show Border: On\n";
 
-	if (this->BorderProperty)
+	if (this->_widgetActorProperty)
 	{
 		os << indent << "Border Property:\n";
-		this->BorderProperty->PrintSelf(os, indent.GetNextIndent());
+		this->_widgetActorProperty->PrintSelf(os, indent.GetNextIndent());
 	}
 	else
 	{
@@ -463,24 +430,30 @@ void BoxSelectionRepresentation2D::PrintSelf(ostream& os, vtkIndent indent)
 	os << indent << "Minimum Size: " << this->MinimumSize[0] << " " << this->MinimumSize[1] << endl;
 	os << indent << "Maximum Size: " << this->MaximumSize[0] << " " << this->MaximumSize[1] << endl;
 
-	os << indent << "Minimum Selection: " << this->MinimumSelection[0] << " " << this->MinimumSelection[1] << endl;
-	os << indent << "Maximum Selection: " << this->MaximumSelection[0] << " " << this->MaximumSelection[1] << endl;
+	os << indent << "Minimum Selection: " << this->MinimumSelectionSize[0] << " " << this->MinimumSelectionSize[1] << endl;
+	os << indent << "Maximum Selection: " << this->MaximumSelectionSize[0] << " " << this->MaximumSelectionSize[1] << endl;
 
 	os << indent << "Moving: " << (this->Moving ? "On\n" : "Off\n");
 	os << indent << "Tolerance: " << this->_tolerance << "\n";
 
-	os << indent << "Selection Point: (" << this->SelectionPoint[0] << "," << this->SelectionPoint[1] << "}\n";
+	os << indent << "Selection Point: (" << this->_selectionPoint[0] << "," << this->_selectionPoint[1] << "}\n";
 }
 
 void BoxSelectionRepresentation2D::TransformToWorldCoordinates(double *x, double *y)
 {
-	double data[4] = { *x, *y , 0.0, 1.0 };
-	this->Renderer->SetDisplayPoint(*x,*y,0);
-	this->Renderer->DisplayToWorld();
-	this->Renderer->GetWorldPoint(data);
+    vtkSmartPointer<vtkCoordinate> coords = vtkSmartPointer<vtkCoordinate>::New();
 
-	*x = data[0];
-	*y = data[1];
+    coords->SetViewport(this->Renderer);
+    coords->SetCoordinateSystemToDisplay();
+
+    double xy[3] = { *x, *y, 0.0 };
+    double *value;
+
+    coords->SetValue(xy);
+    value = coords->GetComputedWorldValue(this->Renderer);
+
+	*x = value[0];
+	*y = value[1];
 }
 
 // NOTE: we know that x is smaller than y, always

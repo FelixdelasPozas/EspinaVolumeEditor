@@ -17,7 +17,7 @@
 #include <vtkStructuredPoints.h>
 #include <vtkImageChangeInformation.h>
 #include <vtkImageClip.h>
-#include <vtkBorderWidget.h>
+#include <vtkBoxRepresentation.h>
 #include <vtkBoxWidget2.h>
 
 // project includes
@@ -26,6 +26,7 @@
 #include "DataManager.h"
 #include "BoxSelectionWidget.h"
 #include "BoxSelectionRepresentation2D.h"
+#include "BoxSelectionRepresentation3D.h"
 
 // c++ includes
 #include <vector>
@@ -169,7 +170,13 @@ class Selection
         vtkSmartPointer<BoxSelectionWidget>					_axialBoxWidget;
         vtkSmartPointer<BoxSelectionWidget>					_coronalBoxWidget;
         vtkSmartPointer<BoxSelectionWidget>					_sagittalBoxWidget;
+
+        // box selection representation for 3d render
+        BoxSelectionRepresentation3D						*_boxRender;
+
+        // callback for box selection interaction
         vtkSmartPointer<vtkCallbackCommand> 				_boxWidgetsCallback;
+
 };
 
 #endif // _SELECTION_H_

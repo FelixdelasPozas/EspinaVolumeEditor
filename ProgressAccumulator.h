@@ -56,7 +56,7 @@ class ProgressAccumulator
         typedef vtkCallbackCommand VTKCommandType;
 
         // constructor
-        ProgressAccumulator(QApplication *app);
+        ProgressAccumulator();
         ~ProgressAccumulator();
 
         // sets the progress bar that this class will use
@@ -109,9 +109,6 @@ class ProgressAccumulator
         // Qt elements to show progress
         QProgressBar                       *_progressBar;
         QLabel                             *_progressLabel;
-        
-        // to force the processing of events
-        QApplication                       *_qApp;
 };
 
 #endif // _TOTAL_PROGRESS_H_

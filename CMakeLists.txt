@@ -48,7 +48,7 @@ SET(Libraries
   ${QT_LIBRARIES}
 )
 
-SET(CurrentFiles "Editor" "SliceVisualization" "UndoRedoSystem" "EditorOperations" "ProgressAccumulator" "Coordinates" "VoxelVolumeRender" "DataManager" "AxesRender" "Metadata" "SaveSession" "Selection" "BoxSelectionRepresentation2D" "BoxSelectionWidget")
+SET(CurrentFiles "Editor" "SliceVisualization" "UndoRedoSystem" "EditorOperations" "ProgressAccumulator" "Coordinates" "VoxelVolumeRender" "DataManager" "AxesRender" "Metadata" "SaveSession" "Selection" "BoxSelectionRepresentation2D" "BoxSelectionWidget" "BoxSelectionRepresentation3D")
 ADD_EXECUTABLE(Editor ${CurrentFiles}.cxx ${QtSrcs} ${MOCSrcs} ${QtResources_CXX})
 TARGET_LINK_LIBRARIES(Editor ${Libraries})
 SET_TARGET_PROPERTIES(Editor PROPERTIES OUTPUT_NAME EspinaEditor)
@@ -60,7 +60,7 @@ SET(CPACK_DEBIAN_PACKAGE_NAME "EspinaVolumeEditor")
 SET(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
 SET(CPACK_PACKAGE_VERSION_MAJOR "1")
 SET(CPACK_PACKAGE_VERSION_MINOR "0")
-SET(CPACK_PACKAGE_VERSION_PATCH "4")
+SET(CPACK_PACKAGE_VERSION_PATCH "5")
 SET(CPACK_DEBIAN_ARCHITECTURE ${CMAKE_SYSTEM_PROCESSOR})
 SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Volume editor for Espina segmentation tool")
 SET(CPACK_PACKAGE_DESCRIPTION "Volume editor for Espina segmentation tool")

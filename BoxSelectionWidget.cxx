@@ -38,74 +38,43 @@ vtkStandardNewMacro(BoxSelectionWidget);
 BoxSelectionWidget::BoxSelectionWidget()
 {
 	this->WidgetState = BoxSelectionWidget::Start;
-	this->Resizable = 1;
+	this->_changedCursor = false;
 
 	this->CallbackMapper->SetCallbackMethod(vtkCommand::LeftButtonPressEvent, vtkWidgetEvent::Select, this, BoxSelectionWidget::SelectAction);
 	this->CallbackMapper->SetCallbackMethod(vtkCommand::LeftButtonReleaseEvent, vtkWidgetEvent::EndSelect, this, BoxSelectionWidget::EndSelectAction);
-	this->CallbackMapper->SetCallbackMethod(vtkCommand::MiddleButtonPressEvent, vtkWidgetEvent::Translate, this, BoxSelectionWidget::TranslateAction);
-	this->CallbackMapper->SetCallbackMethod(vtkCommand::MiddleButtonReleaseEvent, vtkWidgetEvent::EndSelect, this, BoxSelectionWidget::EndSelectAction);
 	this->CallbackMapper->SetCallbackMethod(vtkCommand::MouseMoveEvent, vtkWidgetEvent::Move, this, BoxSelectionWidget::MoveAction);
 }
 
 BoxSelectionWidget::~BoxSelectionWidget()
 {
+	// restores default qt cursor if it has been changed at the time of executing destructor
+	this->SetEnabled(false);
 }
 
 void BoxSelectionWidget::SetCursor(int cState)
 {
-	static bool cursorChanged = false;
-
-	if (!this->Resizable && cState != BoxSelectionRepresentation2D::Inside)
+	if (!this->_changedCursor && cState != BoxSelectionRepresentation2D::Outside)
 	{
-		if (cursorChanged)
-		{
-			cursorChanged = false;
-			QApplication::restoreOverrideCursor();
-		}
-		return;
+		this->_changedCursor = true;
+		QApplication::setOverrideCursor(Qt::CrossCursor);
 	}
 
 	switch (cState)
 	{
 		case BoxSelectionRepresentation2D::AdjustingP0:
-			if (!cursorChanged)
-			{
-				cursorChanged = true;
-				QApplication::setOverrideCursor(Qt::CrossCursor);
-			}
 			this->RequestCursorShape(VTK_CURSOR_SIZESW);
 			break;
 		case BoxSelectionRepresentation2D::AdjustingP1:
-			if (!cursorChanged)
-			{
-				cursorChanged = true;
-				QApplication::setOverrideCursor(Qt::CrossCursor);
-			}
 			this->RequestCursorShape(VTK_CURSOR_SIZESE);
 			break;
 		case BoxSelectionRepresentation2D::AdjustingP2:
-			if (!cursorChanged)
-			{
-				cursorChanged = true;
-				QApplication::setOverrideCursor(Qt::CrossCursor);
-			}
 			this->RequestCursorShape(VTK_CURSOR_SIZENE);
 			break;
 		case BoxSelectionRepresentation2D::AdjustingP3:
-			if (!cursorChanged)
-			{
-				cursorChanged = true;
-				QApplication::setOverrideCursor(Qt::CrossCursor);
-			}
 			this->RequestCursorShape(VTK_CURSOR_SIZENW);
 			break;
 		case BoxSelectionRepresentation2D::AdjustingE0:
 		case BoxSelectionRepresentation2D::AdjustingE2:
-			if (!cursorChanged)
-			{
-				cursorChanged = true;
-				QApplication::setOverrideCursor(Qt::CrossCursor);
-			}
 			this->RequestCursorShape(VTK_CURSOR_SIZENS);
 			break;
 		case BoxSelectionRepresentation2D::AdjustingE1:
@@ -113,20 +82,15 @@ void BoxSelectionWidget::SetCursor(int cState)
 			this->RequestCursorShape(VTK_CURSOR_SIZEWE);
 			break;
 		case BoxSelectionRepresentation2D::Inside:
-			if (!cursorChanged)
-			{
-				cursorChanged = true;
-				QApplication::setOverrideCursor(Qt::CrossCursor);
-			}
 			if (reinterpret_cast<BoxSelectionRepresentation2D*>(this->WidgetRep)->GetMoving())
 				this->RequestCursorShape(VTK_CURSOR_SIZEALL);
 			else
 				this->RequestCursorShape(VTK_CURSOR_HAND);
 			break;
 		default:
-			if (cursorChanged)
+			if (this->_changedCursor)
 			{
-				cursorChanged = false;
+				this->_changedCursor = false;
 				QApplication::restoreOverrideCursor();
 			}
 			break;
@@ -206,26 +170,17 @@ void BoxSelectionWidget::MoveAction(vtkAbstractWidget *w)
 	// Set the cursor appropriately
 	if (self->WidgetState == BoxSelectionWidget::Start)
 	{
-		int stateBefore = self->WidgetRep->GetInteractionState();
 		self->WidgetRep->ComputeInteractionState(X, Y);
-		int stateAfter = self->WidgetRep->GetInteractionState();
-		self->SetCursor(stateAfter);
+		int state = self->WidgetRep->GetInteractionState();
+		self->SetCursor(state);
 
-		if (stateAfter != BoxSelectionRepresentation2D::Inside)
+		if (state != BoxSelectionRepresentation2D::Inside)
 			reinterpret_cast<BoxSelectionRepresentation2D*>(self->WidgetRep)->MovingOff();
 		else
 			reinterpret_cast<BoxSelectionRepresentation2D*>(self->WidgetRep)->MovingOn();
 
-		if (reinterpret_cast<BoxSelectionRepresentation2D*>(self->WidgetRep)->GetShowBorder() == BoxSelectionRepresentation2D::BORDER_ACTIVE && stateBefore != stateAfter
-				&& (stateBefore == BoxSelectionRepresentation2D::Outside || stateAfter == BoxSelectionRepresentation2D::Outside))
-		{
-			self->Render();
-		}
 		return;
 	}
-
-	if (!self->Resizable && self->WidgetRep->GetInteractionState() != BoxSelectionRepresentation2D::Inside)
-		return;
 
 	// Okay, adjust the representation (the widget is currently selected)
 	double eventPos[2] = { static_cast<double>(X), static_cast<double>(Y)};
@@ -262,9 +217,6 @@ void BoxSelectionWidget::EndSelectAction(vtkAbstractWidget *w)
 	self->WidgetState = BoxSelectionWidget::Start;
 	reinterpret_cast<BoxSelectionRepresentation2D*>(self->WidgetRep)->MovingOff();
 
-	// TODO: quitar este Render() y ponerlo en selection::
-	self->Interactor->GetRenderWindow()->Render();
-
 	// stop adjusting
 	self->EventCallbackCommand->SetAbortFlag(1);
 	self->EndInteraction();
@@ -281,5 +233,16 @@ void BoxSelectionWidget::PrintSelf(ostream& os, vtkIndent indent)
 {
 	this->Superclass::PrintSelf(os, indent);
 
-	os << indent << "Resizable: " << (this->Resizable ? "On\n" : "Off\n");
+	os << indent << "Resizable: On\n";
+}
+
+void BoxSelectionWidget::SetEnabled(int value)
+{
+	this->Superclass::SetEnabled(value);
+
+	if ((false == value) && (true == this->_changedCursor))
+	{
+		QApplication::restoreOverrideCursor();
+		this->_changedCursor = false;
+	}
 }

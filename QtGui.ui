@@ -773,7 +773,7 @@ QGroupBox::title {
             </size>
            </property>
            <property name="toolTip">
-            <string>Selection tool</string>
+            <string>Box selection tool</string>
            </property>
            <property name="statusTip">
             <string>Select a region of the volume</string>
@@ -853,12 +853,6 @@ QGroupBox::title {
           <widget class="QToolButton" name="relabelbutton">
            <property name="enabled">
             <bool>false</bool>
-           </property>
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
            </property>
            <property name="minimumSize">
             <size>
@@ -984,6 +978,100 @@ QGroupBox::title {
            </property>
           </widget>
          </item>
+         <item row="2" column="0">
+          <widget class="QToolButton" name="lassoButton">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>32</width>
+             <height>32</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>32</width>
+             <height>32</height>
+            </size>
+           </property>
+           <property name="toolTip">
+            <string>Lasso selection</string>
+           </property>
+           <property name="statusTip">
+            <string>Select a region of the volume using lasso selection</string>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+           <property name="icon">
+            <iconset resource="editor.qrc">
+             <normaloff>:/newPrefix/icons/lasso.png</normaloff>:/newPrefix/icons/lasso.png</iconset>
+           </property>
+           <property name="iconSize">
+            <size>
+             <width>24</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="checkable">
+            <bool>true</bool>
+           </property>
+           <property name="autoExclusive">
+            <bool>true</bool>
+           </property>
+           <property name="autoRaise">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="2">
+          <widget class="QToolButton" name="polygonButton">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>32</width>
+             <height>32</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>32</width>
+             <height>32</height>
+            </size>
+           </property>
+           <property name="toolTip">
+            <string>Polygon selection</string>
+           </property>
+           <property name="statusTip">
+            <string>Select a region of the volume using polygon selection</string>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+           <property name="icon">
+            <iconset resource="editor.qrc">
+             <normaloff>:/newPrefix/icons/polygon.png</normaloff>:/newPrefix/icons/polygon.png</iconset>
+           </property>
+           <property name="iconSize">
+            <size>
+             <width>24</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="checkable">
+            <bool>true</bool>
+           </property>
+           <property name="autoExclusive">
+            <bool>true</bool>
+           </property>
+           <property name="autoRaise">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
         </layout>
        </widget>
       </item>
@@ -1023,14 +1111,14 @@ QGroupBox::title {
            </property>
            <property name="minimumSize">
             <size>
-             <width>30</width>
-             <height>30</height>
+             <width>32</width>
+             <height>32</height>
             </size>
            </property>
            <property name="maximumSize">
             <size>
-             <width>30</width>
-             <height>30</height>
+             <width>32</width>
+             <height>32</height>
             </size>
            </property>
            <property name="toolTip">
@@ -1067,14 +1155,14 @@ QGroupBox::title {
            </property>
            <property name="minimumSize">
             <size>
-             <width>30</width>
-             <height>30</height>
+             <width>32</width>
+             <height>32</height>
             </size>
            </property>
            <property name="maximumSize">
             <size>
-             <width>30</width>
-             <height>30</height>
+             <width>32</width>
+             <height>32</height>
             </size>
            </property>
            <property name="toolTip">
@@ -1108,14 +1196,14 @@ QGroupBox::title {
            </property>
            <property name="minimumSize">
             <size>
-             <width>30</width>
-             <height>30</height>
+             <width>32</width>
+             <height>32</height>
             </size>
            </property>
            <property name="maximumSize">
             <size>
-             <width>30</width>
-             <height>30</height>
+             <width>32</width>
+             <height>32</height>
             </size>
            </property>
            <property name="toolTip">
@@ -1155,14 +1243,14 @@ QGroupBox::title {
            </property>
            <property name="minimumSize">
             <size>
-             <width>30</width>
-             <height>30</height>
+             <width>32</width>
+             <height>32</height>
             </size>
            </property>
            <property name="maximumSize">
             <size>
-             <width>30</width>
-             <height>30</height>
+             <width>32</width>
+             <height>32</height>
             </size>
            </property>
            <property name="toolTip">
@@ -1196,14 +1284,14 @@ QGroupBox::title {
            </property>
            <property name="minimumSize">
             <size>
-             <width>30</width>
-             <height>30</height>
+             <width>32</width>
+             <height>32</height>
             </size>
            </property>
            <property name="maximumSize">
             <size>
-             <width>30</width>
-             <height>30</height>
+             <width>32</width>
+             <height>32</height>
             </size>
            </property>
            <property name="toolTip">
@@ -1224,6 +1312,53 @@ QGroupBox::title {
              <width>24</width>
              <height>24</height>
             </size>
+           </property>
+           <property name="autoRaise">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QToolButton" name="watershedmarkersoperation">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>32</width>
+             <height>32</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>32</width>
+             <height>32</height>
+            </size>
+           </property>
+           <property name="toolTip">
+            <string>Watershed with markers filter</string>
+           </property>
+           <property name="statusTip">
+            <string>Apply watershed filter to selected label selecting marker points first</string>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+           <property name="icon">
+            <iconset resource="editor.qrc">
+             <normaloff>:/newPrefix/icons/watershedWithMarkers.png</normaloff>:/newPrefix/icons/watershedWithMarkers.png</iconset>
+           </property>
+           <property name="iconSize">
+            <size>
+             <width>24</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="checkable">
+            <bool>true</bool>
+           </property>
+           <property name="autoExclusive">
+            <bool>true</bool>
            </property>
            <property name="autoRaise">
             <bool>true</bool>
@@ -1984,7 +2119,7 @@ QGroupBox::title {
      <x>0</x>
      <y>0</y>
      <width>770</width>
-     <height>21</height>
+     <height>25</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu_Menu">

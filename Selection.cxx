@@ -18,9 +18,8 @@
 #include <vtkWidgetRepresentation.h>
 #include <vtkBoxRepresentation.h>
 #include <vtkRenderWindow.h>
-
 #include <vtkRenderWindowInteractor.h>
-#include <vtkWidgetEvent.h>
+#include <vtkCommand.h>
 
 // itk includes
 #include <itkConnectedThresholdImageFilter.h>
@@ -55,6 +54,7 @@ Selection::Selection()
     this->_axialBoxWidget = NULL;
     this->_coronalBoxWidget = NULL;
     this->_sagittalBoxWidget = NULL;
+    this->_boxRender = NULL;
 }
 Selection::~Selection()
 {
@@ -95,94 +95,110 @@ void Selection::Initialize(Coordinates *orientation, vtkSmartPointer<vtkRenderer
 
 void Selection::AddSelectionPoint(const Vector3ui point)
 {
+	double bounds[6];
+
     // how many points do we have?
     switch (this->_selectedPoints.size())
     {
         case 0:
         	this->_selectionType = CUBE;
         	this->_selectedPoints.push_back(point);
+        	this->ComputeSelectionBounds();
 
-        	// initialize selection widgets
-        	this->_axialView->GetViewRenderer()->ViewToWorld();
+        	// 3D representation of the box
+        	this->_boxRender = new BoxSelectionRepresentation3D();
+        	this->_boxRender->SetRenderer(this->_renderer);
+
+        	bounds[0] = (static_cast<double>(this->_min[0])-0.5)*this->_spacing[0];
+        	bounds[1] = (static_cast<double>(this->_max[0])+0.5)*this->_spacing[0];
+        	bounds[2] = (static_cast<double>(this->_min[1])-0.5)*this->_spacing[1];
+        	bounds[3] = (static_cast<double>(this->_max[1])+0.5)*this->_spacing[1];
+        	bounds[4] = (static_cast<double>(this->_min[2])-0.5)*this->_spacing[2];
+        	bounds[5] = (static_cast<double>(this->_max[2])+0.5)*this->_spacing[2];
+        	this->_boxRender->PlaceBox(bounds);
+
+        	// initialize 2D selection widgets
         	this->_axialBoxRepresentation = vtkSmartPointer<BoxSelectionRepresentation2D>::New();
-        	this->_axialBoxRepresentation->SetMinimumSelection(-(this->_spacing[0]/2.0), -(this->_spacing[1]/2.0));
-        	this->_axialBoxRepresentation->SetMaximumSelection((static_cast<double>(this->_size[0])+0.5)*this->_spacing[0], (static_cast<double>(this->_size[1])+0.5)*this->_spacing[1]);
+        	this->_axialBoxRepresentation->SetMinimumSelectionSize(-(this->_spacing[0]/2.0), -(this->_spacing[1]/2.0));
+        	this->_axialBoxRepresentation->SetMaximumSelectionSize((static_cast<double>(this->_size[0])+0.5)*this->_spacing[0], (static_cast<double>(this->_size[1])+0.5)*this->_spacing[1]);
         	this->_axialBoxRepresentation->SetMinimumSize(this->_spacing[0], this->_spacing[1]);
         	this->_axialBoxRepresentation->SetSpacing(this->_spacing[0], this->_spacing[1]);
         	this->_axialBoxRepresentation->SetBoxCoordinates(point[0], point[1], point[0], point[1]);
         	this->_axialBoxWidget = vtkSmartPointer<BoxSelectionWidget>::New();
         	this->_axialBoxWidget->SetInteractor(this->_axialView->GetViewRenderer()->GetRenderWindow()->GetInteractor());
         	this->_axialBoxWidget->SetRepresentation(this->_axialBoxRepresentation);
-        	this->_axialBoxWidget->On();
+        	this->_axialBoxWidget->SetEnabled(true);
 
         	this->_coronalBoxRepresentation = vtkSmartPointer<BoxSelectionRepresentation2D>::New();
-        	this->_coronalBoxRepresentation->SetMinimumSelection(-(this->_spacing[0]/2.0), -(this->_spacing[2]/2.0));
-        	this->_coronalBoxRepresentation->SetMaximumSelection((static_cast<double>(this->_size[0])+0.5)*this->_spacing[0], (static_cast<double>(this->_size[2])+0.5)*this->_spacing[2]);
+        	this->_coronalBoxRepresentation->SetMinimumSelectionSize(-(this->_spacing[0]/2.0), -(this->_spacing[2]/2.0));
+        	this->_coronalBoxRepresentation->SetMaximumSelectionSize((static_cast<double>(this->_size[0])+0.5)*this->_spacing[0], (static_cast<double>(this->_size[2])+0.5)*this->_spacing[2]);
         	this->_coronalBoxRepresentation->SetMinimumSize(this->_spacing[0], this->_spacing[2]);
         	this->_coronalBoxRepresentation->SetSpacing(this->_spacing[0], this->_spacing[2]);
         	this->_coronalBoxRepresentation->SetBoxCoordinates(point[0], point[2], point[0], point[2]);
         	this->_coronalBoxWidget = vtkSmartPointer<BoxSelectionWidget>::New();
         	this->_coronalBoxWidget->SetInteractor(this->_coronalView->GetViewRenderer()->GetRenderWindow()->GetInteractor());
         	this->_coronalBoxWidget->SetRepresentation(this->_coronalBoxRepresentation);
-        	this->_coronalBoxWidget->On();
+        	this->_coronalBoxWidget->SetEnabled(true);
 
         	this->_sagittalBoxRepresentation = vtkSmartPointer<BoxSelectionRepresentation2D>::New();
-        	this->_sagittalBoxRepresentation->SetMinimumSelection(-(this->_spacing[1]/2.0), -(this->_spacing[2]/2.0));
-        	this->_sagittalBoxRepresentation->SetMaximumSelection((static_cast<double>(this->_size[1])+0.5)*this->_spacing[1], (static_cast<double>(this->_size[2])+0.5)*this->_spacing[2]);
+        	this->_sagittalBoxRepresentation->SetMinimumSelectionSize(-(this->_spacing[1]/2.0), -(this->_spacing[2]/2.0));
+        	this->_sagittalBoxRepresentation->SetMaximumSelectionSize((static_cast<double>(this->_size[1])+0.5)*this->_spacing[1], (static_cast<double>(this->_size[2])+0.5)*this->_spacing[2]);
         	this->_sagittalBoxRepresentation->SetMinimumSize(this->_spacing[1], this->_spacing[2]);
         	this->_sagittalBoxRepresentation->SetSpacing(this->_spacing[1], this->_spacing[2]);
         	this->_sagittalBoxRepresentation->SetBoxCoordinates(point[1], point[2], point[1], point[2]);
-        	this->_sagittalBoxWidget = BoxSelectionWidget::New();
+        	this->_sagittalBoxWidget = vtkSmartPointer<BoxSelectionWidget>::New();
         	this->_sagittalBoxWidget->SetInteractor(this->_sagittalView->GetViewRenderer()->GetRenderWindow()->GetInteractor());
         	this->_sagittalBoxWidget->SetRepresentation(this->_sagittalBoxRepresentation);
-        	this->_sagittalBoxWidget->On();
+        	this->_sagittalBoxWidget->SetEnabled(true);
 
         	// set callbacks for widget interaction
         	this->_boxWidgetsCallback = vtkSmartPointer<vtkCallbackCommand>::New();
         	this->_boxWidgetsCallback->SetCallback(this->BoxSelectionWidgetCallback);
         	this->_boxWidgetsCallback->SetClientData(this);
+
         	this->_axialBoxWidget->AddObserver(vtkCommand::StartInteractionEvent, this->_boxWidgetsCallback);
-        	this->_coronalBoxWidget->AddObserver(vtkCommand::StartInteractionEvent, this->_boxWidgetsCallback);
-        	this->_sagittalBoxWidget->AddObserver(vtkCommand::StartInteractionEvent, this->_boxWidgetsCallback);
         	this->_axialBoxWidget->AddObserver(vtkCommand::EndInteractionEvent, this->_boxWidgetsCallback);
-        	this->_coronalBoxWidget->AddObserver(vtkCommand::EndInteractionEvent, this->_boxWidgetsCallback);
-        	this->_sagittalBoxWidget->AddObserver(vtkCommand::EndInteractionEvent, this->_boxWidgetsCallback);
-        	this->_axialBoxWidget->AddObserver(vtkWidgetEvent::Translate, this->_boxWidgetsCallback);
-        	this->_coronalBoxWidget->AddObserver(vtkWidgetEvent::Translate, this->_boxWidgetsCallback);
-        	this->_sagittalBoxWidget->AddObserver(vtkWidgetEvent::Translate, this->_boxWidgetsCallback);
         	this->_axialBoxWidget->AddObserver(vtkCommand::InteractionEvent, this->_boxWidgetsCallback);
+
+        	this->_coronalBoxWidget->AddObserver(vtkCommand::StartInteractionEvent, this->_boxWidgetsCallback);
+        	this->_coronalBoxWidget->AddObserver(vtkCommand::EndInteractionEvent, this->_boxWidgetsCallback);
         	this->_coronalBoxWidget->AddObserver(vtkCommand::InteractionEvent, this->_boxWidgetsCallback);
+
+        	this->_sagittalBoxWidget->AddObserver(vtkCommand::StartInteractionEvent, this->_boxWidgetsCallback);
+        	this->_sagittalBoxWidget->AddObserver(vtkCommand::EndInteractionEvent, this->_boxWidgetsCallback);
         	this->_sagittalBoxWidget->AddObserver(vtkCommand::InteractionEvent, this->_boxWidgetsCallback);
 
-        	// make the slices aware of a selection box, so they could hide and show it accordingly
+        	// make the slices aware of a selection box, so they could hide and show it accordingly when the slice changes
         	this->_axialView->SetBoxSelectionWidget(this->_axialBoxWidget);
         	this->_coronalView->SetBoxSelectionWidget(this->_coronalBoxWidget);
         	this->_sagittalView->SetBoxSelectionWidget(this->_sagittalBoxWidget);
-
-        	this->ComputeSelectionBounds();
-            break;
-        case 2:
-        	this->_selectedPoints.pop_back();
-        	this->_selectedPoints.push_back(point);
-        	this->ComputeSelectionBounds();
-
-        	// update widget representations
-        	this->_axialBoxWidget->SetEnabled(false);
-        	this->_axialBoxRepresentation->SetBoxCoordinates(this->_min[0], this->_min[1], this->_max[0], this->_max[1]);
-        	this->_coronalBoxRepresentation->SetBoxCoordinates(this->_min[0], this->_min[2], this->_max[0], this->_max[2]);
-        	this->_sagittalBoxRepresentation->SetBoxCoordinates(this->_min[1], this->_min[2], this->_max[1], this->_max[2]);
-        	this->_axialBoxWidget->SetEnabled(true);
             break;
         default:
+        	// cases for sizes 1 and 2, "nearly" identical except a pop_back() in case 2
+        	if (this->_selectedPoints.size() == 2)
+        		this->_selectedPoints.pop_back();
+
             this->_selectedPoints.push_back(point);
             this->ComputeSelectionBounds();
 
+        	bounds[0] = (static_cast<double>(this->_min[0])-0.5)*this->_spacing[0];
+        	bounds[1] = (static_cast<double>(this->_max[0])+0.5)*this->_spacing[0];
+        	bounds[2] = (static_cast<double>(this->_min[1])-0.5)*this->_spacing[1];
+        	bounds[3] = (static_cast<double>(this->_max[1])+0.5)*this->_spacing[1];
+        	bounds[4] = (static_cast<double>(this->_min[2])-0.5)*this->_spacing[2];
+        	bounds[5] = (static_cast<double>(this->_max[2])+0.5)*this->_spacing[2];
+        	this->_boxRender->PlaceBox(bounds);
+
         	// update widget representations
             this->_axialBoxWidget->SetEnabled(false);
+            this->_coronalBoxWidget->SetEnabled(false);
+            this->_sagittalBoxWidget->SetEnabled(false);
         	this->_axialBoxRepresentation->SetBoxCoordinates(this->_min[0], this->_min[1], this->_max[0], this->_max[1]);
         	this->_coronalBoxRepresentation->SetBoxCoordinates(this->_min[0], this->_min[2], this->_max[0], this->_max[2]);
         	this->_sagittalBoxRepresentation->SetBoxCoordinates(this->_min[1], this->_min[2], this->_max[1], this->_max[2]);
         	this->_axialBoxWidget->SetEnabled(true);
+        	this->_coronalBoxWidget->SetEnabled(true);
+        	this->_sagittalBoxWidget->SetEnabled(true);
             break;
     }
 
@@ -285,15 +301,20 @@ void Selection::ClearSelection(void)
 
     if (this->_selectionType == CUBE)
     {
-		this->_axialBoxRepresentation = NULL;
+    	this->_axialView->SetBoxSelectionWidget(NULL);
+    	this->_coronalView->SetBoxSelectionWidget(NULL);
+    	this->_sagittalView->SetBoxSelectionWidget(NULL);
+
 		this->_axialBoxWidget = NULL;
-		this->_axialView->SetBoxSelectionWidget(NULL);
-		this->_coronalBoxRepresentation = NULL;
+		this->_axialBoxRepresentation = NULL;
+
 		this->_coronalBoxWidget = NULL;
-		this->_coronalView->SetBoxSelectionWidget(NULL);
-		this->_sagittalBoxRepresentation = NULL;
+		this->_coronalBoxRepresentation = NULL;
+
 		this->_sagittalBoxWidget = NULL;
-		this->_sagittalView->SetBoxSelectionWidget(NULL);
+		this->_sagittalBoxRepresentation = NULL;
+
+		delete this->_boxRender;
     }
 
 	// clear selection points and bounds
@@ -626,7 +647,7 @@ void Selection::ComputeActor(vtkSmartPointer<vtkImageData> volume)
     vtkSmartPointer<vtkTransformTextureCoords> textureTrans = vtkSmartPointer<vtkTransformTextureCoords>::New();
     textureTrans->SetInputConnection(textureMapper->GetOutputPort());
     textureTrans->SetGlobalWarningDisplay(false);
-    textureTrans->SetScale(_size[0], _size[1], _size[2]);
+    textureTrans->SetScale(this->_size[0], this->_size[1], this->_size[2]);
 
 	// model mapper
     vtkSmartPointer<vtkPolyDataMapper> polydataMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
@@ -848,7 +869,6 @@ void Selection::BoxSelectionWidgetCallback (vtkObject *caller, unsigned long eve
 	unsigned int pos1i[2] = { floor(pos1[0]/spacing[0]) + 1, floor(pos1[1]/spacing[1]) + 1 };
 	unsigned int pos2i[2] = { floor(pos2[0]/spacing[0]), floor(pos2[1]/spacing[1]) };
 
-
 	if (self->_axialBoxWidget == callerWidget)
 	{
 		// axial coordinates refer to first and second 3D coordinates
@@ -906,8 +926,18 @@ void Selection::BoxSelectionWidgetCallback (vtkObject *caller, unsigned long eve
 		}
 	}
 
+	self->ComputeSelectionCube();
+
+	double bounds[6] = {
+			(static_cast<double>(self->_min[0])-0.5)*self->_spacing[0], (static_cast<double>(self->_max[0])+0.5)*self->_spacing[0], (static_cast<double>(self->_min[1])-0.5)*self->_spacing[1],
+			(static_cast<double>(self->_max[1])+0.5)*self->_spacing[1], (static_cast<double>(self->_min[2])-0.5)*self->_spacing[2], (static_cast<double>(self->_max[2])+0.5)*self->_spacing[2]  };
+	self->_boxRender->PlaceBox(bounds);
+
+	// update renderers, but only update the 3D render when the widget interaction has finished to avoid performance problems
 	self->_axialBoxWidget->GetInteractor()->GetRenderWindow()->Render();
 	self->_coronalBoxWidget->GetInteractor()->GetRenderWindow()->Render();
 	self->_sagittalBoxWidget->GetInteractor()->GetRenderWindow()->Render();
-	self->ComputeSelectionCube();
+
+	if (event == vtkCommand::EndInteractionEvent)
+		self->_renderer->GetRenderWindow()->Render();
 }

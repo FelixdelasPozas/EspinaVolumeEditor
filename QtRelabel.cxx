@@ -41,8 +41,8 @@ void QtRelabel::SetInitialOptions(std::set<unsigned short> labels, Metadata* dat
     QColor color;
 
     newlabelbox->setSelectionMode(QAbstractItemView::SingleSelection);
-    _maxcolors = dataManager->GetNumberOfLabels();
-    _multipleLabels = (labels.size() > 1);
+    this->_maxcolors = dataManager->GetNumberOfLabels();
+    this->_multipleLabels = (labels.size() > 1);
 
     if (labels.size() > 1)
 	{
@@ -75,8 +75,7 @@ void QtRelabel::SetInitialOptions(std::set<unsigned short> labels, Metadata* dat
 
 		if (labels.size() == 1)
 		{
-			std::set<unsigned short>::iterator it = labels.begin();
-			tempLabel = static_cast<unsigned int>(*it);
+			tempLabel = labels.begin().operator *();
 
 			newlabelbox->insertItem(0, "Background");
 			dataManager->GetColorComponents(tempLabel, rgba);
@@ -91,13 +90,9 @@ void QtRelabel::SetInitialOptions(std::set<unsigned short> labels, Metadata* dat
 		else
 			selectionlabel->setText("Background voxels");
 
-		// color 0 is black, so we will start from 1
+		// color 0 is background, so we will start from 1
 		for (unsigned int i = 1; i < _maxcolors; i++)
 		{
-			// avoid showing the selected color
-			if (i == tempLabel)
-				continue;
-
 			dataManager->GetColorComponents(i, rgba);
 			color.setRgbF(rgba[0], rgba[1], rgba[2], 1);
 			icon.fill(color);
@@ -107,12 +102,12 @@ void QtRelabel::SetInitialOptions(std::set<unsigned short> labels, Metadata* dat
 			QListWidgetItem *item = new QListWidgetItem(QIcon(icon), QString(text.c_str()));
 			newlabelbox->addItem(item);
 
-			// hide already hidden/deleted labels
-			if (0LL == dataManager->GetNumberOfVoxelsForLabel(i))
+			// hide already hidden/deleted labels and the selected label
+			if (0LL == dataManager->GetNumberOfVoxelsForLabel(i) || (i == tempLabel))
 				item->setHidden(true);
 		}
 		newlabelbox->addItem("New label");
-		newlabelbox->setCurrentRow(_maxcolors-1);
+		newlabelbox->setCurrentRow(_maxcolors);
 	}
     
     connect(acceptbutton, SIGNAL(accepted()), this, SLOT(AcceptedData()));
@@ -120,37 +115,24 @@ void QtRelabel::SetInitialOptions(std::set<unsigned short> labels, Metadata* dat
 
 bool QtRelabel::ModifiedData()
 {
-    return _modified;
+    return this->_modified;
 }
 
 unsigned short QtRelabel::GetSelectedLabel()
 {
-    return static_cast<unsigned short>(_selectedLabel);
+    return static_cast<unsigned short int>(this->_selectedLabel);
 }
 
 void QtRelabel::AcceptedData()
 {
-    if (_multipleLabels)
-    {
-    	_selectedLabel = newlabelbox->currentRow();
-    	if (_selectedLabel == _maxcolors)
-    		_newlabel = true;
-    }
-    else
-    {
-		if (newlabelbox->currentRow() < _selectedLabel)
-			_selectedLabel = newlabelbox->currentRow();
-		else
-			_selectedLabel = newlabelbox->currentRow() + 1;
+    this->_selectedLabel = newlabelbox->currentRow();
+    if (this->_selectedLabel == _maxcolors)
+    		this->_newlabel = true;
 
-	    if (_selectedLabel == _maxcolors)
-	        _newlabel = true;
-    }
-
-    _modified = true;
+    this->_modified = true;
 }
 
 bool QtRelabel::IsNewLabel()
 {
-    return _newlabel;
+    return this->_newlabel;
 }

@@ -14,20 +14,22 @@
 //vtk includes
 #include <vtkAlgorithm.h>
 
+// qt includes
+#include <QApplication>
+
 // project includes
 #include "ProgressAccumulator.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // ProgressAccumulator class
 //
-ProgressAccumulator::ProgressAccumulator(QApplication *app)
+ProgressAccumulator::ProgressAccumulator()
 {
     _itkCommand = NULL;
     _vtkCommand = NULL;
     _progressBar = NULL;
     _progressLabel = NULL;
     _accumulatedProgress = 0;
-    _qApp = app;
 }
 
 ProgressAccumulator::~ProgressAccumulator()
@@ -44,7 +46,7 @@ void ProgressAccumulator::Reset()
     if (_progressLabel != NULL)
         _progressLabel->setText("Ready");
     
-    _qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
+    QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
 }
 
 void ProgressAccumulator::SetProgressBar(QProgressBar *pb, QLabel *pl)
@@ -78,7 +80,7 @@ void ProgressAccumulator::SetProgressBar(QProgressBar *pb, QLabel *pl)
     _progressBar->show();
     _progressBar->reset();
     
-    _qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
+    QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
 }
 
 void ProgressAccumulator::VTKProcessEvent(vtkObject *caller, unsigned long eid, void *clientdata, void *calldata)
@@ -118,13 +120,13 @@ void ProgressAccumulator::CallbackProgress(void* caller, double progress)
     
     const double value = tags->weight * progress * 100.0;
     _progressBar->setValue(static_cast<int>(value + _accumulatedProgress));
-    _qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
+    QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
 }
 
 void ProgressAccumulator::CallbackStart(void* caller)
 {
     _progressBar->setValue(static_cast<int>(_accumulatedProgress));
-    _qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
+    QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
 }
 
 void ProgressAccumulator::CallbackEnd(void* caller)
@@ -133,7 +135,7 @@ void ProgressAccumulator::CallbackEnd(void* caller)
     
     _accumulatedProgress += tags->weight * 100.0;
     _progressBar->setValue(static_cast<int>(_accumulatedProgress));
-    _qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
+    QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
 }
 
 void ProgressAccumulator::Observe(itk::Object *caller, std::string text, double weight)
@@ -154,8 +156,8 @@ void ProgressAccumulator::Observe(itk::Object *caller, std::string text, double 
     _observed.insert(std::make_pair(caller, tags));
     
     _progressLabel->setText(QString(tags->text.c_str()));
-    _qApp->setOverrideCursor(QCursor(Qt::WaitCursor));
-    _qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
+    QApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
+    QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
 }
 
 void ProgressAccumulator::Observe(vtkObject *caller, std::string text, double weight)
@@ -176,8 +178,8 @@ void ProgressAccumulator::Observe(vtkObject *caller, std::string text, double we
     _observed.insert(std::make_pair(caller, tags));
     
     _progressLabel->setText(QString(tags->text.c_str()));
-    _qApp->setOverrideCursor(QCursor(Qt::WaitCursor));
-    _qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
+    QApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
+    QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
 }
 
 void ProgressAccumulator::Ignore(itk::Object *caller)
@@ -189,7 +191,7 @@ void ProgressAccumulator::Ignore(itk::Object *caller)
     caller->RemoveObserver(tags->tagEnd);
     
     _observed.erase(caller);
-    _qApp->restoreOverrideCursor();
+    QApplication::restoreOverrideCursor();
 }
 
 void ProgressAccumulator::Ignore(vtkObject *caller)
@@ -201,7 +203,7 @@ void ProgressAccumulator::Ignore(vtkObject *caller)
     caller->RemoveObserver(tags->tagEnd);
     
     _observed.erase(caller);
-    _qApp->restoreOverrideCursor();
+    QApplication::restoreOverrideCursor();
 }
 
 void ProgressAccumulator::IgnoreAll()
@@ -218,7 +220,7 @@ void ProgressAccumulator::IgnoreAll()
         
         _observed.erase(obj);
     }
-    _qApp->restoreOverrideCursor();
+    QApplication::restoreOverrideCursor();
 }
 
 // value defaults to 0 so it's optional, see .h
@@ -229,8 +231,8 @@ void ProgressAccumulator::ManualSet(std::string text, int value, bool calledFrom
 
     if (!calledFromThread)
     {
-		_qApp->setOverrideCursor(QCursor(Qt::WaitCursor));
-		_qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
+    	QApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
+    	QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
     }
 }
 
@@ -240,7 +242,7 @@ void ProgressAccumulator::ManualUpdate(int value, bool calledFromThread)
 	_progressBar->update();
 
 	if (!calledFromThread)
-		_qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
+		QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
 }
 
 void ProgressAccumulator::ManualReset(bool calledFromThread)
@@ -255,7 +257,7 @@ void ProgressAccumulator::ManualReset(bool calledFromThread)
     
     if (!calledFromThread)
     {
-		_qApp->restoreOverrideCursor();
-		_qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
+    	QApplication::restoreOverrideCursor();
+    	QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
     }
 }

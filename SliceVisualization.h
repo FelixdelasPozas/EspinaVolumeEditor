@@ -101,7 +101,7 @@ class SliceVisualization
 
         // get a pointer to the box representation so we can hide and show it, also we need to
         // deactivate/reactivate the widget depending on the slice
-        void SetBoxSelectionWidget(BoxSelectionWidget *);
+        void SetBoxSelectionWidget(vtkSmartPointer<BoxSelectionWidget>);
     private:
         // private methods
         //
@@ -169,8 +169,8 @@ class SliceVisualization
         struct ActorData
         {
         		vtkSmartPointer<vtkActor> actor;
-        		unsigned int minSlice;
-        		unsigned int maxSlice;
+        		int minSlice;
+        		int maxSlice;
         		ActorData(): minSlice(0), maxSlice(0) { actor = NULL; };
         };
         // selection volumes actors vector
@@ -179,8 +179,8 @@ class SliceVisualization
         // hides or shows actors depending on the visibility
         void ModifyActorVisibility(struct ActorData*);
 
-        // box selection representation 2D
-        BoxSelectionWidget* _boxWidget;
+        // box selection representation 2D, just the box texture is handled here
+        vtkSmartPointer<BoxSelectionWidget>		_boxWidget;
 };
 
 #endif // _SLICEVISUALIZATION_H_

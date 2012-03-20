@@ -649,11 +649,13 @@ void SliceVisualization::ToggleSegmentationView(void)
 
 void SliceVisualization::ModifyActorVisibility(struct ActorData* actorInformation)
 {
-	unsigned int slice = 0;
+	int minSlice, maxSlice;
+	int slice = 0;
 
 	if (this->_segmentationHidden)
 	{
 		actorInformation->actor->SetVisibility(false);
+
 		if (this->_boxWidget)
 		{
 			this->_boxWidget->GetBorderRepresentation()->SetVisibility(false);
@@ -677,23 +679,32 @@ void SliceVisualization::ModifyActorVisibility(struct ActorData* actorInformatio
 	            break;
 	    }
 
-		if ((actorInformation->minSlice <= slice) && (actorInformation->maxSlice >= slice))
+	    minSlice = actorInformation->minSlice;
+	    maxSlice = actorInformation->maxSlice;
+
+		if ((minSlice <= slice) && (maxSlice >= slice))
 			actorInformation->actor->SetVisibility(true);
 		else
 			actorInformation->actor->SetVisibility(false);
 
-		// the -1/+1 compensate the fact that volumes have a +1 empty bounds in all directions
-		if ((actorInformation->minSlice <= (slice-1)) && (actorInformation->maxSlice >= (slice+1)) && this->_boxWidget)
+		if (this->_boxWidget)
 		{
-			this->_boxWidget->GetBorderRepresentation()->SetVisibility(true);
-			this->_boxWidget->SetEnabled(true);
-		}
-		else
-		{
-			this->_boxWidget->GetBorderRepresentation()->SetVisibility(false);
-			this->_boxWidget->SetEnabled(false);
-		}
+			// correct the fact that selection volumes has a minSlice-1 and maxSlice+1 for correct marching cubes
+			minSlice++;
+			maxSlice--;
 
+			if ((minSlice <= slice) && (maxSlice >= slice))
+			{
+				this->_boxWidget->GetBorderRepresentation()->SetVisibility(true);
+				this->_boxWidget->SetEnabled(true);
+			}
+			else
+			{
+				this->_boxWidget->GetBorderRepresentation()->SetVisibility(false);
+				this->_boxWidget->SetEnabled(false);
+			}
+
+		}
 	}
 }
 
@@ -755,8 +766,6 @@ void SliceVisualization::SetSelectionVolume(const vtkSmartPointer<vtkImageData> 
     actor->SetDragable(false);
     actor->UseBoundsOff();
 
-    // TODO: vtkActors change order of rendering in lower end machines when adding this one?
-    // remedy: use layers of actors?
 	this->_renderer->AddActor(actor);
 
     double bounds[6];
@@ -821,7 +830,7 @@ vtkSmartPointer<vtkRenderer> SliceVisualization::GetViewRenderer(void)
 	return this->_renderer;
 }
 
-void SliceVisualization::SetBoxSelectionWidget(BoxSelectionWidget *widget)
+void SliceVisualization::SetBoxSelectionWidget(vtkSmartPointer<BoxSelectionWidget> widget)
 {
 	this->_boxWidget = widget;
 }

@@ -396,7 +396,7 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
 	editorSettings.sync();
 
     // initialize editor progress bar
-    this->_progress = new ProgressAccumulator(app);
+    this->_progress = new ProgressAccumulator();
     this->_progress->SetProgressBar(progressBar, progressLabel);
     this->_progress->Reset();
 
@@ -674,7 +674,7 @@ void EspinaVolumeEditor::EditorOpen(void)
 		msgBox.setCaption("Unused objects detected");
 		msgBox.setIcon(QMessageBox::Warning);
 
-		qApp->restoreOverrideCursor();
+		QApplication::restoreOverrideCursor();
 		std::string text = std::string("The segmentation contains unused objects (with no voxels assigned).\nThose objects will be discarded.\n");
 		msgBox.setText(text.c_str());
 		std::string details = std::string("Unused objects: label ");
@@ -688,7 +688,7 @@ void EspinaVolumeEditor::EditorOpen(void)
 		}
 		msgBox.setDetailedText(details.c_str());
 		msgBox.exec();
-		qApp->setOverrideCursor(QCursor(Qt::WaitCursor));
+		QApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
 	}
 
 	// itklabelmap->itkimage
@@ -852,7 +852,7 @@ void EspinaVolumeEditor::LoadReferenceFile(QString filename)
     Vector3d segmentationorigin = _orientationData->GetImageOrigin();
     if (segmentationorigin != Vector3d(origin[0], origin[1], origin[2]))
     {
-    	qApp->restoreOverrideCursor();
+    	QApplication::restoreOverrideCursor();
     	std::stringstream out;
 		msgBox.setIcon(QMessageBox::Warning);
 		msgBox.setCaption("Segmentation origin mismatch");
@@ -863,7 +863,7 @@ void EspinaVolumeEditor::LoadReferenceFile(QString filename)
 		text += out.str();
 		msgBox.setText(text.c_str());
 		msgBox.exec();
-		qApp->setOverrideCursor(QCursor(Qt::WaitCursor));
+		QApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
     }
 
     double spacing[3];
@@ -871,7 +871,7 @@ void EspinaVolumeEditor::LoadReferenceFile(QString filename)
     Vector3d segmentationspacing = _orientationData->GetImageSpacing();
     if (segmentationspacing != Vector3d(spacing[0], spacing[1], spacing[2]))
     {
-    	qApp->restoreOverrideCursor();
+    	QApplication::restoreOverrideCursor();
     	std::stringstream out;
 		msgBox.setIcon(QMessageBox::Warning);
 		msgBox.setCaption("Segmentation spacing mismatch");
@@ -882,7 +882,7 @@ void EspinaVolumeEditor::LoadReferenceFile(QString filename)
 		text += out.str();
 		msgBox.setText(text.c_str());
 		msgBox.exec();
-		qApp->setOverrideCursor(QCursor(Qt::WaitCursor));
+		QApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
 	}
 
 	vtkSmartPointer<vtkImageChangeInformation> changer = vtkSmartPointer<vtkImageChangeInformation>::New();
@@ -965,7 +965,7 @@ void EspinaVolumeEditor::EditorSave()
     if (std::string::npos == (found = filenameStd.rfind(".segmha")))
     	filenameStd += std::string(".segmha");
 
-    qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
+    QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
     _editorOperations->SaveImage(filenameStd);
 
 	if (!_fileMetadata->Write(QString(filenameStd.c_str()), _dataManager))
@@ -1003,7 +1003,7 @@ void EspinaVolumeEditor::EditorSave()
 void EspinaVolumeEditor::EditorExit()
 {
 	RemoveSessionFiles();
-    qApp->exit();
+	QApplication::exit();
 }
 
 void EspinaVolumeEditor::FullscreenToggle()
@@ -1758,15 +1758,13 @@ void EspinaVolumeEditor::OperationUndo()
 		labelselector->scrollToItem(labelselector->item(*rit), QAbstractItemView::PositionAtBottom);
     }
 
-    // the operation is now on the redo buffer, get it's type and put the interface in
-    // that state, any other operation than paint or erase will go to view state
+    // the operation is now on the redo buffer, get its type and put the interface in
+    // that state, any other operation won't change the editor state
     if (std::string("Paint").compare(this->_dataManager->GetRedoActionString()) == 0)
     	paintbutton->setChecked(true);
     else
     	if (std::string("Erase").compare(this->_dataManager->GetRedoActionString()) == 0)
     		erasebutton->setChecked(true);
-    	else
-    		viewbutton->setChecked(true);
 
     UpdateUndoRedoMenu();
     UpdateViewports(All);
@@ -1794,15 +1792,13 @@ void EspinaVolumeEditor::OperationRedo()
 		labelselector->scrollToItem(labelselector->item(*rit), QAbstractItemView::PositionAtBottom);
     }
 
-    // the operation is now on the undo buffer, get it's type and put the interface in
-    // that state, any other operation than paint or erase will go to view state
+    // the operation is now on the undo buffer, get its type and put the interface in
+    // that state, any other operation won't change the editor state
     if (std::string("Paint").compare(this->_dataManager->GetUndoActionString()) == 0)
     	paintbutton->setChecked(true);
     else
     	if (std::string("Erase").compare(this->_dataManager->GetUndoActionString()) == 0)
     		erasebutton->setChecked(true);
-    	else
-    		viewbutton->setChecked(true);
 
     UpdateUndoRedoMenu();
     UpdateViewports(All);

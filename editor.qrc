@@ -1,5 +1,8 @@
 <RCC>
   <qresource prefix="newPrefix">
+    <file>icons/watershedWithMarkers.png</file>
+    <file>icons/polygon.png</file>
+    <file>icons/lasso.png</file>
     <file>icons/wand.png</file>
     <file>icons/eyeoff.svg</file>
     <file>icons/eyeon.svg</file>
