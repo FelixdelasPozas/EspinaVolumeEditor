@@ -4,7 +4,7 @@
 //
 // File: Selection.h
 // Purpose: Manages selection areas
-// Notes: Selected points have a value of 255 in the selection volume
+// Notes:
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #ifndef _SELECTION_H_
@@ -27,6 +27,7 @@
 #include "BoxSelectionWidget.h"
 #include "BoxSelectionRepresentation2D.h"
 #include "BoxSelectionRepresentation3D.h"
+#include "ContourWidget.h"
 
 // c++ includes
 #include <vector>
@@ -104,7 +105,9 @@ class Selection
         //
         // callback for widget interaction
         static void BoxSelectionWidgetCallback (vtkObject*, unsigned long, void*, void *);
-
+        //
+        // polygon selection
+        void PolygonSelection(void);
     private:
         // private methods
         //
@@ -163,10 +166,7 @@ class Selection
         vtkSmartPointer<vtkImageChangeInformation> 			_changer;
         vtkSmartPointer<vtkImageClip> 						_clipper;
 
-        // widgets for box selection, one per each view
-        vtkSmartPointer<BoxSelectionRepresentation2D> 		_axialBoxRepresentation;
-        vtkSmartPointer<BoxSelectionRepresentation2D>		_coronalBoxRepresentation;
-        vtkSmartPointer<BoxSelectionRepresentation2D>		_sagittalBoxRepresentation;
+        // widgets for box selection, one per view
         vtkSmartPointer<BoxSelectionWidget>					_axialBoxWidget;
         vtkSmartPointer<BoxSelectionWidget>					_coronalBoxWidget;
         vtkSmartPointer<BoxSelectionWidget>					_sagittalBoxWidget;
@@ -176,7 +176,9 @@ class Selection
 
         // callback for box selection interaction
         vtkSmartPointer<vtkCallbackCommand> 				_boxWidgetsCallback;
-
+        //
+        // contour selection widgets, one per view
+        vtkSmartPointer<ContourWidget>						_axialContourWidget;
 };
 
 #endif // _SELECTION_H_

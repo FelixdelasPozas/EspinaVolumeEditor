@@ -136,6 +136,8 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
     connect(renderdisablebutton, SIGNAL(clicked(bool)), this, SLOT(DisableRenderView()));
     connect(eyebutton, SIGNAL(clicked(bool)), this, SLOT(SwitchSegmentationView()));
 
+    connect(polygonButton, SIGNAL(clicked(bool)), this, SLOT(TogglePolygonButton(bool)));
+
     QSettings editorSettings("UPM", "Espina Volume Editor");
 
     // get timer settings, create session timer and connect signals
@@ -2773,6 +2775,7 @@ void EspinaVolumeEditor::InitiateSessionGUI(void)
     pickerbutton->setEnabled(true);
     wandButton->setEnabled(true);
     selectbutton->setEnabled(true);
+    polygonButton->setEnabled(true);
     axialresetbutton->setEnabled(true);
     coronalresetbutton->setEnabled(true);
     sagittalresetbutton->setEnabled(true);
@@ -2996,5 +2999,22 @@ void EspinaVolumeEditor::ApplyUserAction(void)
 		_editorOperations->ContiguousAreaSelection(_POI);
 
 		labelselector->item(_pointScalar)->setSelected(true);
+	}
+}
+
+void EspinaVolumeEditor::TogglePolygonButton(bool value)
+{
+	switch(value)
+	{
+		case true:
+			this->_editorOperations->ClearSelection();
+			this->_editorOperations->PolygonSelection();
+		    UpdateViewports(All);
+			break;
+		case false:
+			this->_editorOperations->ClearSelection();
+			break;
+		default: // can't happen
+			break;
 	}
 }

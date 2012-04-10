@@ -852,3 +852,8 @@ void EditorOperations::Paint(unsigned short label)
 						_dataManager->SetVoxelScalar(x, y, z, label);
 	}
 }
+
+void EditorOperations::PolygonSelection(void)
+{
+	this->_selection->PolygonSelection();
+}

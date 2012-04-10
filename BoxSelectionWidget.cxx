@@ -38,7 +38,7 @@ vtkStandardNewMacro(BoxSelectionWidget);
 BoxSelectionWidget::BoxSelectionWidget()
 {
 	this->WidgetState = BoxSelectionWidget::Start;
-	this->_changedCursor = false;
+	this->ManagesCursor = false;
 
 	this->CallbackMapper->SetCallbackMethod(vtkCommand::LeftButtonPressEvent, vtkWidgetEvent::Select, this, BoxSelectionWidget::SelectAction);
 	this->CallbackMapper->SetCallbackMethod(vtkCommand::LeftButtonReleaseEvent, vtkWidgetEvent::EndSelect, this, BoxSelectionWidget::EndSelectAction);
@@ -53,9 +53,9 @@ BoxSelectionWidget::~BoxSelectionWidget()
 
 void BoxSelectionWidget::SetCursor(int cState)
 {
-	if (!this->_changedCursor && cState != BoxSelectionRepresentation2D::Outside)
+	if (!this->ManagesCursor && cState != BoxSelectionRepresentation2D::Outside)
 	{
-		this->_changedCursor = true;
+		this->ManagesCursor = true;
 		QApplication::setOverrideCursor(Qt::CrossCursor);
 	}
 
@@ -88,9 +88,9 @@ void BoxSelectionWidget::SetCursor(int cState)
 				this->RequestCursorShape(VTK_CURSOR_HAND);
 			break;
 		default:
-			if (this->_changedCursor)
+			if (this->ManagesCursor)
 			{
-				this->_changedCursor = false;
+				this->ManagesCursor = false;
 				QApplication::restoreOverrideCursor();
 			}
 			break;
@@ -240,9 +240,9 @@ void BoxSelectionWidget::SetEnabled(int value)
 {
 	this->Superclass::SetEnabled(value);
 
-	if ((false == value) && (true == this->_changedCursor))
+	if ((false == value) && (this->ManagesCursor))
 	{
 		QApplication::restoreOverrideCursor();
-		this->_changedCursor = false;
+		this->ManagesCursor = false;
 	}
 }

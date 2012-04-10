@@ -69,7 +69,7 @@ class VTK_WIDGETS_EXPORT BoxSelectionRepresentation2D: public vtkWidgetRepresent
 		vtkGetMacro(Moving,int);
 		vtkBooleanMacro(Moving,int);
 
-		// minimum and maximum selection limits (the slice size with the spacing border
+		// minimum and maximum selection limits (the slice size with the spacing border)
 		vtkSetVector2Macro(MinimumSelectionSize,double);
 		vtkGetVector2Macro(MinimumSelectionSize,double);
 		vtkSetVector2Macro(MaximumSelectionSize,double);
@@ -125,8 +125,7 @@ class VTK_WIDGETS_EXPORT BoxSelectionRepresentation2D: public vtkWidgetRepresent
 		// Keep track of start position when moving border
 		double 								_startPosition[2];
 
-		// Border representation. Subclasses may use the BWTransform class
-		// to transform their geometry into the region surrounded by the border.
+		// Border representation.
 		vtkSmartPointer<vtkPolyData> 		_widgetPolyData;
 		vtkSmartPointer<vtkPolyDataMapper> 	_widgetMapper;
 		vtkSmartPointer<vtkActor>			_widgetActor;

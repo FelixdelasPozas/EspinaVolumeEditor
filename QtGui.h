@@ -106,6 +106,7 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         virtual void ToggleWandButton(bool);
         virtual void ToggleEraseOrPaintButton(bool);
         virtual void ToggleButtonDefault(bool);
+        virtual void TogglePolygonButton(bool);
     private:
         typedef enum { All, Slices, Render, Axial, Coronal, Sagittal } VIEWPORTSENUM;
         

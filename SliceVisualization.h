@@ -102,6 +102,9 @@ class SliceVisualization
         // get a pointer to the box representation so we can hide and show it, also we need to
         // deactivate/reactivate the widget depending on the slice
         void SetBoxSelectionWidget(vtkSmartPointer<BoxSelectionWidget>);
+
+        // get a pointer to the imageactor of the slice, needed for polygon/lasso widget interaction
+        vtkImageActor* GetSliceActor(void);
     private:
         // private methods
         //

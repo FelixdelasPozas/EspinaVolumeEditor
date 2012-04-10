@@ -92,6 +92,7 @@ class EditorOperations
         const bool IsFirstColorSelected(void);
         void SetSliceViews(SliceVisualization*, SliceVisualization*, SliceVisualization*);
         void UpdatePaintEraseActors(int, int, int, int, SliceVisualization*);
+        void PolygonSelection(void);
 
         // SaveSessionThread need to touch private attributes
         friend class SaveSessionThread;

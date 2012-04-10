@@ -834,3 +834,12 @@ void SliceVisualization::SetBoxSelectionWidget(vtkSmartPointer<BoxSelectionWidge
 {
 	this->_boxWidget = widget;
 }
+
+vtkImageActor* SliceVisualization::GetSliceActor(void)
+{
+	if (this->_blendActor)
+		return this->_blendActor.GetPointer();
+
+	// else return the segmentation actor pointer, as there is not a reference image loaded
+	return this->_segmentationActor.GetPointer();
+}

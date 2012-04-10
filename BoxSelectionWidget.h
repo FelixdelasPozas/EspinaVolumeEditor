@@ -74,8 +74,6 @@ class VTK_WIDGETS_EXPORT BoxSelectionWidget: public vtkAbstractWidget
 			Start = 0, Define, Manipulate, Selected
 		};
 
-		// true if the program cursor has been changed by the widget
-		bool 								_changedCursor;
 	private:
 		BoxSelectionWidget(const BoxSelectionWidget&);   //Not implemented
 		void operator=(const BoxSelectionWidget&);   //Not implemented
