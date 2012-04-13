@@ -52,7 +52,7 @@ class Selection
         // type of selections
         typedef enum
         {
-            EMPTY, CUBE, VOLUME, DISC
+            EMPTY, CUBE, VOLUME, DISC, CONTOUR
         } SelectionType;
 
         // initilize class
@@ -102,12 +102,15 @@ class Selection
         	VOXEL_SELECTED,
         };
 
-        //
-        // callback for widget interaction
+        // callbacks for widget interaction
         static void BoxSelectionWidgetCallback (vtkObject*, unsigned long, void*, void *);
-        //
-        // polygon selection
+        static void ContourSelectionWidgetCallback (vtkObject*, unsigned long, void*, void *);
+
+        // polygon contour selection
         void PolygonSelection(void);
+
+        // lasso contour selection
+        void LassoSelection(void);
     private:
         // private methods
         //
@@ -126,6 +129,10 @@ class Selection
         //
         // returns true if the voxel coordinates refer to a selected voxel
         bool VoxelIsInsideSelectionSubvolume(vtkSmartPointer<vtkImageData>, unsigned int, unsigned int, unsigned int);
+        //
+        // contour selection widgets creation, used for both polygon and lasso but with different parameters
+        void ContourSelection(bool);
+
 
         // pointer to renderer
         vtkSmartPointer<vtkRenderer> 						_renderer;
@@ -175,10 +182,12 @@ class Selection
         BoxSelectionRepresentation3D						*_boxRender;
 
         // callback for box selection interaction
-        vtkSmartPointer<vtkCallbackCommand> 				_boxWidgetsCallback;
-        //
+        vtkSmartPointer<vtkCallbackCommand> 				_widgetsCallbackCommand;
+
         // contour selection widgets, one per view
         vtkSmartPointer<ContourWidget>						_axialContourWidget;
+        vtkSmartPointer<ContourWidget>						_coronalContourWidget;
+        vtkSmartPointer<ContourWidget>						_sagittalContourWidget;
 };
 
 #endif // _SELECTION_H_

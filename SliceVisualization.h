@@ -25,6 +25,7 @@
 #include <vtkPlaneSource.h>
 #include <vtkImageActor.h>
 #include <vtkImageBlend.h>
+#include <vtkAbstractWidget.h>
 
 // project includes
 #include "Coordinates.h"
@@ -99,9 +100,9 @@ class SliceVisualization
         // get the slice renderer
         vtkSmartPointer<vtkRenderer> GetViewRenderer(void);
 
-        // get a pointer to the box representation so we can hide and show it, also we need to
+        // set a pointer to the widget so we can hide and show it, also we need to
         // deactivate/reactivate the widget depending on the slice
-        void SetBoxSelectionWidget(vtkSmartPointer<BoxSelectionWidget>);
+        void SetSliceWidget(vtkSmartPointer<vtkAbstractWidget>);
 
         // get a pointer to the imageactor of the slice, needed for polygon/lasso widget interaction
         vtkImageActor* GetSliceActor(void);
@@ -182,8 +183,8 @@ class SliceVisualization
         // hides or shows actors depending on the visibility
         void ModifyActorVisibility(struct ActorData*);
 
-        // box selection representation 2D, just the box texture is handled here
-        vtkSmartPointer<BoxSelectionWidget>		_boxWidget;
+        // pointer to widget of the slice
+        vtkSmartPointer<vtkAbstractWidget>		_sliceWidget;
 };
 
 #endif // _SLICEVISUALIZATION_H_

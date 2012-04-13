@@ -27,6 +27,7 @@
 #include <vtkWidgetEvent.h>
 #include <vtkPolyData.h>
 #include <vtkInteractorStyle.h>
+#include <vtkInteractorStyleImage.h>
 
 // qt includes
 #include <QApplication>
@@ -120,17 +121,24 @@ void ContourWidget::SelectAction(vtkAbstractWidget *w)
 	// interactor keypress callbacks don't work, use qapplication keyboard modifiers, only delete and reset
 	Qt::KeyboardModifiers pressedKeys = QApplication::keyboardModifiers();
 
-	if (pressedKeys & Qt::ControlModifier)
-	{
-		self->ResetAction(w);
-		return;
-	}
+	ContourRepresentation *representation = static_cast<ContourRepresentation*>(self->WidgetRep);
 
-	if (pressedKeys & Qt::ShiftModifier)
+	if (representation->GetRepresentationType() != ContourRepresentation::SecondaryWidget)
 	{
-		self->DeleteAction(w);
-		return;
+		if (pressedKeys & Qt::ControlModifier)
+		{
+			self->ResetAction(w);
+			return;
+		}
+
+		if (pressedKeys & Qt::ShiftModifier)
+		{
+			self->DeleteAction(w);
+			return;
+		}
 	}
+	else
+		self->WidgetState = ContourWidget::Manipulate;
 
 	int X = self->Interactor->GetEventPosition()[0];
 	int Y = self->Interactor->GetEventPosition()[1];
@@ -194,29 +202,31 @@ void ContourWidget::SelectAction(vtkAbstractWidget *w)
 				break;
 			}
 
-			if (rep->ActivateNode(X, Y))
+			if (representation->GetRepresentationType() == ContourRepresentation::MainWidget)
 			{
-				self->Superclass::StartInteraction();
-				self->InvokeEvent(vtkCommand::StartInteractionEvent, NULL);
-				self->StartInteraction();
-				rep->SetCurrentOperationToTranslate();
-				rep->StartWidgetInteraction(pos);
-				self->EventCallbackCommand->SetAbortFlag(1);
-			}
-			else
-				if (rep->AddNodeOnContour(X, Y))
+				if (rep->ActivateNode(X, Y))
 				{
-					if (rep->ActivateNode(X, Y))
-					{
-						rep->SetCurrentOperationToTranslate();
-						rep->StartWidgetInteraction(pos);
-					}
+					self->Superclass::StartInteraction();
+					self->InvokeEvent(vtkCommand::StartInteractionEvent, NULL);
+					self->StartInteraction();
+					rep->SetCurrentOperationToTranslate();
+					rep->StartWidgetInteraction(pos);
 					self->EventCallbackCommand->SetAbortFlag(1);
 				}
 				else
-					if (!rep->GetNeedToRender())
-						rep->SetRebuildLocator(true);
-
+					if (rep->AddNodeOnContour(X, Y))
+					{
+						if (rep->ActivateNode(X, Y))
+						{
+							rep->SetCurrentOperationToTranslate();
+							rep->StartWidgetInteraction(pos);
+						}
+						self->EventCallbackCommand->SetAbortFlag(1);
+					}
+					else
+						if (!rep->GetNeedToRender())
+							rep->SetRebuildLocator(true);
+			}
 			break;
 		}
 	}
@@ -232,6 +242,13 @@ void ContourWidget::AddFinalPointAction(vtkAbstractWidget *w)
 {
 	ContourWidget *self = reinterpret_cast<ContourWidget*>(w);
 	ContourRepresentation *rep = reinterpret_cast<ContourRepresentation*>(self->WidgetRep);
+
+	// pass the event forward
+	if (rep->GetRepresentationType() == ContourRepresentation::SecondaryWidget)
+	{
+		vtkInteractorStyle *style = reinterpret_cast<vtkInteractorStyle*>(self->GetInteractor()->GetInteractorStyle());
+		style->OnRightButtonDown();
+	}
 
 	if (self->WidgetState != ContourWidget::Manipulate && rep->GetNumberOfNodes() >= 1)
 	{
@@ -468,8 +485,7 @@ void ContourWidget::MoveAction(vtkAbstractWidget *w)
 			// Have the last node follow the mouse in this case...
 			const int numNodes = rep->GetNumberOfNodes();
 
-			// First check if the last node is near the first node, if so, we intend
-			// closing the loop.
+			// First check if the last node is near the first node, if so, we intend closing the loop.
 			if (numNodes > 1)
 			{
 				double displayPos[2];
@@ -486,11 +502,8 @@ void ContourWidget::MoveAction(vtkAbstractWidget *w)
 				{
 					if (rep->GetClosedLoop())
 					{
-						// We need to open the closed loop.
-						// We do this by adding a node at (X,Y). If by chance the point
-						// placer says that (X,Y) is invalid, we'll add it at the location
-						// of the first control point (which we know is valid).
-
+						// We need to open the closed loop. We do this by adding a node at (X,Y). If by chance the
+						// point placer says that (X,Y) is invalid, we'll add it at the location of the first control point (which we know is valid).
 						if (!rep->AddNodeAtDisplayPosition(X, Y))
 						{
 							double closedLoopPoint[3];
@@ -501,9 +514,8 @@ void ContourWidget::MoveAction(vtkAbstractWidget *w)
 					}
 					else
 					{
-						// We need to close the open loop. Delete the node that's following
-						// the mouse cursor and close the loop between the previous node and
-						// the first node.
+						// We need to close the open loop. Delete the node that's following the mouse cursor and close the loop between the previous node
+						// and the first node.
 						rep->DeleteLastNode();
 						rep->ClosedLoopOn();
 					}
@@ -514,6 +526,7 @@ void ContourWidget::MoveAction(vtkAbstractWidget *w)
 						if (self->ContinuousDraw && self->ContinuousActive)
 						{
 							rep->AddNodeAtDisplayPosition(X, Y);
+							self->InvokeEvent(vtkCommand::InteractionEvent, NULL);
 
 							// check the contour detect if it intersects with itself
 							if (rep->CheckAndCutContourIntersection())
@@ -537,8 +550,7 @@ void ContourWidget::MoveAction(vtkAbstractWidget *w)
 						}
 						else
 						{
-							// If we aren't changing the loop topology, simply update the position
-							// of the latest node to follow the mouse cursor position (X,Y).
+							// If we aren't changing the loop topology, simply update the position of the latest node to follow the mouse cursor position (X,Y).
 							rep->SetNthNodeDisplayPosition(numNodes - 1, X, Y);
 						}
 					}
@@ -688,4 +700,19 @@ void ContourWidget::SetCursor(int cState)
 			}
 			break;
 	}
+}
+
+void ContourWidget::SetWidgetAsSecondary(void)
+{
+	if (this->ContinuousDraw)
+		this->ContinuousActive = 0;
+
+	this->WidgetState = ContourWidget::Manipulate;
+	this->EventCallbackCommand->SetAbortFlag(1);
+	this->InvokeEvent(vtkCommand::EndInteractionEvent, NULL);
+
+	// set the closed loop now
+	ContourRepresentation *rep = reinterpret_cast<ContourRepresentation*>(this->WidgetRep);
+	rep->ClosedLoopOn();
+	rep->SetVisibility(true);
 }

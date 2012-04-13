@@ -857,3 +857,8 @@ void EditorOperations::PolygonSelection(void)
 {
 	this->_selection->PolygonSelection();
 }
+
+void EditorOperations::LassoSelection(void)
+{
+	this->_selection->LassoSelection();
+}

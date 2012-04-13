@@ -113,6 +113,10 @@ class VTK_WIDGETS_EXPORT ContourWidget: public vtkAbstractWidget
 			this->Initialize(NULL);
 		}
 
+		// if we set widget as secondary it means that the widget stays in ContourWidget:Manipulate state
+		// permanently
+		void SetWidgetAsSecondary(void);
+
 	protected:
 		ContourWidget();
 		~ContourWidget();

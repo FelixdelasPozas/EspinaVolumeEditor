@@ -110,6 +110,9 @@ class VTK_WIDGETS_EXPORT ContourRepresentationGlyph: public ContourRepresentatio
 		// Return the bounds of the representation
 		virtual double *GetBounds();
 
+		// spacing is needed for interaction calculations, together with bounds
+		vtkSetVector2Macro(Spacing, double);
+
 	protected:
 		ContourRepresentationGlyph();
 		~ContourRepresentationGlyph();
@@ -164,6 +167,7 @@ class VTK_WIDGETS_EXPORT ContourRepresentationGlyph: public ContourRepresentatio
 		double InteractionOffset[2];
 
 		int AlwaysOnTop;
+		double Spacing[2];
 
 		virtual void BuildLines();
 

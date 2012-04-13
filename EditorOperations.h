@@ -93,6 +93,7 @@ class EditorOperations
         void SetSliceViews(SliceVisualization*, SliceVisualization*, SliceVisualization*);
         void UpdatePaintEraseActors(int, int, int, int, SliceVisualization*);
         void PolygonSelection(void);
+        void LassoSelection(void);
 
         // SaveSessionThread need to touch private attributes
         friend class SaveSessionThread;

@@ -48,7 +48,7 @@ SliceVisualization::SliceVisualization(OrientationType orientation)
 	this->_thumbRenderer = NULL;
 	this->_renderer = NULL;
 	this->_orientation = orientation;
-	this->_boxWidget = NULL;
+	this->_sliceWidget = NULL;
 
 	// create 2D actors texture
 	vtkSmartPointer<vtkImageCanvasSource2D> volumeTextureIcon = vtkSmartPointer<vtkImageCanvasSource2D>::New();
@@ -149,8 +149,8 @@ SliceVisualization::~SliceVisualization()
 	// remove segmentation actors
 	ClearSelections();
 
-	if (this->_boxWidget)
-		this->_boxWidget = NULL;
+	if (this->_sliceWidget)
+		this->_sliceWidget = NULL;
 
 	// remove thumb renderer
 	if (this->_thumbRenderer)
@@ -656,10 +656,10 @@ void SliceVisualization::ModifyActorVisibility(struct ActorData* actorInformatio
 	{
 		actorInformation->actor->SetVisibility(false);
 
-		if (this->_boxWidget)
+		if (this->_sliceWidget)
 		{
-			this->_boxWidget->GetBorderRepresentation()->SetVisibility(false);
-			this->_boxWidget->SetEnabled(false);
+			this->_sliceWidget->GetRepresentation()->SetVisibility(false);
+			this->_sliceWidget->SetEnabled(false);
 		}
 	}
 	else
@@ -687,7 +687,7 @@ void SliceVisualization::ModifyActorVisibility(struct ActorData* actorInformatio
 		else
 			actorInformation->actor->SetVisibility(false);
 
-		if (this->_boxWidget)
+		if (this->_sliceWidget)
 		{
 			// correct the fact that selection volumes has a minSlice-1 and maxSlice+1 for correct marching cubes
 			minSlice++;
@@ -695,13 +695,13 @@ void SliceVisualization::ModifyActorVisibility(struct ActorData* actorInformatio
 
 			if ((minSlice <= slice) && (maxSlice >= slice))
 			{
-				this->_boxWidget->GetBorderRepresentation()->SetVisibility(true);
-				this->_boxWidget->SetEnabled(true);
+				this->_sliceWidget->GetRepresentation()->SetVisibility(true);
+				this->_sliceWidget->SetEnabled(true);
 			}
 			else
 			{
-				this->_boxWidget->GetBorderRepresentation()->SetVisibility(false);
-				this->_boxWidget->SetEnabled(false);
+				this->_sliceWidget->GetRepresentation()->SetVisibility(false);
+				this->_sliceWidget->SetEnabled(false);
 			}
 
 		}
@@ -830,9 +830,9 @@ vtkSmartPointer<vtkRenderer> SliceVisualization::GetViewRenderer(void)
 	return this->_renderer;
 }
 
-void SliceVisualization::SetBoxSelectionWidget(vtkSmartPointer<BoxSelectionWidget> widget)
+void SliceVisualization::SetSliceWidget(vtkSmartPointer<vtkAbstractWidget> widget)
 {
-	this->_boxWidget = widget;
+	this->_sliceWidget = widget;
 }
 
 vtkImageActor* SliceVisualization::GetSliceActor(void)

@@ -136,7 +136,8 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
     connect(renderdisablebutton, SIGNAL(clicked(bool)), this, SLOT(DisableRenderView()));
     connect(eyebutton, SIGNAL(clicked(bool)), this, SLOT(SwitchSegmentationView()));
 
-    connect(polygonButton, SIGNAL(clicked(bool)), this, SLOT(TogglePolygonButton(bool)));
+    connect(polygonButton, SIGNAL(clicked(bool)), this, SLOT(ToggleContourButton(bool)));
+    connect(lassoButton, SIGNAL(clicked(bool)), this, SLOT(ToggleContourButton(bool)));
 
     QSettings editorSettings("UPM", "Espina Volume Editor");
 
@@ -2776,6 +2777,7 @@ void EspinaVolumeEditor::InitiateSessionGUI(void)
     wandButton->setEnabled(true);
     selectbutton->setEnabled(true);
     polygonButton->setEnabled(true);
+    lassoButton->setEnabled(true);
     axialresetbutton->setEnabled(true);
     coronalresetbutton->setEnabled(true);
     sagittalresetbutton->setEnabled(true);
@@ -3002,13 +3004,16 @@ void EspinaVolumeEditor::ApplyUserAction(void)
 	}
 }
 
-void EspinaVolumeEditor::TogglePolygonButton(bool value)
+void EspinaVolumeEditor::ToggleContourButton(bool value)
 {
 	switch(value)
 	{
 		case true:
 			this->_editorOperations->ClearSelection();
-			this->_editorOperations->PolygonSelection();
+			if (polygonButton->isChecked())
+				this->_editorOperations->PolygonSelection();
+			else
+				this->_editorOperations->LassoSelection();
 		    UpdateViewports(All);
 			break;
 		case false:

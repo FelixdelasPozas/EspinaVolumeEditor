@@ -54,6 +54,7 @@ ContourRepresentation::ContourRepresentation()
 	this->ClosedLoop = 0;
 	this->ShowSelectedNodes = 0;
 	this->CurrentOperation = ContourRepresentation::Inactive;
+	this->representationType = ContourRepresentation::Unspecified;
 
 	this->ResetLocator();
 }
@@ -909,8 +910,7 @@ int ContourRepresentation::UpdateContour()
 {
 	this->PointPlacer->UpdateInternalState();
 
-	//even if just the camera has moved we need to mark the locator
-	//as needing to be rebuilt
+	//even if just the camera has moved we need to mark the locator as needing to be rebuilt
 	if (this->Locator->GetMTime() < this->Renderer->GetActiveCamera()->GetMTime())
 		this->RebuildLocator = true;
 
@@ -1299,6 +1299,16 @@ bool ContourRepresentation::CheckAndCutContourIntersection(void)
 		for (int j = 0; j <= node; j++)
 			this->DeleteNthNode(0);
 
+		// repeat the process to detect spiral-like contours (contours with multiple intersections of the (n-2,n-1) segment)
+		lastNode = (this->CheckNodesForDuplicates(this->GetNumberOfNodes()-1, this->GetNumberOfNodes()-2) ? this->GetNumberOfNodes()-2 : this->GetNumberOfNodes()-1);
+		while(LineIntersection(lastNode-1, intersection, &node))
+		{
+			for (int j = 0; j <= node; j++)
+				this->DeleteNthNode(0);
+
+			lastNode = (this->CheckNodesForDuplicates(this->GetNumberOfNodes()-1, this->GetNumberOfNodes()-2) ? this->GetNumberOfNodes()-2 : this->GetNumberOfNodes()-1);
+		}
+
 		if (this->CheckNodesForDuplicates(this->GetNumberOfNodes()-1, this->GetNumberOfNodes()-2))
 			this->DeleteLastNode();
 
@@ -1504,6 +1514,9 @@ void ContourRepresentation::PlaceFinalPoints(void)
 
 		this->SetNthNodeWorldPosition(i, worldPos, worldOrient);
 	}
+
+	this->NeedToRenderOn();
+	this->UpdateContour();
 }
 
 void ContourRepresentation::RemoveDuplicatedNodes()
@@ -1619,4 +1632,55 @@ bool ContourRepresentation::Intersects(int nodeA, int nodeC)
 
     // true if an intersection between two non-parallel lines occurs between the given segment double *s.
     return ((0 <= nMitc[0] && nMitc[0] <=  det) && (0 >= nMitc[1] && nMitc[1] >= -det)) || ((0 >= nMitc[0] && nMitc[0] >= det) && (0 <= nMitc[1] && nMitc[1] <= -det));
+}
+
+void ContourRepresentation::SetSecondaryRepresentationPoints(double *point1, double *point2)
+{
+//	double *bounds;
+//	double vector[2];
+
+	// calling to this method for the first time should create the only two points of this representation if
+	// its the secondary one
+	if (this->representationType == ContourRepresentation::SecondaryWidget)
+	{
+		if (2 != this->GetNumberOfNodes())
+		{
+			this->ClearAllNodes();
+			this->AddNodeAtWorldPosition(point1);
+			this->AddNodeAtWorldPosition(point2);
+		}
+		else
+		{
+			this->SetNthNodeWorldPosition(0, point1);
+			this->SetNthNodeWorldPosition(1, point2);
+		}
+		this->UpdateLines(0);
+	}
+
+	this->NeedToRenderOn();
+	this->UpdateContour();
+}
+
+void ContourRepresentation::SetRepresentationType(ContourRepresentation::RepresentationType type)
+{
+	if (this->representationType == ContourRepresentation::Unspecified)
+		this->representationType = type;
+}
+
+ContourRepresentation::RepresentationType ContourRepresentation::GetRepresentationType(void)
+{
+	return this->representationType;
+}
+
+void ContourRepresentation::TranslatePoints(double *vector)
+{
+	double worldPos[3];
+	double worldOrient[9] = { 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 };
+	for (int i = 0; i < this->GetNumberOfNodes(); i++)
+	{
+		this->GetNthNodeWorldPosition(i, worldPos);
+		worldPos[0] += vector[0];
+		worldPos[1] += vector[1];
+		this->SetNthNodeWorldPosition(i, worldPos, worldOrient);
+	}
 }

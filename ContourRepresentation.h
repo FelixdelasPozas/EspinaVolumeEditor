@@ -313,7 +313,8 @@ class VTK_WIDGETS_EXPORT ContourRepresentation: public vtkContourRepresentation
 		// Description:
 		// Set / Get the ClosedLoop value. This ivar indicates whether the contour
 		// forms a closed loop.
-		void SetClosedLoop(int val);vtkGetMacro( ClosedLoop, int );
+		void SetClosedLoop(int val);
+		vtkGetMacro( ClosedLoop, int );
 		vtkBooleanMacro( ClosedLoop, int );
 
 		// Description:
@@ -333,6 +334,23 @@ class VTK_WIDGETS_EXPORT ContourRepresentation: public vtkContourRepresentation
 		// contour as a vtkPolyData.
 		void GetNodePolyData(vtkPolyData* poly);
 		vtkSetMacro(RebuildLocator,bool);
+
+		// put all points to the correct places after a shift operations (shift is done in continuous coords, but
+		// final coords depend on voxel centers);
+		void PlaceFinalPoints(void);
+
+		// used by the widget callback in selection to sync the representations
+		void SetSecondaryRepresentationPoints(double *, double*);
+
+		// to set only one widget as the main widget (the only one where the users can create points) and the
+		// others as secondary, when the user only can translate the points but is not able to create them
+        typedef enum
+        {
+            MainWidget, SecondaryWidget, Unspecified
+        } RepresentationType;
+
+        void SetRepresentationType(RepresentationType type);
+        RepresentationType GetRepresentationType(void);
 
 	protected:
 		ContourRepresentation();
@@ -426,10 +444,6 @@ class VTK_WIDGETS_EXPORT ContourRepresentation: public vtkContourRepresentation
 
 		// implements shooting algorithm to know if a point is inside a closed polygon
 		bool ShootingAlgorithm(int, int);
-
-		// put all points to the correct places after a shift operations (shift is done in continuous coords, but
-		// final coords depend on voxel centers);
-		void PlaceFinalPoints(void);
 	private:
 		ContourRepresentation(const ContourRepresentation&); //Not implemented
 		void operator=(const ContourRepresentation&); //Not implemented
@@ -438,6 +452,9 @@ class VTK_WIDGETS_EXPORT ContourRepresentation: public vtkContourRepresentation
 		bool LineIntersection(int, double *, int*);
 		void RemoveDuplicatedNodes();
 		bool Intersects(int, int);
+		void TranslatePoints(double *);
+
+		RepresentationType representationType;
 };
 
 #endif // _CONTOURREPRESENTATION_H_
