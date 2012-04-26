@@ -16,6 +16,7 @@
 // forward declarations
 class ContourRepresentation;
 class vtkPolyData;
+class Selection;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // ContourWidget class
@@ -113,9 +114,15 @@ class VTK_WIDGETS_EXPORT ContourWidget: public vtkAbstractWidget
 			this->Initialize(NULL);
 		}
 
+        typedef enum
+        {
+            Primary, Secondary, Unspecified
+        } WidgetInteractionType;
+
 		// if we set widget as secondary it means that the widget stays in ContourWidget:Manipulate state
 		// permanently
-		void SetWidgetAsSecondary(void);
+		void SetWidgetInteractionType(ContourWidget::WidgetInteractionType);
+        ContourWidget::WidgetInteractionType GetWidgetInteractionType(void);
 
 	protected:
 		ContourWidget();
@@ -127,6 +134,7 @@ class VTK_WIDGETS_EXPORT ContourWidget: public vtkAbstractWidget
 		{
 			Start, Define, Manipulate
 		};
+
 //ETX
 
 		int WidgetState;
@@ -135,6 +143,7 @@ class VTK_WIDGETS_EXPORT ContourWidget: public vtkAbstractWidget
 		int FollowCursor;
 		int ContinuousDraw;
 		int ContinuousActive;
+		ContourWidget::WidgetInteractionType InteractionType;
 
 		// Callback interface to capture events when
 		// placing the widget.
@@ -153,6 +162,8 @@ class VTK_WIDGETS_EXPORT ContourWidget: public vtkAbstractWidget
 
 		// helper methods for cursor management
 		virtual void SetCursor(int State);
+
+		friend class Selection;
 	private:
 		ContourWidget(const ContourWidget&);  //Not implemented
 		void operator=(const ContourWidget&);  //Not implemented

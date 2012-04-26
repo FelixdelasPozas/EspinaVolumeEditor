@@ -19,6 +19,8 @@
 #include <vtkImageClip.h>
 #include <vtkBoxRepresentation.h>
 #include <vtkBoxWidget2.h>
+#include <vtkImageStencilToImage.h>
+#include <vtkPolyDataToImageStencil.h>
 
 // project includes
 #include "VectorSpaceAlgebra.h"
@@ -106,17 +108,20 @@ class Selection
         static void BoxSelectionWidgetCallback (vtkObject*, unsigned long, void*, void *);
         static void ContourSelectionWidgetCallback (vtkObject*, unsigned long, void*, void *);
 
-        // polygon contour selection
-        void PolygonSelection(void);
-
-        // lasso contour selection
-        void LassoSelection(void);
+        // starts lasso/polygon selection
+        void AddContourInitialPoint(const Vector3ui, const bool, SliceVisualization*);
     private:
         // private methods
         //
         // computes box selection area actor and parameters
         void ComputeSelectionCube(void);
         void ComputeSelectionBounds(void);
+        //
+        // computes lasso bounds for min/max selection determination and actor visibility (clipper)
+        void ComputeLassoBounds(const double *, unsigned int *);
+        //
+        // generates a rotated volume according to orientation (0 = axial, 1 = coronal, 2 = sagittal)
+        void ComputeContourSelectionVolume(const int, const unsigned int *);
         //
         // computes actor from selected volume
         void ComputeActor(vtkSmartPointer<vtkImageData>);
@@ -129,10 +134,6 @@ class Selection
         //
         // returns true if the voxel coordinates refer to a selected voxel
         bool VoxelIsInsideSelectionSubvolume(vtkSmartPointer<vtkImageData>, unsigned int, unsigned int, unsigned int);
-        //
-        // contour selection widgets creation, used for both polygon and lasso but with different parameters
-        void ContourSelection(bool);
-
 
         // pointer to renderer
         vtkSmartPointer<vtkRenderer> 						_renderer;
@@ -188,6 +189,11 @@ class Selection
         vtkSmartPointer<ContourWidget>						_axialContourWidget;
         vtkSmartPointer<ContourWidget>						_coronalContourWidget;
         vtkSmartPointer<ContourWidget>						_sagittalContourWidget;
+
+        // converts VtkPolyData from a contour to a stencil that later gets converted to a volume
+        vtkSmartPointer<vtkPolyDataToImageStencil>			_polyDataToStencil;
+        vtkSmartPointer<vtkImageStencilToImage>				_stencilToImage;
+        vtkImageData										*_rotatedImage;
 };
 
 #endif // _SELECTION_H_

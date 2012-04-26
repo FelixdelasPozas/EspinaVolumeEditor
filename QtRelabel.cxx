@@ -44,31 +44,31 @@ void QtRelabel::SetInitialOptions(std::set<unsigned short> labels, Metadata* dat
     this->_maxcolors = dataManager->GetNumberOfLabels();
     this->_multipleLabels = (labels.size() > 1);
 
-    if (labels.size() > 1)
+    // add box items. Color 0 is background, so we will start from 1
+	newlabelbox->insertItem(0, "Background");
+
+	for (unsigned int i = 1; i < _maxcolors; i++)
 	{
-		selectionlabel->setText("Area with multiple labels");
-		newlabelbox->insertItem(0, "Background");
+		dataManager->GetColorComponents(i, rgba);
+		color.setRgbF(rgba[0], rgba[1], rgba[2], 1);
+		icon.fill(color);
+		std::stringstream out;
+		out << data->GetObjectSegmentName(i) << " " << dataManager->GetScalarForLabel(i);
+		std::string text = out.str();
+		QListWidgetItem *item = new QListWidgetItem(QIcon(icon), QString(text.c_str()));
+		newlabelbox->addItem(item);
 
-		// color 0 is black, so we will start from 1
-		for (unsigned int i = 1; i < _maxcolors; i++)
-		{
-			dataManager->GetColorComponents(i, rgba);
-			color.setRgbF(rgba[0], rgba[1], rgba[2], 1);
-			icon.fill(color);
-			std::stringstream out;
-			out << data->GetObjectSegmentName(i) << " " << dataManager->GetScalarForLabel(i);
-			std::string text = out.str();
-			QListWidgetItem *item = new QListWidgetItem(QIcon(icon), QString(text.c_str()));
-			newlabelbox->addItem(item);
-
-			// hide already hidden/deleted labels
-			if (0LL == dataManager->GetNumberOfVoxelsForLabel(i))
-				item->setHidden(true);
-		}
-
-		newlabelbox->addItem("New label");
-		newlabelbox->setCurrentRow(_maxcolors);
+		// hide already hidden/deleted labels
+		if (0LL == dataManager->GetNumberOfVoxelsForLabel(i))
+			item->setHidden(true);
 	}
+
+	newlabelbox->addItem("New label");
+	newlabelbox->setCurrentRow(_maxcolors);
+
+	// fill selection label text and hide label if user selected just one label
+    if (labels.size() > 1)
+		selectionlabel->setText("Volume with multiple labels");
     else
     {
     	unsigned int tempLabel = 0;
@@ -77,7 +77,6 @@ void QtRelabel::SetInitialOptions(std::set<unsigned short> labels, Metadata* dat
 		{
 			tempLabel = labels.begin().operator *();
 
-			newlabelbox->insertItem(0, "Background");
 			dataManager->GetColorComponents(tempLabel, rgba);
 			color.setRgbF(rgba[0], rgba[1], rgba[2], 1);
 			icon.fill(color);
@@ -86,28 +85,13 @@ void QtRelabel::SetInitialOptions(std::set<unsigned short> labels, Metadata* dat
 			std::string text = out.str();
 			colorlabel->setPixmap(icon);
 			selectionlabel->setText(QString(text.c_str()));
+			newlabelbox->item(tempLabel)->setHidden(true);
 		}
 		else
-			selectionlabel->setText("Background voxels");
-
-		// color 0 is background, so we will start from 1
-		for (unsigned int i = 1; i < _maxcolors; i++)
 		{
-			dataManager->GetColorComponents(i, rgba);
-			color.setRgbF(rgba[0], rgba[1], rgba[2], 1);
-			icon.fill(color);
-			std::stringstream out;
-			out << data->GetObjectSegmentName(i) << " " << dataManager->GetScalarForLabel(i);
-			std::string text = out.str();
-			QListWidgetItem *item = new QListWidgetItem(QIcon(icon), QString(text.c_str()));
-			newlabelbox->addItem(item);
-
-			// hide already hidden/deleted labels and the selected label
-			if (0LL == dataManager->GetNumberOfVoxelsForLabel(i) || (i == tempLabel))
-				item->setHidden(true);
+			selectionlabel->setText("Background voxels");
+			newlabelbox->item(0)->setHidden(true);
 		}
-		newlabelbox->addItem("New label");
-		newlabelbox->setCurrentRow(_maxcolors);
 	}
     
     connect(acceptbutton, SIGNAL(accepted()), this, SLOT(AcceptedData()));

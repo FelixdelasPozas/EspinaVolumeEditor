@@ -305,7 +305,7 @@ int ContourRepresentationGlyph::ComputeInteractionState(int X, int Y, int vtkNot
 	xyz[1] = static_cast<double>(Y);
 	xyz[2] = pos[2];
 
-	if (this->GetRepresentationType() == ContourRepresentation::SecondaryWidget)
+	if (this->GetRepresentationType() == ContourRepresentation::SecondaryRepresentation)
 	{
 		double doubleXY[3];
 		this->Renderer->SetDisplayPoint(xyz);
@@ -412,6 +412,10 @@ void ContourRepresentationGlyph::WidgetInteraction(double eventPos[2])
 // Translate everything
 void ContourRepresentationGlyph::Translate(double eventPos[2])
 {
+	// we don't allow modifying the nodes in secondary representations
+	if (this->GetRepresentationType() == ContourRepresentation::SecondaryRepresentation)
+		return;
+
 	double ref[3];
 
 	if (!this->GetActiveNodeWorldPosition(ref))
@@ -572,7 +576,7 @@ void ContourRepresentationGlyph::CreateDefaultProperties()
 }
 
 // NOTE: modified to make the representation a closed loop, but the value of closed loop is
-// false untill the used ends defining the contour, then its true.
+// false until the used ends defining the contour, then its true.
 void ContourRepresentationGlyph::BuildLines()
 {
 	vtkPoints *points = vtkPoints::New();

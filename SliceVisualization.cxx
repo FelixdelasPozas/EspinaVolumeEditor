@@ -820,7 +820,7 @@ void SliceVisualization::SetSelectionVolume(const vtkSmartPointer<vtkImageData> 
     ModifyActorVisibility(actorInformation);
 }
 
-SliceVisualization::OrientationType SliceVisualization::GetOrientationType(void)
+const SliceVisualization::OrientationType SliceVisualization::GetOrientationType(void)
 {
 	return this->_orientation;
 }

@@ -27,7 +27,7 @@
 #include "DataManager.h"
 #include "Metadata.h"
 #include "Selection.h"
-#include "SliceVisualization.h"
+
 // qt includes
 #include <QtGui>
 
@@ -92,8 +92,7 @@ class EditorOperations
         const bool IsFirstColorSelected(void);
         void SetSliceViews(SliceVisualization*, SliceVisualization*, SliceVisualization*);
         void UpdatePaintEraseActors(int, int, int, int, SliceVisualization*);
-        void PolygonSelection(void);
-        void LassoSelection(void);
+        void AddContourPoint(const Vector3ui, const bool, SliceVisualization*);
 
         // SaveSessionThread need to touch private attributes
         friend class SaveSessionThread;

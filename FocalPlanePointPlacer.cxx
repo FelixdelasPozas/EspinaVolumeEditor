@@ -18,6 +18,7 @@
 #include <vtkPlanes.h>
 #include <vtkPlaneCollection.h>
 #include <vtkRenderer.h>
+#include <vtkFastNumericConversion.h>
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // FocalPlanePointPlacer class
@@ -111,6 +112,7 @@ int FocalPlanePointPlacer::ComputeWorldPosition(vtkRenderer *ren, double display
 	tmp[1] = refWorldPos[1];
 	tmp[2] = refWorldPos[2];
 	tmp[3] = 1.0;
+
 	ren->SetWorldPoint(tmp);
 	ren->WorldToDisplay();
 	ren->GetDisplayPoint(tmp);
@@ -118,13 +120,13 @@ int FocalPlanePointPlacer::ComputeWorldPosition(vtkRenderer *ren, double display
 	tmp[0] = displayPos[0];
 	tmp[1] = displayPos[1];
 	tmp[3] = 1.0;
+
 	ren->SetDisplayPoint(tmp);
 	ren->DisplayToWorld();
 	ren->GetWorldPoint(tmp);
 
 	// Translate the focal point by "Offset" from the focal plane along the
 	// viewing direction.
-
 	double focalPlaneNormal[3];
 	ren->GetActiveCamera()->GetDirectionOfProjection(focalPlaneNormal);
 	if (ren->GetActiveCamera()->GetParallelProjection())
@@ -161,9 +163,13 @@ int FocalPlanePointPlacer::ComputeWorldPosition(vtkRenderer *ren, double display
 	worldPos[1] = tmp[1];
 	worldPos[2] = tmp[2];
 
+	// now that we've changed world position to spaced coordinates, update display position too
+	double displayPosition[3];
 	ren->SetWorldPoint(worldPos);
 	ren->WorldToDisplay();
-	ren->GetDisplayPoint(displayPos);
+	ren->GetDisplayPoint(displayPosition);
+	displayPos[0] = displayPosition[0];
+	displayPos[1] = displayPosition[1];
 
 	this->GetCurrentOrientation(worldOrient);
 
@@ -235,8 +241,8 @@ void FocalPlanePointPlacer::TransformToSpacedCoordinates(double *x, double *y)
 	if (*y < 0.0)
 		Y = -Y;
 
-	xCoord = floor(X / this->Spacing[0]);
-	yCoord = floor(Y / this->Spacing[1]);
+	xCoord = vtkFastNumericConversion::QuickFloor(X / this->Spacing[0]);
+	yCoord = vtkFastNumericConversion::QuickFloor(Y / this->Spacing[1]);
 
 	if (fmod(X, this->Spacing[0]) >= 0.5)
 		xCoord++;

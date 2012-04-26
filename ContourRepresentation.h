@@ -12,8 +12,6 @@
 
 // vtk includes
 #include <vtkContourRepresentation.h>
-#include <vtkstd/vector>
-
 
 // forward declarations
 class vtkContourLineInterpolator;
@@ -40,13 +38,13 @@ class ContourRepresentationNode
 		double WorldOrientation[9];
 		double NormalizedDisplayPosition[2];
 		int Selected;
-		vtkstd::vector<ContourRepresentationPoint*> Points;
+		std::vector<ContourRepresentationPoint*> Points;
 };
 
 class ContourRepresentationInternals
 {
 	public:
-		vtkstd::vector<ContourRepresentationNode*> Nodes;
+		std::vector<ContourRepresentationNode*> Nodes;
 
 		void ClearNodes()
 		{
@@ -346,7 +344,7 @@ class VTK_WIDGETS_EXPORT ContourRepresentation: public vtkContourRepresentation
 		// others as secondary, when the user only can translate the points but is not able to create them
         typedef enum
         {
-            MainWidget, SecondaryWidget, Unspecified
+            MainRepresentation, SecondaryRepresentation, Unspecified
         } RepresentationType;
 
         void SetRepresentationType(RepresentationType type);

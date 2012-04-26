@@ -109,6 +109,11 @@ void EditorOperations::AddSelectionPoint(const Vector3ui point)
 	this->_selection->AddSelectionPoint(point);
 }
 
+void EditorOperations::AddContourPoint(const Vector3ui point, const bool continousDraw, SliceVisualization *orientation)
+{
+	this->_selection->AddContourInitialPoint(point, continousDraw, orientation);
+}
+
 void EditorOperations::ItkImageToPoints(itk::SmartPointer<ImageType> image)
 {
 	// iterate over the itk image as fast as possible and just hope that the
@@ -163,6 +168,19 @@ void EditorOperations::Cut(std::set<unsigned short> labels)
     				for (unsigned int z = min[2]; z <= max[2]; z++)
     					if (this->_selection->VoxelIsInsideSelection(x, y, z))
     						_dataManager->SetVoxelScalar(x, y, z, 0);
+    		break;
+    	case Selection::CONTOUR:
+    		for (it = labels.begin(); it != labels.end(); it++)
+    		{
+				min = this->_selection->GetSelectedMinimumBouds();
+				max = this->_selection->GetSelectedMaximumBouds();
+				for (unsigned int x = min[0]; x <= max[0]; x++)
+					for (unsigned int y = min[1]; y <= max[1]; y++)
+						for (unsigned int z = min[2]; z <= max[2]; z++)
+							if (this->_selection->VoxelIsInsideSelection(x,y,z))
+								if (labels.find(_dataManager->GetVoxelScalar(x, y, z)) != labels.end())
+									_dataManager->SetVoxelScalar(x, y, z, 0);
+    		}
     		break;
     	case Selection::CUBE:
     		for (it = labels.begin(); it != labels.end(); it++)
@@ -246,6 +264,19 @@ bool EditorOperations::Relabel(QWidget *parent, Metadata *data, std::set<unsigne
     				for (unsigned int z = min[2]; z <= max[2]; z++)
     					if (this->_selection->VoxelIsInsideSelection(x, y, z))
     						_dataManager->SetVoxelScalar(x, y, z, newlabel);
+    		break;
+    	case Selection::CONTOUR:
+    		if (labels->empty())
+    			labels->insert(0);
+
+    		min = this->_selection->GetSelectedMinimumBouds();
+    		max = this->_selection->GetSelectedMaximumBouds();
+    	    for (unsigned int x = min[0]; x <= max[0]; x++)
+    			for (unsigned int y = min[1]; y <= max[1]; y++)
+    				for (unsigned int z = min[2]; z <= max[2]; z++)
+    					if (this->_selection->VoxelIsInsideSelection(x,y,z))
+    						if (labels->find(_dataManager->GetVoxelScalar(x, y, z)) != labels->end())
+    							_dataManager->SetVoxelScalar(x, y, z, newlabel);
     		break;
     	case Selection::CUBE:
     		if (labels->empty())
@@ -851,14 +882,4 @@ void EditorOperations::Paint(unsigned short label)
 					if (this->_selection->VoxelIsInsideSelection(x, y, z))
 						_dataManager->SetVoxelScalar(x, y, z, label);
 	}
-}
-
-void EditorOperations::PolygonSelection(void)
-{
-	this->_selection->PolygonSelection();
-}
-
-void EditorOperations::LassoSelection(void)
-{
-	this->_selection->LassoSelection();
 }

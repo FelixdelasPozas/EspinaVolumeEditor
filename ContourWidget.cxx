@@ -45,7 +45,8 @@ ContourWidget::ContourWidget()
 	this->AllowNodePicking = 0;
 	this->FollowCursor = 0;
 	this->ContinuousDraw = 0;
-	this->ContinuousActive = 0;
+	this->ContinuousActive = 1;
+	this->InteractionType = Unspecified;
 
 	this->CreateDefaultRepresentation();
 
@@ -121,9 +122,7 @@ void ContourWidget::SelectAction(vtkAbstractWidget *w)
 	// interactor keypress callbacks don't work, use qapplication keyboard modifiers, only delete and reset
 	Qt::KeyboardModifiers pressedKeys = QApplication::keyboardModifiers();
 
-	ContourRepresentation *representation = static_cast<ContourRepresentation*>(self->WidgetRep);
-
-	if (representation->GetRepresentationType() != ContourRepresentation::SecondaryWidget)
+	if (rep->GetRepresentationType() != ContourRepresentation::SecondaryRepresentation)
 	{
 		if (pressedKeys & Qt::ControlModifier)
 		{
@@ -202,7 +201,7 @@ void ContourWidget::SelectAction(vtkAbstractWidget *w)
 				break;
 			}
 
-			if (representation->GetRepresentationType() == ContourRepresentation::MainWidget)
+			if (rep->GetRepresentationType() == ContourRepresentation::MainRepresentation)
 			{
 				if (rep->ActivateNode(X, Y))
 				{
@@ -244,10 +243,11 @@ void ContourWidget::AddFinalPointAction(vtkAbstractWidget *w)
 	ContourRepresentation *rep = reinterpret_cast<ContourRepresentation*>(self->WidgetRep);
 
 	// pass the event forward
-	if (rep->GetRepresentationType() == ContourRepresentation::SecondaryWidget)
+	if (rep->GetRepresentationType() == ContourRepresentation::SecondaryRepresentation)
 	{
 		vtkInteractorStyle *style = reinterpret_cast<vtkInteractorStyle*>(self->GetInteractor()->GetInteractorStyle());
 		style->OnRightButtonDown();
+		return;
 	}
 
 	if (self->WidgetState != ContourWidget::Manipulate && rep->GetNumberOfNodes() >= 1)
@@ -552,6 +552,7 @@ void ContourWidget::MoveAction(vtkAbstractWidget *w)
 						{
 							// If we aren't changing the loop topology, simply update the position of the latest node to follow the mouse cursor position (X,Y).
 							rep->SetNthNodeDisplayPosition(numNodes - 1, X, Y);
+							self->InvokeEvent(vtkCommand::InteractionEvent, NULL);
 						}
 					}
 			}
@@ -702,17 +703,30 @@ void ContourWidget::SetCursor(int cState)
 	}
 }
 
-void ContourWidget::SetWidgetAsSecondary(void)
+void ContourWidget::SetWidgetInteractionType(ContourWidget::WidgetInteractionType type)
 {
-	if (this->ContinuousDraw)
-		this->ContinuousActive = 0;
+	if (this->InteractionType != Unspecified)
+		return;
 
-	this->WidgetState = ContourWidget::Manipulate;
-	this->EventCallbackCommand->SetAbortFlag(1);
-	this->InvokeEvent(vtkCommand::EndInteractionEvent, NULL);
+	this->InteractionType = type;
 
-	// set the closed loop now
-	ContourRepresentation *rep = reinterpret_cast<ContourRepresentation*>(this->WidgetRep);
-	rep->ClosedLoopOn();
-	rep->SetVisibility(true);
+	if (this->InteractionType == Secondary)
+	{
+		if (this->ContinuousDraw)
+			this->ContinuousActive = 0;
+
+		this->WidgetState = ContourWidget::Manipulate;
+		this->EventCallbackCommand->SetAbortFlag(1);
+		this->InvokeEvent(vtkCommand::EndInteractionEvent, NULL);
+
+		// set the closed loop now
+		ContourRepresentation *rep = reinterpret_cast<ContourRepresentation*>(this->WidgetRep);
+		rep->ClosedLoopOn();
+		rep->SetVisibility(true);
+	}
+}
+
+ContourWidget::WidgetInteractionType ContourWidget::GetWidgetInteractionType(void)
+{
+	return this->InteractionType;
 }

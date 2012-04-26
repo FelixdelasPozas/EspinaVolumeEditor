@@ -136,8 +136,8 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
     connect(renderdisablebutton, SIGNAL(clicked(bool)), this, SLOT(DisableRenderView()));
     connect(eyebutton, SIGNAL(clicked(bool)), this, SLOT(SwitchSegmentationView()));
 
-    connect(polygonButton, SIGNAL(clicked(bool)), this, SLOT(ToggleContourButton(bool)));
-    connect(lassoButton, SIGNAL(clicked(bool)), this, SLOT(ToggleContourButton(bool)));
+    connect(polygonButton, SIGNAL(clicked(bool)), this, SLOT(ToggleButtonDefault(bool)));
+    connect(lassoButton, SIGNAL(clicked(bool)), this, SLOT(ToggleButtonDefault(bool)));
 
     QSettings editorSettings("UPM", "Espina Volume Editor");
 
@@ -2147,7 +2147,7 @@ void EspinaVolumeEditor::SliceXYPick(const unsigned long event, SliceVisualizati
     	        }
     	        else
     	        {
-    	        	ApplyUserAction();
+    	        	ApplyUserAction(this->_axialSliceVisualization);
     	        	this->_volumeRender->UpdateFocusExtent();
     	        }
     			break;
@@ -2167,7 +2167,7 @@ void EspinaVolumeEditor::SliceXYPick(const unsigned long event, SliceVisualizati
     	        }
     	        else
     	        {
-    	        	ApplyUserAction();
+    	        	ApplyUserAction(this->_coronalSliceVisualization);
     	        	this->_volumeRender->UpdateFocusExtent();
     	        }
     			break;
@@ -2187,7 +2187,7 @@ void EspinaVolumeEditor::SliceXYPick(const unsigned long event, SliceVisualizati
     	        }
     	        else
     	        {
-    	        	ApplyUserAction();
+    	        	ApplyUserAction(this->_sagittalSliceVisualization);
     	        	this->_volumeRender->UpdateFocusExtent();
     	        }
     			break;
@@ -2841,6 +2841,10 @@ void EspinaVolumeEditor::ToggleButtonDefault(bool value)
 	{
 		case true:
 		    this->_editorOperations->ClearSelection();
+
+		    // need to update the gui according to selected label set
+		    LabelSelectionChanged();
+
 		    UpdateViewports(All);
 			break;
 		case false:
@@ -2856,8 +2860,8 @@ void EspinaVolumeEditor::ToggleEraseOrPaintButton(bool value)
 	{
 		case true:
 			this->_editorOperations->ClearSelection();
-			// only one label allowed so we will choose the last one, if it exists
-			if (this->_dataManager->GetSelectedLabelSetSize() > 1)
+			// only one label allowed for paint so we will choose the last one, if it exists
+			if ((this->_dataManager->GetSelectedLabelSetSize() > 1) && paintbutton->isChecked())
 			{
 				std::set<unsigned short> labels = this->_dataManager->GetSelectedLabelsSet();
 				std::set<unsigned short>::reverse_iterator rit = labels.rbegin();
@@ -2871,8 +2875,9 @@ void EspinaVolumeEditor::ToggleEraseOrPaintButton(bool value)
 				}
 				else
 					labelselector->clearSelection();
+
+				labelselector->setSelectionMode(QAbstractItemView::SingleSelection);
 			}
-			labelselector->setSelectionMode(QAbstractItemView::SingleSelection);
 			UpdateViewports(All);
 			break;
 		case false:
@@ -2953,7 +2958,7 @@ void EspinaVolumeEditor::SelectLabelGroup(std::set<unsigned short> labels)
 	LabelSelectionChanged();
 }
 
-void EspinaVolumeEditor::ApplyUserAction(void)
+void EspinaVolumeEditor::ApplyUserAction(SliceVisualization *orientation)
 {
    	if (paintbutton->isChecked())
 	{
@@ -2971,6 +2976,18 @@ void EspinaVolumeEditor::ApplyUserAction(void)
 	{
 		_editorOperations->AddSelectionPoint(Vector3ui(_POI[0], _POI[1], _POI[2]));
 		relabelbutton->setEnabled(true);
+		return;
+	}
+
+	if (lassoButton->isChecked())
+	{
+		this->_editorOperations->AddContourPoint(Vector3ui(_POI[0], _POI[1], _POI[2]), true, orientation);
+		return;
+	}
+
+	if (polygonButton->isChecked())
+	{
+		this->_editorOperations->AddContourPoint(Vector3ui(_POI[0], _POI[1], _POI[2]), false, orientation);
 		return;
 	}
 
@@ -3001,25 +3018,5 @@ void EspinaVolumeEditor::ApplyUserAction(void)
 		_editorOperations->ContiguousAreaSelection(_POI);
 
 		labelselector->item(_pointScalar)->setSelected(true);
-	}
-}
-
-void EspinaVolumeEditor::ToggleContourButton(bool value)
-{
-	switch(value)
-	{
-		case true:
-			this->_editorOperations->ClearSelection();
-			if (polygonButton->isChecked())
-				this->_editorOperations->PolygonSelection();
-			else
-				this->_editorOperations->LassoSelection();
-		    UpdateViewports(All);
-			break;
-		case false:
-			this->_editorOperations->ClearSelection();
-			break;
-		default: // can't happen
-			break;
 	}
 }

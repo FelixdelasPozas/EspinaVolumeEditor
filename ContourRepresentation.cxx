@@ -29,10 +29,6 @@
 #include <vtkRenderer.h>
 #include <vtkWindow.h>
 
-#include <vtkstd/set>
-#include <vtkstd/algorithm>
-#include <vtkstd/iterator>
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // ContourRepresentation class
 //
@@ -111,7 +107,7 @@ void ContourRepresentation::AddNodeAtPositionInternal(double worldPos[3], double
 
 	this->Internal->Nodes.push_back(node);
 
-	if (this->LineInterpolator && this->GetNumberOfNodes() > 1)
+	if (this->LineInterpolator && (this->GetNumberOfNodes() > 1))
 	{
 		// Give the line interpolator a chance to update the node.
 		int didNodeChange = this->LineInterpolator->UpdateNode(this->Renderer, this, node->WorldPosition, this->GetNumberOfNodes() - 1);
@@ -572,6 +568,7 @@ int ContourRepresentation::FindClosestPointOnContour(int X, int Y, double closes
 	tmp1[0] = X;
 	tmp1[1] = Y;
 	tmp1[2] = 0.0;
+
 	this->Renderer->SetDisplayPoint(tmp1);
 	this->Renderer->DisplayToWorld();
 	this->Renderer->GetWorldPoint(p1);
@@ -621,8 +618,10 @@ int ContourRepresentation::FindClosestPointOnContour(int X, int Y, double closes
 					if (i < this->Internal->Nodes.size() - 1)
 						p4 = this->Internal->Nodes[i + 1]->WorldPosition;
 					else
+					{
 						if (this->ClosedLoop)
 							p4 = this->Internal->Nodes[0]->WorldPosition;
+					}
 				}
 			}
 			else if (j == this->Internal->Nodes[i]->Points.size())
@@ -710,7 +709,6 @@ int ContourRepresentation::FindClosestPointOnContour(int X, int Y, double closes
 			return 1;
 		}
 	}
-
 	return 0;
 }
 
@@ -721,8 +719,7 @@ int ContourRepresentation::AddNodeOnContour(int X, int Y)
 	double worldPos[3];
 	double worldOrient[9] = { 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 };
 
-	// Compute the world position from the display position
-	// based on the concrete representation's constraints
+	// Compute the world position from the display position based on the concrete representation's constraints
 	// If this is not a valid display location return 0
 	double displayPos[2];
 	displayPos[0] = X;
@@ -750,7 +747,6 @@ int ContourRepresentation::AddNodeOnContour(int X, int Y)
 	memcpy(node->WorldOrientation, worldOrient, 9 * sizeof(double));
 
 	this->Internal->Nodes.insert(this->Internal->Nodes.begin() + idx, node);
-
 	this->UpdateLines(idx);
 	this->NeedToRender = 1;
 
@@ -1641,7 +1637,7 @@ void ContourRepresentation::SetSecondaryRepresentationPoints(double *point1, dou
 
 	// calling to this method for the first time should create the only two points of this representation if
 	// its the secondary one
-	if (this->representationType == ContourRepresentation::SecondaryWidget)
+	if (this->representationType == ContourRepresentation::SecondaryRepresentation)
 	{
 		if (2 != this->GetNumberOfNodes())
 		{

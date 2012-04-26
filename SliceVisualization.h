@@ -88,14 +88,14 @@ class SliceVisualization
         // toggle segmentation view (switches from 0 opacity to previously set opacity and viceversa)
         void ToggleSegmentationView(void);
 
-        // set selection volume to reslice and create actos
+        // set selection volume to reslice and create actors
         void SetSelectionVolume(const vtkSmartPointer<vtkImageData>, bool = true);
 
         // clear selection
         void ClearSelections();
 
         // get orientation type of the object
-        SliceVisualization::OrientationType GetOrientationType(void);
+        const SliceVisualization::OrientationType GetOrientationType(void);
 
         // get the slice renderer
         vtkSmartPointer<vtkRenderer> GetViewRenderer(void);
