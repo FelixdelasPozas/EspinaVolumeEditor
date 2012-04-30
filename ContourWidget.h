@@ -114,15 +114,9 @@ class VTK_WIDGETS_EXPORT ContourWidget: public vtkAbstractWidget
 			this->Initialize(NULL);
 		}
 
-        typedef enum
-        {
-            Primary, Secondary, Unspecified
-        } WidgetInteractionType;
-
-		// if we set widget as secondary it means that the widget stays in ContourWidget:Manipulate state
-		// permanently
-		void SetWidgetInteractionType(ContourWidget::WidgetInteractionType);
-        ContourWidget::WidgetInteractionType GetWidgetInteractionType(void);
+		// orientation of the slice where the widget is (0 = axial, 1 = coronal, 2 = sagittal)
+		vtkGetMacro(Orientation,int);
+		vtkSetMacro(Orientation,int);
 
 	protected:
 		ContourWidget();
@@ -143,7 +137,7 @@ class VTK_WIDGETS_EXPORT ContourWidget: public vtkAbstractWidget
 		int FollowCursor;
 		int ContinuousDraw;
 		int ContinuousActive;
-		ContourWidget::WidgetInteractionType InteractionType;
+		int Orientation;
 
 		// Callback interface to capture events when
 		// placing the widget.

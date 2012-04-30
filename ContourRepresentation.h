@@ -337,19 +337,6 @@ class VTK_WIDGETS_EXPORT ContourRepresentation: public vtkContourRepresentation
 		// final coords depend on voxel centers);
 		void PlaceFinalPoints(void);
 
-		// used by the widget callback in selection to sync the representations
-		void SetSecondaryRepresentationPoints(double *, double*);
-
-		// to set only one widget as the main widget (the only one where the users can create points) and the
-		// others as secondary, when the user only can translate the points but is not able to create them
-        typedef enum
-        {
-            MainRepresentation, SecondaryRepresentation, Unspecified
-        } RepresentationType;
-
-        void SetRepresentationType(RepresentationType type);
-        RepresentationType GetRepresentationType(void);
-
 	protected:
 		ContourRepresentation();
 		~ContourRepresentation();
@@ -451,8 +438,6 @@ class VTK_WIDGETS_EXPORT ContourRepresentation: public vtkContourRepresentation
 		void RemoveDuplicatedNodes();
 		bool Intersects(int, int);
 		void TranslatePoints(double *);
-
-		RepresentationType representationType;
 };
 
 #endif // _CONTOURREPRESENTATION_H_

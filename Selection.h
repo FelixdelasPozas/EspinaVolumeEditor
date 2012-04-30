@@ -109,7 +109,10 @@ class Selection
         static void ContourSelectionWidgetCallback (vtkObject*, unsigned long, void*, void *);
 
         // starts lasso/polygon selection
-        void AddContourInitialPoint(const Vector3ui, const bool, SliceVisualization*);
+        void AddContourInitialPoint(const Vector3ui, SliceVisualization*);
+
+        // moves the contour selection volume if there is a change in slice
+        void UpdateContourSlice(Vector3ui point);
     private:
         // private methods
         //
@@ -118,10 +121,10 @@ class Selection
         void ComputeSelectionBounds(void);
         //
         // computes lasso bounds for min/max selection determination and actor visibility (clipper)
-        void ComputeLassoBounds(const double *, unsigned int *);
+        void ComputeLassoBounds(unsigned int *);
         //
         // generates a rotated volume according to orientation (0 = axial, 1 = coronal, 2 = sagittal)
-        void ComputeContourSelectionVolume(const int, const unsigned int *);
+        void ComputeContourSelectionVolume(const unsigned int *);
         //
         // computes actor from selected volume
         void ComputeActor(vtkSmartPointer<vtkImageData>);
@@ -185,15 +188,14 @@ class Selection
         // callback for box selection interaction
         vtkSmartPointer<vtkCallbackCommand> 				_widgetsCallbackCommand;
 
-        // contour selection widgets, one per view
-        vtkSmartPointer<ContourWidget>						_axialContourWidget;
-        vtkSmartPointer<ContourWidget>						_coronalContourWidget;
-        vtkSmartPointer<ContourWidget>						_sagittalContourWidget;
+        // contour selection widget
+        vtkSmartPointer<ContourWidget>						_contourWidget;
 
         // converts VtkPolyData from a contour to a stencil that later gets converted to a volume
         vtkSmartPointer<vtkPolyDataToImageStencil>			_polyDataToStencil;
         vtkSmartPointer<vtkImageStencilToImage>				_stencilToImage;
         vtkImageData										*_rotatedImage;
+        bool 												_selectionIsValid;
 };
 
 #endif // _SELECTION_H_

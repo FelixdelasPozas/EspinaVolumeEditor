@@ -68,8 +68,8 @@ int SaveSessionThread::exec()
 	emit startedSaving();
 
 	QFile file(QString(temporalFilename.c_str()));
-	if(file.exists())
-		if (!file.remove())
+	if(true == file.exists())
+		if (false == file.remove())
 		{
 			QMessageBox msgBox;
 			msgBox.setCaption("Error saving session");
@@ -81,8 +81,8 @@ int SaveSessionThread::exec()
 		}
 
 	QFile fileMHA(QString(temporalFilenameMHA.c_str()));
-	if(fileMHA.exists())
-		if (!fileMHA.remove())
+	if(true == fileMHA.exists())
+		if (false == fileMHA.remove())
 		{
 			QMessageBox msgBox;
 			msgBox.setCaption("Error saving session");

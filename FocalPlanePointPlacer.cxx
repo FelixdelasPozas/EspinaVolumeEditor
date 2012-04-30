@@ -57,9 +57,7 @@ int FocalPlanePointPlacer::ComputeWorldPosition(vtkRenderer *ren, double display
 	ren->DisplayToWorld();
 	ren->GetWorldPoint(tmp);
 
-	// Translate the focal point by "Offset" from the focal plane along the
-	// viewing direction.
-
+	// Translate the focal point by "Offset" from the focal plane along the viewing direction.
 	double focalPlaneNormal[3];
 	ren->GetActiveCamera()->GetDirectionOfProjection(focalPlaneNormal);
 	if (ren->GetActiveCamera()->GetParallelProjection())
@@ -87,9 +85,7 @@ int FocalPlanePointPlacer::ComputeWorldPosition(vtkRenderer *ren, double display
 
 	double tolerance[3] = { 1e-12, 1e-12, 1e-12 };
 	if (this->PointBounds[0] < this->PointBounds[1] && !(vtkMath::PointIsWithinBounds(tmp, this->PointBounds, tolerance)))
-	{
 		return 0;
-	}
 
 	this->TransformToSpacedCoordinates(&tmp[0], &tmp[1]);
 	worldPos[0] = tmp[0];
@@ -241,13 +237,13 @@ void FocalPlanePointPlacer::TransformToSpacedCoordinates(double *x, double *y)
 	if (*y < 0.0)
 		Y = -Y;
 
-	xCoord = vtkFastNumericConversion::QuickFloor(X / this->Spacing[0]);
-	yCoord = vtkFastNumericConversion::QuickFloor(Y / this->Spacing[1]);
+	xCoord = floor(X / this->Spacing[0]);
+	yCoord = floor(Y / this->Spacing[1]);
 
-	if (fmod(X, this->Spacing[0]) >= 0.5)
+	if (fmod(X, this->Spacing[0]) > (0.5*this->Spacing[0]))
 		xCoord++;
 
-	if (fmod(Y, this->Spacing[1]) >= 0.5)
+	if (fmod(Y, this->Spacing[1]) > (0.5*this->Spacing[1]))
 		yCoord++;
 
 	xCoord *= this->Spacing[0];

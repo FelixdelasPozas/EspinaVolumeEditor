@@ -109,9 +109,9 @@ void EditorOperations::AddSelectionPoint(const Vector3ui point)
 	this->_selection->AddSelectionPoint(point);
 }
 
-void EditorOperations::AddContourPoint(const Vector3ui point, const bool continousDraw, SliceVisualization *orientation)
+void EditorOperations::AddContourPoint(const Vector3ui point, SliceVisualization *orientation)
 {
-	this->_selection->AddContourInitialPoint(point, continousDraw, orientation);
+	this->_selection->AddContourInitialPoint(point, orientation);
 }
 
 void EditorOperations::ItkImageToPoints(itk::SmartPointer<ImageType> image)
@@ -870,6 +870,12 @@ void EditorOperations::UpdatePaintEraseActors(int x, int y, int z, int radius, S
 	this->_selection->SetSelectionDisc(x,y,z,radius, sliceView);
 }
 
+void EditorOperations::UpdateContourSlice(Vector3ui point)
+{
+	if (this->_selection)
+		this->_selection->UpdateContourSlice(point);
+}
+
 void EditorOperations::Paint(unsigned short label)
 {
 	if (Selection::DISC == this->_selection->GetSelectionType())
@@ -881,5 +887,20 @@ void EditorOperations::Paint(unsigned short label)
 				for (unsigned int z = min[2]; z <= max[2]; z++)
 					if (this->_selection->VoxelIsInsideSelection(x, y, z))
 						_dataManager->SetVoxelScalar(x, y, z, label);
+	}
+}
+
+void EditorOperations::Erase(std::set<unsigned short> labels)
+{
+	if (Selection::DISC == this->_selection->GetSelectionType())
+	{
+		Vector3ui min = this->_selection->GetSelectedMinimumBouds();
+		Vector3ui max = this->_selection->GetSelectedMaximumBouds();
+	    for (unsigned int x = min[0]; x <= max[0]; x++)
+			for (unsigned int y = min[1]; y <= max[1]; y++)
+				for (unsigned int z = min[2]; z <= max[2]; z++)
+					if (this->_selection->VoxelIsInsideSelection(x, y, z))
+						if (labels.find(this->_dataManager->GetVoxelScalar(x,y,z)) != labels.end())
+							_dataManager->SetVoxelScalar(x, y, z, 0);
 	}
 }

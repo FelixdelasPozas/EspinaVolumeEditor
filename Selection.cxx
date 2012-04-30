@@ -60,10 +60,9 @@ Selection::Selection()
     this->_axialBoxWidget = NULL;
     this->_coronalBoxWidget = NULL;
     this->_sagittalBoxWidget = NULL;
-    this->_axialContourWidget = NULL;
-    this->_coronalContourWidget = NULL;
-    this->_sagittalContourWidget = NULL;
+    this->_contourWidget = NULL;
     this->_boxRender = NULL;
+    this->_selectionIsValid = true;
 
     this->_rotatedImage = NULL;
 }
@@ -265,16 +264,17 @@ void Selection::ComputeSelectionCube()
     this->_coronalView->ClearSelections();
     this->_sagittalView->ClearSelections();
 
-    Vector3ui minBounds = this->_min;
-    Vector3ui maxBounds = this->_max;
+    // bounds can be negative so we need to avoid unsigned types
+    Vector3i minBounds = Vector3i(static_cast<int>(this->_min[0]), static_cast<int>(this->_min[1]), static_cast<int>(this->_min[2]));
+    Vector3i maxBounds = Vector3i(static_cast<int>(this->_max[0]), static_cast<int>(this->_max[1]), static_cast<int>(this->_max[2]));
 
     //modify bounds so theres a point of separation between bounds and actor
-    if (this->_min[0] > 0) minBounds[0]--;
-    if (this->_min[1] > 0) minBounds[1]--;
-    if (this->_min[2] > 0) minBounds[2]--;
-    if (this->_max[0] < this->_size[0]) maxBounds[0]++;
-    if (this->_max[1] < this->_size[1]) maxBounds[1]++;
-    if (this->_max[2] < this->_size[2]) maxBounds[2]++;
+    if (this->_min[0] >= 0) minBounds[0]--;
+    if (this->_min[1] >= 0) minBounds[1]--;
+    if (this->_min[2] >= 0) minBounds[2]--;
+    if (this->_max[0] <= this->_size[0]) maxBounds[0]++;
+    if (this->_max[1] <= this->_size[1]) maxBounds[1]++;
+    if (this->_max[2] <= this->_size[2]) maxBounds[2]++;
 
     // create selection volume (plus borders for correct actor generation)
     vtkSmartPointer<vtkImageData> subvolume = vtkSmartPointer<vtkImageData>::New();
@@ -338,10 +338,9 @@ void Selection::ClearSelection(void)
     	this->_axialView->SetSliceWidget(NULL);
     	this->_coronalView->SetSliceWidget(NULL);
     	this->_sagittalView->SetSliceWidget(NULL);
-    	this->_axialContourWidget = NULL;
-    	this->_coronalContourWidget = NULL;
-    	this->_sagittalContourWidget = NULL;
+    	this->_contourWidget = NULL;
     	this->_widgetsCallbackCommand = NULL;
+    	this->_selectionIsValid = true;
     }
 	// clear selection points and bounds
     this->_selectedPoints.clear();
@@ -618,6 +617,7 @@ bool Selection::VoxelIsInsideSelectionSubvolume(vtkSmartPointer<vtkImageData> su
 
 	switch(this->_selectionType)
 	{
+		case CONTOUR:
 		case DISC:
 		{
 			double origin[3];
@@ -629,34 +629,6 @@ bool Selection::VoxelIsInsideSelectionSubvolume(vtkSmartPointer<vtkImageData> su
 			if ((extent[0] <= point[0]) && (extent[1] >= point[0]) && (extent[2] <= point[1]) && (extent[3] >= point[1]) && (extent[4] <= point[2]) && (extent[5] >= point[2]))
 			{
 				unsigned char *voxel = static_cast<unsigned char*>(subvolume->GetScalarPointer(point[0], point[1], point[2]));
-				return (VOXEL_SELECTED == *voxel);
-			}
-			break;
-		}
-		case CONTOUR:
-		{
-			unsigned char *voxel;
-			if (this->_axialContourWidget->GetWidgetInteractionType() == ContourWidget::Primary)
-			{
-				extent[4] = extent[5] = this->_min[2];
-				voxel = static_cast<unsigned char*>(subvolume->GetScalarPointer(x,y,0));
-			}
-			else
-				if (this->_coronalContourWidget->GetWidgetInteractionType() == ContourWidget::Primary)
-				{
-					extent[2] = extent[3] = this->_min[1];
-					voxel = static_cast<unsigned char*>(subvolume->GetScalarPointer(x,0,z));
-				}
-				else
-				{
-					extent[0] = extent[1] = this->_min[0];
-					voxel = static_cast<unsigned char*>(subvolume->GetScalarPointer(0,y,z));
-				}
-
-			if ((extent[0] <= static_cast<int>(x)) && (extent[1] >= static_cast<int>(x)) &&
-				(extent[2] <= static_cast<int>(y)) && (extent[3] >= static_cast<int>(y)) &&
-				(extent[4] <= static_cast<int>(z)) && (extent[5] >= static_cast<int>(z)))
-			{
 				return (VOXEL_SELECTED == *voxel);
 			}
 			break;
@@ -996,8 +968,50 @@ void Selection::BoxSelectionWidgetCallback (vtkObject *caller, unsigned long eve
 		self->_renderer->GetRenderWindow()->Render();
 }
 
-void Selection::ComputeLassoBounds(const double *dBounds, unsigned int *iBounds)
+void Selection::ComputeLassoBounds(unsigned int *iBounds)
 {
+	ContourRepresentation* representation = static_cast<ContourRepresentation*>(this->_contourWidget->GetRepresentation());
+	double *bounds = representation->GetBounds();
+
+	// this copy is needed because we want to change the values and we mustn't do it in the original pointer or we will mess
+	// with the representation
+	double dBounds[6] = { bounds[0], bounds[1], bounds[2], bounds[3], bounds[4], bounds[5] };
+
+	switch(this->_contourWidget->GetOrientation())
+	{
+		case 0: // axial
+			// first check if the contour is inside the slice
+			if ((dBounds[1] < 0) || (dBounds[3] < 0) ||	(dBounds[0] > (this->_size[0]*this->_spacing[0])) || (dBounds[2] > (this->_size[1]*this->_spacing[1])))
+				this->_selectionIsValid = false;
+			else
+				this->_selectionIsValid = true;
+
+			dBounds[4] = dBounds[5] = this->_min[2]*this->_spacing[2];
+			break;
+		case 1: // coronal
+			if ((dBounds[1] < 0) || (dBounds[3] < 0) || (dBounds[0] > (this->_size[0]*this->_spacing[0])) || (dBounds[2] > (this->_size[2]*this->_spacing[2])))
+				this->_selectionIsValid = false;
+			else
+				this->_selectionIsValid = true;
+
+			dBounds[4] = dBounds[2];
+			dBounds[5] = dBounds[3];
+			dBounds[2] = dBounds[3] = this->_min[1]*this->_spacing[1];
+			break;
+		case 2: // sagittal
+			if ((dBounds[1] < 0) || (dBounds[3] < 0) ||	(dBounds[0] > (this->_size[1]*this->_spacing[1])) || (dBounds[2] > (this->_size[2]*this->_spacing[2])))
+				this->_selectionIsValid = false;
+			else
+				this->_selectionIsValid = true;
+
+			dBounds[4] = dBounds[2];
+			dBounds[5] = dBounds[3];
+			dBounds[2] = dBounds[0];
+			dBounds[3] = dBounds[1];
+			dBounds[0] = dBounds[1] = this->_min[0]*this->_spacing[0];
+			break;
+	}
+
 	for(unsigned int i = 0; i < 3; i++)
 	{
 		unsigned int j = 2*i;
@@ -1010,9 +1024,9 @@ void Selection::ComputeLassoBounds(const double *dBounds, unsigned int *iBounds)
 				iBounds[j] = this->_size[i];
 			else
 			{
-				iBounds[j] = vtkFastNumericConversion::Round(dBounds[j]/this->_spacing[i]);
+				iBounds[j] = floor(dBounds[j]/this->_spacing[i]);
 
-				if (fmod(dBounds[j],this->_spacing[i]) > 0.5)
+				if (fmod(dBounds[j],this->_spacing[i]) > (0.5*this->_spacing[i]))
 					iBounds[j]++;
 			}
 
@@ -1023,20 +1037,18 @@ void Selection::ComputeLassoBounds(const double *dBounds, unsigned int *iBounds)
 				iBounds[k] = this->_size[i];
 			else
 			{
-				iBounds[k] = vtkFastNumericConversion::Round(dBounds[k]/this->_spacing[i]);
+				iBounds[k] = floor(dBounds[k]/this->_spacing[i]);
 
-				if (fmod(dBounds[k],this->_spacing[i]) > 0.5)
+				if (fmod(dBounds[k],this->_spacing[i]) > (0.5*this->_spacing[i]))
 					iBounds[k]++;
 			}
 	}
-
-	assert((iBounds[0] <= iBounds[1]) && (iBounds[2] <= iBounds[3]) && (iBounds[4] <= iBounds[5]));
 }
 
-void Selection::AddContourInitialPoint(const Vector3ui point, const bool continousDraw, SliceVisualization *callerSlice)
+void Selection::AddContourInitialPoint(const Vector3ui point, SliceVisualization *callerSlice)
 {
 	// if there is an existing contour just return
-	if ((this->_axialContourWidget != NULL) && (this->_coronalContourWidget != NULL) && (this->_sagittalContourWidget != NULL))
+	if (this->_contourWidget != NULL)
 		return;
 
 	this->_selectionType = CONTOUR;
@@ -1044,123 +1056,56 @@ void Selection::AddContourInitialPoint(const Vector3ui point, const bool contino
 	this->_max = point;
 	double worldPos[3] = { 0.0, 0.0, 0.0 };
 
-	ContourRepresentationGlyph *mainRepresentation = NULL;
-
 	// interpolate points with lines
-	vtkSmartPointer<vtkLinearContourLineInterpolator> interp = vtkSmartPointer<vtkLinearContourLineInterpolator>::New();
-	FocalPlanePointPlacer *pointPlacer;
-	ContourRepresentationGlyph *representation;
+	vtkSmartPointer<vtkLinearContourLineInterpolator> interpolator = vtkSmartPointer<vtkLinearContourLineInterpolator>::New();
+	FocalPlanePointPlacer *pointPlacer = FocalPlanePointPlacer::New();
+	ContourRepresentationGlyph *representation = ContourRepresentationGlyph::New();
 
-	// create axial widget and representation
-	pointPlacer = FocalPlanePointPlacer::New();
-	pointPlacer->SetSpacing(this->_spacing[0], this->_spacing[1]);
+	// create widget and representation
+	this->_contourWidget = vtkSmartPointer<ContourWidget>::New();
+	this->_contourWidget->SetInteractor(callerSlice->GetViewRenderer()->GetRenderWindow()->GetInteractor());
+	this->_contourWidget->SetContinuousDraw(true);
+	this->_contourWidget->SetFollowCursor(true);
+
+	switch(callerSlice->GetOrientationType())
+	{
+		case SliceVisualization::Axial:
+			this->_contourWidget->SetOrientation(0);
+			pointPlacer->SetSpacing(this->_spacing[0], this->_spacing[1]);
+			representation->SetSpacing(this->_spacing[0], this->_spacing[1]);
+			worldPos[0] = point[0] * this->_spacing[0];
+			worldPos[1] = point[1] * this->_spacing[1];
+			break;
+		case SliceVisualization::Coronal:
+			this->_contourWidget->SetOrientation(1);
+			pointPlacer->SetSpacing(this->_spacing[0], this->_spacing[2]);
+			representation->SetSpacing(this->_spacing[0], this->_spacing[2]);
+			worldPos[0] = point[0] * this->_spacing[0];
+			worldPos[1] = point[2] * this->_spacing[2];
+			break;
+		case SliceVisualization::Sagittal:
+			this->_contourWidget->SetOrientation(2);
+			pointPlacer->SetSpacing(this->_spacing[1], this->_spacing[2]);
+			representation->SetSpacing(this->_spacing[1], this->_spacing[2]);
+			worldPos[0] = point[1] * this->_spacing[1];
+			worldPos[1] = point[2] * this->_spacing[2];
+			break;
+		default:
+			break;
+	}
+
 	pointPlacer->UpdateInternalState();
 
-	this->_axialContourWidget = vtkSmartPointer<ContourWidget>::New();
-	this->_axialContourWidget->SetInteractor(this->_axialView->GetViewRenderer()->GetRenderWindow()->GetInteractor());
-	this->_axialContourWidget->SetContinuousDraw(continousDraw);
-	this->_axialContourWidget->SetFollowCursor(true);
+	representation->SetPointPlacer(pointPlacer);
+	representation->SetLineInterpolator(interpolator);
 
-	representation = ContourRepresentationGlyph::New();
-	representation->SetPointPlacer(reinterpret_cast<vtkImageActorPointPlacer*>(pointPlacer));
-	representation->SetLineInterpolator(interp);
-	representation->SetSpacing(this->_spacing[0], this->_spacing[1]);
+	this->_contourWidget->SetRepresentation(representation);
+	this->_contourWidget->SetEnabled(true);
+	this->_contourWidget->On();
 
-	this->_axialContourWidget->SetRepresentation(representation);
-	this->_axialContourWidget->SetEnabled(true);
-	this->_axialContourWidget->On();
-
-	if (this->_axialView == callerSlice)
-	{
-		this->_axialContourWidget->SetWidgetInteractionType(ContourWidget::Primary);
-		representation->SetRepresentationType(ContourRepresentation::MainRepresentation);
-		mainRepresentation = representation;
-	}
-	else
-	{
-		this->_axialContourWidget->SetWidgetInteractionType(ContourWidget::Secondary);
-		representation->SetRepresentationType(ContourRepresentation::SecondaryRepresentation);
-	}
-
-	worldPos[0] = point[0] * this->_spacing[0];
-	worldPos[1] = point[1] * this->_spacing[1];
 	representation->AddNodeAtWorldPosition(worldPos);
 	representation->AddNodeAtWorldPosition(worldPos);
-	representation->Modified();
-
-	// create coronal widget and representation
-	pointPlacer = FocalPlanePointPlacer::New();
-	pointPlacer->SetSpacing(this->_spacing[0], this->_spacing[2]);
-	pointPlacer->UpdateInternalState();
-
-	this->_coronalContourWidget = vtkSmartPointer<ContourWidget>::New();
-	this->_coronalContourWidget->SetInteractor(this->_coronalView->GetViewRenderer()->GetRenderWindow()->GetInteractor());
-	this->_coronalContourWidget->SetContinuousDraw(continousDraw);
-	this->_coronalContourWidget->SetFollowCursor(true);
-
-	representation = ContourRepresentationGlyph::New();
-	representation->SetPointPlacer(reinterpret_cast<vtkImageActorPointPlacer*>(pointPlacer));
-	representation->SetLineInterpolator(interp);
-	representation->SetSpacing(this->_spacing[0], this->_spacing[2]);
-
-	this->_coronalContourWidget->SetRepresentation(representation);
-	this->_coronalContourWidget->SetEnabled(true);
-	this->_coronalContourWidget->On();
-
-	if (this->_coronalView == callerSlice)
-	{
-		this->_coronalContourWidget->SetWidgetInteractionType(ContourWidget::Primary);
-		representation->SetRepresentationType(ContourRepresentation::MainRepresentation);
-		mainRepresentation = representation;
-	}
-	else
-	{
-		this->_coronalContourWidget->SetWidgetInteractionType(ContourWidget::Secondary);
-		representation->SetRepresentationType(ContourRepresentation::SecondaryRepresentation);
-	}
-
-	// add the first points
-	worldPos[0] = point[0] * this->_spacing[0];
-	worldPos[1] = point[2] * this->_spacing[2];
-	representation->AddNodeAtWorldPosition(worldPos);
-	representation->AddNodeAtWorldPosition(worldPos);
-	representation->Modified();
-
-	// create sagittal widget and representation
-	pointPlacer = FocalPlanePointPlacer::New();
-	pointPlacer->SetSpacing(this->_spacing[1], this->_spacing[2]);
-	pointPlacer->UpdateInternalState();
-
-	this->_sagittalContourWidget = vtkSmartPointer<ContourWidget>::New();
-	this->_sagittalContourWidget->SetInteractor(this->_sagittalView->GetViewRenderer()->GetRenderWindow()->GetInteractor());
-	this->_sagittalContourWidget->SetContinuousDraw(continousDraw);
-	this->_sagittalContourWidget->SetFollowCursor(true);
-
-	representation = ContourRepresentationGlyph::New();
-	representation->SetPointPlacer(reinterpret_cast<vtkImageActorPointPlacer*>(pointPlacer));
-	representation->SetLineInterpolator(interp);
-	representation->SetSpacing(this->_spacing[1], this->_spacing[2]);
-
-	this->_sagittalContourWidget->SetRepresentation(representation);
-	this->_sagittalContourWidget->SetEnabled(true);
-	this->_sagittalContourWidget->On();
-
-	if (this->_sagittalView == callerSlice)
-	{
-		this->_sagittalContourWidget->SetWidgetInteractionType(ContourWidget::Primary);
-		representation->SetRepresentationType(ContourRepresentation::MainRepresentation);
-		mainRepresentation = representation;
-	}
-	else
-	{
-		this->_sagittalContourWidget->SetWidgetInteractionType(ContourWidget::Secondary);
-		representation->SetRepresentationType(ContourRepresentation::SecondaryRepresentation);
-	}
-
-	worldPos[0] = point[1] * this->_spacing[1];
-	worldPos[1] = point[2] * this->_spacing[2];
-	representation->AddNodeAtWorldPosition(worldPos);
-	representation->AddNodeAtWorldPosition(worldPos);
+	representation->SetVisibility(true);
 	representation->Modified();
 
 	// set callbacks for widget interaction
@@ -1168,39 +1113,37 @@ void Selection::AddContourInitialPoint(const Vector3ui point, const bool contino
 	this->_widgetsCallbackCommand->SetCallback(this->ContourSelectionWidgetCallback);
 	this->_widgetsCallbackCommand->SetClientData(this);
 
-	this->_axialContourWidget->AddObserver(vtkCommand::StartInteractionEvent, this->_widgetsCallbackCommand);
-	this->_axialContourWidget->AddObserver(vtkCommand::EndInteractionEvent, this->_widgetsCallbackCommand);
-	this->_axialContourWidget->AddObserver(vtkCommand::InteractionEvent, this->_widgetsCallbackCommand);
+	this->_contourWidget->AddObserver(vtkCommand::StartInteractionEvent, this->_widgetsCallbackCommand);
+	this->_contourWidget->AddObserver(vtkCommand::EndInteractionEvent, this->_widgetsCallbackCommand);
+	this->_contourWidget->AddObserver(vtkCommand::InteractionEvent, this->_widgetsCallbackCommand);
 
-	this->_coronalContourWidget->AddObserver(vtkCommand::StartInteractionEvent, this->_widgetsCallbackCommand);
-	this->_coronalContourWidget->AddObserver(vtkCommand::EndInteractionEvent, this->_widgetsCallbackCommand);
-	this->_coronalContourWidget->AddObserver(vtkCommand::InteractionEvent, this->_widgetsCallbackCommand);
+	// make the slice aware of a contour selection
+	callerSlice->SetSliceWidget(this->_contourWidget);
 
-	this->_sagittalContourWidget->AddObserver(vtkCommand::StartInteractionEvent, this->_widgetsCallbackCommand);
-	this->_sagittalContourWidget->AddObserver(vtkCommand::EndInteractionEvent, this->_widgetsCallbackCommand);
-	this->_sagittalContourWidget->AddObserver(vtkCommand::InteractionEvent, this->_widgetsCallbackCommand);
-
-	// make the slices aware of a contour selection, so they could hide and show it accordingly when the slice changes
-	this->_axialView->SetSliceWidget(this->_axialContourWidget);
-	this->_coronalView->SetSliceWidget(this->_coronalContourWidget);
-	this->_sagittalView->SetSliceWidget(this->_sagittalContourWidget);
-
-	// create the volume that will represent user selected points
+	// create the volume that will represent user selected points. the spacing is 1 because we will not
+	// use it's output directly, we will create our own volume instead with ComputeContourSelectionVolume()
 	this->_polyDataToStencil = vtkSmartPointer<vtkPolyDataToImageStencil>::New();
-	this->_polyDataToStencil->SetInput(mainRepresentation->GetContourRepresentationAsPolyData());
+	this->_polyDataToStencil->SetInput(representation->GetContourRepresentationAsPolyData());
 	this->_polyDataToStencil->SetOutputOrigin(0,0,0);
-	this->_polyDataToStencil->SetOutputSpacing(this->_spacing[0], this->_spacing[1], this->_spacing[2]);
 
 	// change stencil properties according to slice orientation
-	if (this->_axialView == callerSlice)
-		this->_polyDataToStencil->SetOutputWholeExtent(0, this->_size[0], 0, this->_size[1], 0, 0);
-
-	if (this->_coronalView == callerSlice)
-		this->_polyDataToStencil->SetOutputWholeExtent(0, this->_size[0], 0, this->_size[2], 0, 0);
-
-	if (this->_sagittalView == callerSlice)
-		this->_polyDataToStencil->SetOutputWholeExtent(0, this->_size[1], 0, this->_size[2], 0, 0);
-
+	switch(callerSlice->GetOrientationType())
+	{
+		case SliceVisualization::Axial:
+			this->_polyDataToStencil->SetOutputSpacing(this->_spacing[0], this->_spacing[1], this->_spacing[2]);
+			this->_polyDataToStencil->SetOutputWholeExtent(0, this->_size[0], 0, this->_size[1], 0, 0);
+			break;
+		case SliceVisualization::Coronal:
+			this->_polyDataToStencil->SetOutputSpacing(this->_spacing[0], this->_spacing[2], this->_spacing[1]);
+			this->_polyDataToStencil->SetOutputWholeExtent(0, this->_size[0], 0, this->_size[2], 0, 0);
+			break;
+		case SliceVisualization::Sagittal:
+			this->_polyDataToStencil->SetOutputSpacing(this->_spacing[1], this->_spacing[2], this->_spacing[0]);
+			this->_polyDataToStencil->SetOutputWholeExtent(0, this->_size[1], 0, this->_size[2], 0, 0);
+			break;
+		default:
+			break;
+	}
 	this->_polyDataToStencil->SetTolerance(0);
 
 	this->_stencilToImage = vtkSmartPointer<vtkImageStencilToImage>::New();
@@ -1209,232 +1152,67 @@ void Selection::AddContourInitialPoint(const Vector3ui point, const bool contino
 	this->_stencilToImage->SetInsideValue(VOXEL_SELECTED);
 	this->_stencilToImage->SetOutsideValue(VOXEL_UNSELECTED);
 
-	this->_changer = vtkSmartPointer<vtkImageChangeInformation>::New();
-
 	// bootstrap operations
-	if (this->_axialView == callerSlice)
-		this->_axialContourWidget->SelectAction(this->_axialContourWidget);
-	else
-		if (this->_coronalView == callerSlice)
-			this->_coronalContourWidget->SelectAction(this->_coronalContourWidget);
-		else
-			if (this->_sagittalView == callerSlice)
-				this->_sagittalContourWidget->SelectAction(this->_sagittalContourWidget);
+	this->_contourWidget->SelectAction(this->_contourWidget);
 }
 
-// TODO: fix interaction and don't forget the point position problem (???) and the box selection error. also make file information window.
 void Selection::ContourSelectionWidgetCallback (vtkObject *caller, unsigned long event, void *clientdata, void *calldata)
 {
 	Selection *self = static_cast<Selection *> (clientdata);
-	ContourWidget *callerWidget = static_cast<ContourWidget*>(caller);
-	ContourRepresentation *callerRepresentation = static_cast<ContourRepresentation *>(callerWidget->GetRepresentation());
-
-	Vector3ui min = self->GetSelectedMinimumBouds();
-	Vector3ui max = self->GetSelectedMaximumBouds();
-
-	// TODO: temporal //////////////////////////////
-	if (callerWidget->GetWidgetInteractionType() != ContourWidget::Primary)
-		return;
-	/////////////////////////////////////////////////
+	ContourWidget *widget = static_cast<ContourWidget*>(caller);
+	ContourRepresentation *representation = static_cast<ContourRepresentation *>(widget->GetRepresentation());
 
 	// if bounds are not defined means that the representation is not valid
-	double *dBounds = callerRepresentation->GetBounds();
+	double *dBounds = representation->GetBounds();
 	if (dBounds == NULL)
 		return;
 
 	// calculate correct bounds for min/max vectors and for correctly cutting the selection volume
 	unsigned int iBounds[6];
-	self->ComputeLassoBounds(dBounds, iBounds);
+	self->ComputeLassoBounds(iBounds);
+
+	self->_min = Vector3ui(iBounds[0], iBounds[2], iBounds[4]);
+	self->_max = Vector3ui(iBounds[1], iBounds[3], iBounds[5]);
+
+	if (vtkCommand::EndInteractionEvent == event)
+		representation->PlaceFinalPoints();
 
 	// update the representation volume (update the pipeline)
-	self->_polyDataToStencil->SetInput(callerRepresentation->GetContourRepresentationAsPolyData());
+	self->_polyDataToStencil->SetInput(representation->GetContourRepresentationAsPolyData());
 	self->_polyDataToStencil->Modified();
 
-	// get main widget orientation: 0 = axial, 1 = coronal, 2 = sagittal
-	int orientation;
-	if (self->_axialContourWidget->GetWidgetInteractionType() == ContourWidget::Primary)
-		orientation = 0;
-	else
-		if (self->_coronalContourWidget->GetWidgetInteractionType() == ContourWidget::Primary)
-		orientation = 1;
-		else
-			orientation = 2;
-
 	// adquire new rotated and clipped image
-	self->ComputeContourSelectionVolume(orientation, iBounds);
+	self->ComputeContourSelectionVolume(iBounds);
 
 	if (self->_rotatedImage != NULL)
 	{
-		self->_changer->SetInput(self->_rotatedImage);
-
 	    self->DeleteSelectionActors();
 	    self->DeleteSelectionVolumes();
 	    self->_axialView->ClearSelections();
 	    self->_coronalView->ClearSelections();
 	    self->_sagittalView->ClearSelections();
 
-	    self->_selectionVolumesList.push_back(self->_changer->GetOutput());
-	    self->_axialView->SetSelectionVolume(self->_changer->GetOutput(), true);
-	    self->_coronalView->SetSelectionVolume(self->_changer->GetOutput(), true);
-	    self->_sagittalView->SetSelectionVolume(self->_changer->GetOutput(), true);
+	    self->_selectionVolumesList.push_back(self->_rotatedImage);
+	    self->_axialView->SetSelectionVolume(self->_rotatedImage, true);
+	    self->_coronalView->SetSelectionVolume(self->_rotatedImage, true);
+	    self->_sagittalView->SetSelectionVolume(self->_rotatedImage, true);
 	}
 	else
 		return;
 
-	// update the volume according to new dBounds
-	if (0 == orientation)
-	{
-		self->_changer->SetOutputOrigin(0, 0, min[2]);
-		self->_min = Vector3ui(iBounds[0], iBounds[2], min[2]);
-		self->_max = Vector3ui(iBounds[1], iBounds[3], max[2]);
-	}
-
-	if (1 == orientation)
-	{
-		self->_changer->SetOutputOrigin(0, min[1], 0);
-		self->_min = Vector3ui(iBounds[0], min[1], iBounds[2]);
-		self->_max = Vector3ui(iBounds[1], max[1], iBounds[3]);
-	}
-
-	if (2 == orientation)
-	{
-		self->_changer->SetOutputOrigin(min[0], 0, 0);
-		self->_min = Vector3ui(min[0], iBounds[0], iBounds[2]);
-		self->_max = Vector3ui(max[0], iBounds[1], iBounds[3]);
-	}
-	self->_changer->Update();
-
-	if (self->_axialContourWidget == callerWidget)
-	{
-		ContourRepresentation *coronalRepresentation = static_cast<ContourRepresentation *>(self->_coronalContourWidget->GetRepresentation());
-		ContourRepresentation *sagittalRepresentation = static_cast<ContourRepresentation *>(self->_sagittalContourWidget->GetRepresentation());
-		double point1[3] = { 0.0, 0.0, 0.0 };
-		double point2[3] = { 0.0, 0.0, 0.0 };
-
-		switch(event)
-		{
-			case vtkCommand::StartInteractionEvent:
-				// nothing to be done
-				break;
-			case vtkCommand::InteractionEvent:
-				if (callerRepresentation->GetRepresentationType() == ContourRepresentation::MainRepresentation)
-				{
-					point1[0] = dBounds[0];
-					point1[1] = min[2];
-					point1[2] = 0;
-					point2[0] = dBounds[1];
-					point2[1] = max[2];
-					point2[2] = 0;
-					coronalRepresentation->SetSecondaryRepresentationPoints(point1, point2);
-
-					point1[0] = dBounds[2];
-					point1[1] = min[2];
-					point1[2] = 0;
-					point2[0] = dBounds[3];
-					point2[1] = max[2];
-					point2[2] = 0;
-					sagittalRepresentation->SetSecondaryRepresentationPoints(point1, point2);
-				}
-				break;
-			case vtkCommand::EndInteractionEvent:
-				// we need to place the points in case the user has been translating the contour.
-				callerRepresentation->PlaceFinalPoints();
-				coronalRepresentation->PlaceFinalPoints();
-				sagittalRepresentation->PlaceFinalPoints();
-				break;
-			default:	// shouldn't happen;
-				break;
-		}
-	}
-
-	if (self->_coronalContourWidget == callerWidget)
-	{
-		ContourRepresentation *axialRepresentation = static_cast<ContourRepresentation *>(self->_axialContourWidget->GetRepresentation());
-		ContourRepresentation *sagittalRepresentation = static_cast<ContourRepresentation *>(self->_sagittalContourWidget->GetRepresentation());
-		double point1[3], point2[3];
-
-		switch(event)
-		{
-			case vtkCommand::StartInteractionEvent:
-				break;
-			case vtkCommand::InteractionEvent:
-				if (callerRepresentation->GetRepresentationType() == ContourRepresentation::MainRepresentation)
-				{
-					point1[0] = dBounds[0];
-					point1[1] = min[1];
-					point1[2] = 0;
-					point2[0] = dBounds[1];
-					point2[1] = max[1];
-					point2[2] = 0;
-					axialRepresentation->SetSecondaryRepresentationPoints(point1, point2);
-					point1[0] = min[1];
-					point1[1] = dBounds[2];
-					point1[2] = 0;
-					point2[0] = max[1];
-					point2[1] = dBounds[3];
-					point2[2] = 0;
-					sagittalRepresentation->SetSecondaryRepresentationPoints(point1, point2);
-				}
-				break;
-			case vtkCommand::EndInteractionEvent:
-				callerRepresentation->PlaceFinalPoints();
-				axialRepresentation->PlaceFinalPoints();
-				sagittalRepresentation->PlaceFinalPoints();
-				break;
-			default:	// shouldn't happen;
-				break;
-		}
-	}
-
-	if (self->_sagittalContourWidget == callerWidget)
-	{
-		ContourRepresentation *axialRepresentation = static_cast<ContourRepresentation *>(self->_axialContourWidget->GetRepresentation());
-		ContourRepresentation *coronalRepresentation = static_cast<ContourRepresentation *>(self->_coronalContourWidget->GetRepresentation());
-		double point1[3], point2[3];
-
-
-		switch(event)
-		{
-			case vtkCommand::StartInteractionEvent:
-				break;
-			case vtkCommand::InteractionEvent:
-				if (callerRepresentation->GetRepresentationType() == ContourRepresentation::MainRepresentation)
-				{
-					point1[0] = min[0];
-					point1[1] = dBounds[2];
-					point1[2] = 0;
-					point2[0] = max[0];
-					point2[1] = dBounds[3];
-					point2[2] = 0;
-					coronalRepresentation->SetSecondaryRepresentationPoints(point1, point2);
-					point1[1] = dBounds[0];
-					point2[1] = dBounds[1];
-					axialRepresentation->SetSecondaryRepresentationPoints(point1, point2);
-				}
-				break;
-			case vtkCommand::EndInteractionEvent:
-				callerRepresentation->PlaceFinalPoints();
-				axialRepresentation->PlaceFinalPoints();
-				coronalRepresentation->PlaceFinalPoints();
-				break;
-			default:	// shouldn't happen;
-				break;
-		}
-	}
-
 	// update renderers
-	self->_axialContourWidget->Render();
-	self->_coronalContourWidget->Render();
-	self->_sagittalContourWidget->Render();
+	self->_axialView->GetViewRenderer()->GetRenderWindow()->Render();
+	self->_coronalView->GetViewRenderer()->GetRenderWindow()->Render();
+	self->_sagittalView->GetViewRenderer()->GetRenderWindow()->Render();
 }
 
-void Selection::ComputeContourSelectionVolume(const int orientation,const unsigned int *bounds)
+void Selection::ComputeContourSelectionVolume(const unsigned int *bounds)
 {
 	vtkImageData *image = this->_stencilToImage->GetOutput();
 	image->Update();
 
-	// need to create a volume with the extent changed (1 voxel thicker) for the slices to correct
-	// hide/show the volume and the widgets
+	// need to create a volume with the extent changed (1 voxel thicker on every axis) for the slices
+	// to correctly hide/show the volume and the widgets
 	int extent[6];
 	image->GetExtent(extent);
 
@@ -1448,66 +1226,98 @@ void Selection::ComputeContourSelectionVolume(const int orientation,const unsign
 		this->_rotatedImage = NULL;
 	}
 
-	// create the volume and properties according to the slice orientation and use bounds to make it smaller.
+	// create the volume and properties according to the slice orientation and use contour representation bounds to make it smaller.
 	this->_rotatedImage = vtkImageData::New();
 	this->_rotatedImage->SetScalarTypeToInt();
 	this->_rotatedImage->SetSpacing(this->_spacing[0], this->_spacing[1], this->_spacing[2]);
+	this->_rotatedImage->SetOrigin((static_cast<int>(bounds[0])-1)*this->_spacing[0], (static_cast<int>(bounds[2])-1)*this->_spacing[1], (static_cast<int>(bounds[4])-1)*this->_spacing[2]);
+	this->_rotatedImage->SetDimensions(bounds[1]-bounds[0]+3, bounds[3]-bounds[2]+3, bounds[5]-bounds[4]+3);
+	this->_rotatedImage->AllocateScalars();
+	memset(this->_rotatedImage->GetScalarPointer(), 0, this->_rotatedImage->GetScalarSize()*(bounds[1]-bounds[0]+3)*(bounds[3]-bounds[2]+3)*(bounds[5]-bounds[4]+3));
 
-	switch(orientation)
+	if (this->_selectionIsValid)
+		switch(this->_contourWidget->GetOrientation())
+		{
+			case 0: // axial
+				for (unsigned int i = bounds[0]; i <= bounds[1]; i++)
+					for (unsigned int j = bounds[2]; j <= bounds[3]; j++)
+					{
+						int *pixel = static_cast<int*>(image->GetScalarPointer(i,j,0));
+						int *rotatedPixel = static_cast<int*>(this->_rotatedImage->GetScalarPointer(i-bounds[0]+1,j-bounds[2]+1,1));
+						*rotatedPixel = *pixel;
+					}
+				break;
+			case 1: // coronal
+				for (unsigned int i = bounds[0]; i <= bounds[1]; i++)
+					for (unsigned int j = bounds[4]; j <= bounds[5]; j++)
+					{
+						int *pixel = static_cast<int*>(image->GetScalarPointer(i,j,0));
+						int* rotatedPixel = static_cast<int*>(this->_rotatedImage->GetScalarPointer(i-bounds[0]+1,1,j-bounds[4]+1));
+						*rotatedPixel = *pixel;
+					}
+				break;
+			case 2: // sagittal
+				for (unsigned int i = bounds[2]; i <= bounds[3]; i++)
+					for (unsigned int j = bounds[4]; j <= bounds[5]; j++)
+					{
+						int *pixel = static_cast<int*>(image->GetScalarPointer(i,j,0));
+						int* rotatedPixel = static_cast<int*>(this->_rotatedImage->GetScalarPointer(1,i-bounds[2]+1,j-bounds[4]+1));
+						*rotatedPixel = *pixel;
+					}
+				break;
+			default: // can't happen
+				break;
+		}
+}
+
+void Selection::UpdateContourSlice(Vector3ui point)
+{
+	if (this->_selectionType != CONTOUR)
+		return;
+
+	double origin[3];
+	this->_rotatedImage->GetOrigin(origin);
+
+	switch(this->_contourWidget->GetOrientation())
 	{
 		case 0: // axial
-			this->_rotatedImage->SetOrigin(bounds[0],bounds[2],0);
-			this->_rotatedImage->SetDimensions(bounds[1]-bounds[0]+2, bounds[3]-bounds[2]+2, 3);
-			this->_rotatedImage->SetExtent(bounds[0]-1, bounds[1]+1, bounds[2]-1, bounds[3]+1, -1, 1);
-			this->_rotatedImage->AllocateScalars();
-			memset(this->_rotatedImage->GetScalarPointer(), 0, this->_rotatedImage->GetScalarSize()*(bounds[1]-bounds[0]+3)*(bounds[3]-bounds[2]+3)*3);
+			if (point[2] == this->_min[2])
+				return;
 
-			for (unsigned int i = bounds[0]; i < bounds[1]; i++)
-				for (unsigned int j = bounds[2]; j < bounds[3]; j++)
-				{
-					int *pixel = static_cast<int*>(image->GetScalarPointer(i,j,0));
-					int *rotatedPixel = static_cast<int*>(this->_rotatedImage->GetScalarPointer(i,j,0));
-					assert(rotatedPixel != NULL);
-					assert(pixel != NULL);
-					*rotatedPixel = *pixel;
-				}
+			this->_min[2] = this->_max[2] = point[2];
+			origin[2] = (static_cast<int>(point[2])-1)*this->_spacing[2];
 			break;
 		case 1: // coronal
-			this->_rotatedImage->SetOrigin(bounds[0],0,bounds[2]);
-			this->_rotatedImage->SetDimensions(bounds[1]-bounds[0]+2, 3, bounds[3]-bounds[2]+2);
-			this->_rotatedImage->SetExtent(bounds[0]-1, bounds[1]+1, -1, 1, bounds[2]-1, bounds[3]+1);
-			this->_rotatedImage->AllocateScalars();
-			memset(this->_rotatedImage->GetScalarPointer(), 0, this->_rotatedImage->GetScalarSize()*(bounds[1]-bounds[0]+3)*(bounds[3]-bounds[2]+3)*3);
+			if (point[1] == this->_min[1])
+				return;
 
-			for (unsigned int i = bounds[0]; i < bounds[1]; i++)
-				for (unsigned int j = bounds[2]; j < bounds[3]; j++)
-				{
-					int *pixel = static_cast<int*>(image->GetScalarPointer(i,j,0));
-					int* rotatedPixel = static_cast<int*>(this->_rotatedImage->GetScalarPointer(i,0,j));
-					assert(rotatedPixel != NULL);
-					assert(pixel != NULL);
-					*rotatedPixel = *pixel;
-				}
+			this->_min[1] = this->_max[1] = point[1];
+			origin[1] = (static_cast<int>(point[1])-1)*this->_spacing[1];
 			break;
 		case 2: // sagittal
-			this->_rotatedImage->SetOrigin(0, bounds[0], bounds[2]);
-			this->_rotatedImage->SetDimensions(3, bounds[1]-bounds[0]+2, bounds[3]-bounds[2]+2);
-			this->_rotatedImage->SetExtent(-1, 1, bounds[0]-1, bounds[1]+1, bounds[2]-1, bounds[3]+1);
-			this->_rotatedImage->AllocateScalars();
-			memset(this->_rotatedImage->GetScalarPointer(), 0, this->_rotatedImage->GetScalarSize()*(bounds[1]-bounds[0]+3)*(bounds[3]-bounds[2]+3)*3);
+			if (point[0] == this->_min[0])
+				return;
 
-			for (unsigned int i = bounds[0]; i < bounds[1]; i++)
-				for (unsigned int j = bounds[2]; j < bounds[3]; j++)
-				{
-					int *pixel = static_cast<int*>(image->GetScalarPointer(i,j,0));
-					int* rotatedPixel = static_cast<int*>(this->_rotatedImage->GetScalarPointer(0,i,j));
-					assert(rotatedPixel != NULL);
-					assert(pixel != NULL);
-					*rotatedPixel = *pixel;
-				}
-
+			this->_min[0] = this->_max[0] = point[0];
+			origin[0] = (static_cast<int>(point[0])-1)*this->_spacing[0];
 			break;
-		default: // can't happen
+		default:
 			break;
 	}
+
+	this->_changer = vtkSmartPointer<vtkImageChangeInformation>::New();
+	this->_changer->SetInput(this->_rotatedImage);
+	this->_changer->SetOutputOrigin(origin);
+	this->_changer->Update();
+
+    this->DeleteSelectionActors();
+    this->DeleteSelectionVolumes();
+    this->_axialView->ClearSelections();
+    this->_coronalView->ClearSelections();
+    this->_sagittalView->ClearSelections();
+
+    this->_selectionVolumesList.push_back(this->_changer->GetOutput());
+    this->_axialView->SetSelectionVolume(this->_changer->GetOutput(), true);
+    this->_coronalView->SetSelectionVolume(this->_changer->GetOutput(), true);
+    this->_sagittalView->SetSelectionVolume(this->_changer->GetOutput(), true);
 }

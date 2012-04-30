@@ -50,7 +50,6 @@ ContourRepresentation::ContourRepresentation()
 	this->ClosedLoop = 0;
 	this->ShowSelectedNodes = 0;
 	this->CurrentOperation = ContourRepresentation::Inactive;
-	this->representationType = ContourRepresentation::Unspecified;
 
 	this->ResetLocator();
 }
@@ -1628,44 +1627,6 @@ bool ContourRepresentation::Intersects(int nodeA, int nodeC)
 
     // true if an intersection between two non-parallel lines occurs between the given segment double *s.
     return ((0 <= nMitc[0] && nMitc[0] <=  det) && (0 >= nMitc[1] && nMitc[1] >= -det)) || ((0 >= nMitc[0] && nMitc[0] >= det) && (0 <= nMitc[1] && nMitc[1] <= -det));
-}
-
-void ContourRepresentation::SetSecondaryRepresentationPoints(double *point1, double *point2)
-{
-//	double *bounds;
-//	double vector[2];
-
-	// calling to this method for the first time should create the only two points of this representation if
-	// its the secondary one
-	if (this->representationType == ContourRepresentation::SecondaryRepresentation)
-	{
-		if (2 != this->GetNumberOfNodes())
-		{
-			this->ClearAllNodes();
-			this->AddNodeAtWorldPosition(point1);
-			this->AddNodeAtWorldPosition(point2);
-		}
-		else
-		{
-			this->SetNthNodeWorldPosition(0, point1);
-			this->SetNthNodeWorldPosition(1, point2);
-		}
-		this->UpdateLines(0);
-	}
-
-	this->NeedToRenderOn();
-	this->UpdateContour();
-}
-
-void ContourRepresentation::SetRepresentationType(ContourRepresentation::RepresentationType type)
-{
-	if (this->representationType == ContourRepresentation::Unspecified)
-		this->representationType = type;
-}
-
-ContourRepresentation::RepresentationType ContourRepresentation::GetRepresentationType(void)
-{
-	return this->representationType;
 }
 
 void ContourRepresentation::TranslatePoints(double *vector)

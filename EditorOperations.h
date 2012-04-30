@@ -59,8 +59,11 @@ class EditorOperations
         // save volume to disk in MHA format
         void SaveImage(const std::string);
         
-        // used for paint a selected area (paint/erase)
+        // used for paint a selected area (paint/erase with label 0)
         void Paint(unsigned short);
+
+        // same as paint but only erases selected labels
+        void Erase(std::set<unsigned short>);
 
         // get the labelmap representation of the volume
         itk::SmartPointer<LabelMapType> GetImageLabelMap();
@@ -92,7 +95,8 @@ class EditorOperations
         const bool IsFirstColorSelected(void);
         void SetSliceViews(SliceVisualization*, SliceVisualization*, SliceVisualization*);
         void UpdatePaintEraseActors(int, int, int, int, SliceVisualization*);
-        void AddContourPoint(const Vector3ui, const bool, SliceVisualization*);
+        void AddContourPoint(const Vector3ui, SliceVisualization*);
+        void UpdateContourSlice(Vector3ui point);
 
         // SaveSessionThread need to touch private attributes
         friend class SaveSessionThread;

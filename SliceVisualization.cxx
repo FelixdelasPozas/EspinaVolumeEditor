@@ -652,11 +652,11 @@ void SliceVisualization::ModifyActorVisibility(struct ActorData* actorInformatio
 	int minSlice, maxSlice;
 	int slice = 0;
 
-	if (this->_segmentationHidden)
+	if (this->_segmentationHidden == true)
 	{
 		actorInformation->actor->SetVisibility(false);
 
-		if (this->_sliceWidget)
+		if (this->_sliceWidget != NULL)
 		{
 			this->_sliceWidget->GetRepresentation()->SetVisibility(false);
 			this->_sliceWidget->SetEnabled(false);
@@ -687,7 +687,7 @@ void SliceVisualization::ModifyActorVisibility(struct ActorData* actorInformatio
 		else
 			actorInformation->actor->SetVisibility(false);
 
-		if (this->_sliceWidget)
+		if (this->_sliceWidget != NULL)
 		{
 			// correct the fact that selection volumes has a minSlice-1 and maxSlice+1 for correct marching cubes
 			minSlice++;
@@ -703,7 +703,6 @@ void SliceVisualization::ModifyActorVisibility(struct ActorData* actorInformatio
 				this->_sliceWidget->GetRepresentation()->SetVisibility(false);
 				this->_sliceWidget->SetEnabled(false);
 			}
-
 		}
 	}
 }
@@ -738,16 +737,16 @@ void SliceVisualization::SetSelectionVolume(const vtkSmartPointer<vtkImageData> 
     iconFilter->SetIconSize(8,8);
     iconFilter->SetUseIconSize(false);
     // if spacing < 1, we're fucked, literally
-    switch (_orientation)
+    switch (this->_orientation)
     {
-        case Sagittal:
-        	iconFilter->SetDisplaySize(static_cast<int>(_spacing[1]),static_cast<int>(_spacing[2]));
+        case SliceVisualization::Axial:
+        	iconFilter->SetDisplaySize(static_cast<int>(this->_spacing[0]),static_cast<int>(this->_spacing[1]));
             break;
-        case Coronal:
-        	iconFilter->SetDisplaySize(static_cast<int>(_spacing[0]),static_cast<int>(_spacing[2]));
+        case SliceVisualization::Coronal:
+        	iconFilter->SetDisplaySize(static_cast<int>(this->_spacing[0]),static_cast<int>(this->_spacing[2]));
             break;
-        case Axial:
-        	iconFilter->SetDisplaySize(static_cast<int>(_spacing[0]),static_cast<int>(_spacing[1]));
+        case SliceVisualization::Sagittal:
+        	iconFilter->SetDisplaySize(static_cast<int>(this->_spacing[1]),static_cast<int>(this->_spacing[2]));
             break;
         default:
             break;
@@ -774,9 +773,9 @@ void SliceVisualization::SetSelectionVolume(const vtkSmartPointer<vtkImageData> 
     struct ActorData *actorInformation = new struct ActorData();
     actorInformation->actor = actor;
 
-    switch (_orientation)
+    switch (this->_orientation)
     {
-        case Sagittal:
+        case SliceVisualization::Sagittal:
         	if (useActorBounds)
         	{
 				actorInformation->minSlice = static_cast<int>(bounds[0]/_spacing[0]);
@@ -788,7 +787,7 @@ void SliceVisualization::SetSelectionVolume(const vtkSmartPointer<vtkImageData> 
 				actorInformation->maxSlice = this->_size[0];
         	}
             break;
-        case Coronal:
+        case SliceVisualization::Coronal:
         	if (useActorBounds)
         	{
 				actorInformation->minSlice = static_cast<int>(bounds[2]/_spacing[1]);
@@ -800,7 +799,7 @@ void SliceVisualization::SetSelectionVolume(const vtkSmartPointer<vtkImageData> 
         		actorInformation->maxSlice = this->_size[1];
         	}
             break;
-        case Axial:
+        case SliceVisualization::Axial:
         	if (useActorBounds)
         	{
 				actorInformation->minSlice = static_cast<int>(bounds[4]/_spacing[2]);

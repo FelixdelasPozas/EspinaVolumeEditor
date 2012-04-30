@@ -305,37 +305,25 @@ int ContourRepresentationGlyph::ComputeInteractionState(int X, int Y, int vtkNot
 	xyz[1] = static_cast<double>(Y);
 	xyz[2] = pos[2];
 
-	if (this->GetRepresentationType() == ContourRepresentation::SecondaryRepresentation)
+	this->VisibilityOn();
+	double tol2 = this->PixelTolerance * this->PixelTolerance;
+	if (vtkMath::Distance2BetweenPoints(xyz, pos) <= tol2)
 	{
-		double doubleXY[3];
-		this->Renderer->SetDisplayPoint(xyz);
-		this->Renderer->DisplayToWorld();
-		this->Renderer->GetWorldPoint(doubleXY);
-
-		double *bounds = this->GetBounds();
-		if (((bounds[0]-(this->Spacing[0]/2)) <= doubleXY[0]) && ((bounds[1]+(this->Spacing[0]/2)) >= doubleXY[0]) &&
-			((bounds[2]-(this->Spacing[1]/2)) <= doubleXY[1]) && ((bounds[3]+(this->Spacing[1]/2)) >= doubleXY[1]))
-		{
-			this->InteractionState = ContourRepresentation::Inside;
-		}
-		else
-		{
-			this->InteractionState = ContourRepresentation::Outside;
-		}
+		this->InteractionState = ContourRepresentation::Nearby;
+		if (!this->ActiveCursorShape)
+			this->VisibilityOff();
 	}
 	else
 	{
-		this->VisibilityOn();
-		double tol2 = this->PixelTolerance * this->PixelTolerance;
-		if (vtkMath::Distance2BetweenPoints(xyz, pos) <= tol2)
+		if (!this->ClosedLoop)
 		{
-			this->InteractionState = ContourRepresentation::Nearby;
-			if (!this->ActiveCursorShape)
+			this->InteractionState = ContourRepresentation::Outside;
+			if (!this->CursorShape)
 				this->VisibilityOff();
 		}
 		else
 		{
-			if (!this->ClosedLoop)
+			if (!this->ShootingAlgorithm(X, Y))
 			{
 				this->InteractionState = ContourRepresentation::Outside;
 				if (!this->CursorShape)
@@ -343,23 +331,13 @@ int ContourRepresentationGlyph::ComputeInteractionState(int X, int Y, int vtkNot
 			}
 			else
 			{
-				if (!this->ShootingAlgorithm(X,Y))
-				{
-					this->InteractionState = ContourRepresentation::Outside;
-					if (!this->CursorShape)
-						this->VisibilityOff();
-				}
+				// checking the active node allow better node picking, even being inside the polygon
+				if (-1 == this->ActiveNode)
+					this->InteractionState = ContourRepresentation::Inside;
 				else
-				{
-					// checking the active node allow better node picking, even being inside the polygon
-					if (-1 == this->ActiveNode)
-						this->InteractionState = ContourRepresentation::Inside;
-					else
-						this->InteractionState = ContourRepresentation::Outside;
-				}
+					this->InteractionState = ContourRepresentation::Outside;
 			}
 		}
-
 	}
 
 	return this->InteractionState;
@@ -412,10 +390,6 @@ void ContourRepresentationGlyph::WidgetInteraction(double eventPos[2])
 // Translate everything
 void ContourRepresentationGlyph::Translate(double eventPos[2])
 {
-	// we don't allow modifying the nodes in secondary representations
-	if (this->GetRepresentationType() == ContourRepresentation::SecondaryRepresentation)
-		return;
-
 	double ref[3];
 
 	if (!this->GetActiveNodeWorldPosition(ref))

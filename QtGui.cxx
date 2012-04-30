@@ -136,7 +136,6 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
     connect(renderdisablebutton, SIGNAL(clicked(bool)), this, SLOT(DisableRenderView()));
     connect(eyebutton, SIGNAL(clicked(bool)), this, SLOT(SwitchSegmentationView()));
 
-    connect(polygonButton, SIGNAL(clicked(bool)), this, SLOT(ToggleButtonDefault(bool)));
     connect(lassoButton, SIGNAL(clicked(bool)), this, SLOT(ToggleButtonDefault(bool)));
 
     QSettings editorSettings("UPM", "Espina Volume Editor");
@@ -418,7 +417,7 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
 	QFile file(QString(temporalFilename.c_str()));
 	QFile fileMHA(QString(temporalFilenameMHA.c_str()));
 
-	if (file.exists() && fileMHA.exists())
+	if ((true == file.exists()) && (true == fileMHA.exists()))
 	{
 		char *buffer;
 		unsigned short int size;
@@ -1035,13 +1034,14 @@ void EspinaVolumeEditor::MoveAxialSlider(int value)
 
     // slider values are in the range [1-size] but coordinates are [0-(slices-1)]
     value--;
-    _POI[2] = value;
+    this->_POI[2] = value;
     if (updatePointLabel)
     	GetPointLabel();
     
-    _sagittalSliceVisualization->UpdateCrosshair(_POI);
-    _coronalSliceVisualization->UpdateCrosshair(_POI);
-    _axialSliceVisualization->UpdateSlice(_POI);
+    this->_sagittalSliceVisualization->UpdateCrosshair(_POI);
+    this->_coronalSliceVisualization->UpdateCrosshair(_POI);
+    this->_axialSliceVisualization->UpdateSlice(_POI);
+   	this->_editorOperations->UpdateContourSlice(_POI);
     
     if (updateSliceRenderers)
         UpdateViewports(Slices);
@@ -1064,13 +1064,14 @@ void EspinaVolumeEditor::MoveCoronalSlider(int value)
     // slider values are in the range [1-size] but coordinates are [0-(slices-1)]
     value--;
 
-    _POI[1] = value;
+    this->_POI[1] = value;
     if (updatePointLabel)
     	GetPointLabel();
 
-    _sagittalSliceVisualization->UpdateCrosshair(_POI);
-    _coronalSliceVisualization->UpdateSlice(_POI);
-    _axialSliceVisualization->UpdateCrosshair(_POI);
+    this->_sagittalSliceVisualization->UpdateCrosshair(_POI);
+    this->_coronalSliceVisualization->UpdateSlice(_POI);
+    this->_axialSliceVisualization->UpdateCrosshair(_POI);
+   	this->_editorOperations->UpdateContourSlice(_POI);
 
     if (updateSliceRenderers)
         UpdateViewports(Slices);
@@ -1093,13 +1094,14 @@ void EspinaVolumeEditor::MoveSagittalSlider(int value)
     // slider values are in the range [1-size] but coordinates are [0-(slices-1)]
     value--;
     
-    _POI[0] = value;
+    this->_POI[0] = value;
     if (updatePointLabel)
     	GetPointLabel();
 
-    _sagittalSliceVisualization->UpdateSlice(_POI);
-    _coronalSliceVisualization->UpdateCrosshair(_POI);
-    _axialSliceVisualization->UpdateCrosshair(_POI);
+    this->_sagittalSliceVisualization->UpdateSlice(_POI);
+    this->_coronalSliceVisualization->UpdateCrosshair(_POI);
+    this->_axialSliceVisualization->UpdateCrosshair(_POI);
+   	this->_editorOperations->UpdateContourSlice(_POI);
     
     if (updateSliceRenderers)
         UpdateViewports(Slices);
@@ -1325,7 +1327,7 @@ void EspinaVolumeEditor::LabelSelectionChanged(void)
 
     // if we have only one segmentation selected then center the slice views over the centroid of the segmentation,
     // but only if the user is not picking colours, selecting a box, erasing or painting.
-    if ((this->_dataManager->GetSelectedLabelSetSize() == 1) && !pickerbutton->isChecked() && !selectbutton->isChecked() && !erasebutton->isChecked() && !paintbutton->isChecked())
+    if ((this->_dataManager->GetSelectedLabelSetSize() == 1) && viewbutton->isChecked())
     {
     	std::set<unsigned short>::iterator it = this->_dataManager->GetSelectedLabelsSet().begin();
 		if (0LL != _dataManager->GetNumberOfVoxelsForLabel(*it))
@@ -1837,37 +1839,11 @@ void EspinaVolumeEditor::SliceInteraction(vtkObject* object, unsigned long event
     {
     	// sliders go [1-size], spinboxes go [0-(size-1)], that's the reason of the values added to POI.
         case vtkCommand::MouseWheelForwardEvent:
-        	switch(sliceView->GetOrientationType())
-        	{
-        		case SliceVisualization::Axial:
-        			axialslider->setSliderPosition(_POI[2]+2);
-        			break;
-        		case SliceVisualization::Coronal:
-        			coronalslider->setSliderPosition(_POI[1]+2);
-        			break;
-        		case SliceVisualization::Sagittal:
-        			sagittalslider->setSliderPosition(_POI[0]+2);
-        			break;
-        		default:
-        			break;
-        	}
+        	// SliceXYPick will call setSliderPosition once the selection actors have been moved to their final positions
+        	// idem for MouseWheelBackwardEvent;
         	SliceXYPick(event, sliceView);
             break;
         case vtkCommand::MouseWheelBackwardEvent:
-        	switch(sliceView->GetOrientationType())
-        	{
-        		case SliceVisualization::Axial:
-        			axialslider->setSliderPosition(_POI[2]);
-        			break;
-        		case SliceVisualization::Coronal:
-        			coronalslider->setSliderPosition(_POI[1]);
-        			break;
-        		case SliceVisualization::Sagittal:
-        			sagittalslider->setSliderPosition(_POI[0]);
-        			break;
-        		default:
-        			break;
-        	}
         	SliceXYPick(event, sliceView);
             break;
         case vtkCommand::RightButtonPressEvent:
@@ -2047,23 +2023,93 @@ void EspinaVolumeEditor::SliceXYPick(const unsigned long event, SliceVisualizati
 				case SliceVisualization::Axial:
 					x = X+1;
 					y = Y+1;
-					z = this->axialslider->value()-1;
+					switch(event)
+					{
+						case vtkCommand::MouseWheelForwardEvent:
+							z = this->axialslider->value();
+							break;
+						case vtkCommand::MouseWheelBackwardEvent:
+							z = this->axialslider->value()-2;
+							break;
+						default:
+							z = this->axialslider->value()-1;
+							break;
+					}
 					break;
 				case SliceVisualization::Coronal:
 					x = X+1;
-					y = this->coronalslider->value()-1;
 					z = Y+1;
+					switch(event)
+					{
+						case vtkCommand::MouseWheelForwardEvent:
+							y = this->coronalslider->value();
+							break;
+						case vtkCommand::MouseWheelBackwardEvent:
+							y = this->coronalslider->value()-2;
+							break;
+						default:
+							y = this->coronalslider->value()-1;
+							break;
+					}
 					break;
 				case SliceVisualization::Sagittal:
-					x = this->sagittalslider->value()-1;
 					y = X+1;
 					z = Y+1;
+					switch(event)
+					{
+						case vtkCommand::MouseWheelForwardEvent:
+							x = this->sagittalslider->value();
+							break;
+						case vtkCommand::MouseWheelBackwardEvent:
+							x = this->sagittalslider->value()-2;
+							break;
+						default:
+							x = this->sagittalslider->value()-1;
+							break;
+					}
 					break;
 				default:
 					x = y = z = 0;
 					break;
 			}
 			this->_editorOperations->UpdatePaintEraseActors(x,y,z, this->_paintEraseRadius, sliceView);
+		}
+
+		// once the actors have been moved, then move the slice and update the view
+		if (vtkCommand::MouseWheelForwardEvent == event)
+		{
+        	switch(sliceView->GetOrientationType())
+        	{
+        		case SliceVisualization::Axial:
+        			axialslider->setSliderPosition(_POI[2]+2);
+        			break;
+        		case SliceVisualization::Coronal:
+        			coronalslider->setSliderPosition(_POI[1]+2);
+        			break;
+        		case SliceVisualization::Sagittal:
+        			sagittalslider->setSliderPosition(_POI[0]+2);
+        			break;
+        		default:
+        			break;
+        	}
+		}
+
+		if (vtkCommand::MouseWheelBackwardEvent == event)
+		{
+			switch(sliceView->GetOrientationType())
+			{
+				case SliceVisualization::Axial:
+					axialslider->setSliderPosition(_POI[2]);
+					break;
+				case SliceVisualization::Coronal:
+					coronalslider->setSliderPosition(_POI[1]);
+					break;
+				case SliceVisualization::Sagittal:
+					sagittalslider->setSliderPosition(_POI[0]);
+					break;
+				default:
+					break;
+			}
 		}
 
 		// return if we are not doing an operation
@@ -2147,7 +2193,7 @@ void EspinaVolumeEditor::SliceXYPick(const unsigned long event, SliceVisualizati
     	        }
     	        else
     	        {
-    	        	ApplyUserAction(this->_axialSliceVisualization);
+    	        	ApplyUserAction(sliceView);
     	        	this->_volumeRender->UpdateFocusExtent();
     	        }
     			break;
@@ -2167,7 +2213,7 @@ void EspinaVolumeEditor::SliceXYPick(const unsigned long event, SliceVisualizati
     	        }
     	        else
     	        {
-    	        	ApplyUserAction(this->_coronalSliceVisualization);
+    	        	ApplyUserAction(sliceView);
     	        	this->_volumeRender->UpdateFocusExtent();
     	        }
     			break;
@@ -2187,7 +2233,7 @@ void EspinaVolumeEditor::SliceXYPick(const unsigned long event, SliceVisualizati
     	        }
     	        else
     	        {
-    	        	ApplyUserAction(this->_sagittalSliceVisualization);
+    	        	ApplyUserAction(sliceView);
     	        	this->_volumeRender->UpdateFocusExtent();
     	        }
     			break;
@@ -2693,8 +2739,8 @@ void EspinaVolumeEditor::RemoveSessionFiles(void)
 	QMutexLocker locker(actionLock);
 
 	QFile file(QString(temporalFilename.c_str()));
-	if (file.exists())
-		if (!file.remove())
+	if (true == file.exists())
+		if (false == file.remove())
 		{
 			QMessageBox msgBox;
 			msgBox.setCaption("Error trying to remove file");
@@ -2704,8 +2750,8 @@ void EspinaVolumeEditor::RemoveSessionFiles(void)
 		}
 
 	QFile fileMHA(QString(temporalFilenameMHA.c_str()));
-	if (fileMHA.exists())
-		if (!fileMHA.remove())
+	if (true == fileMHA.exists())
+		if (false == fileMHA.remove())
 		{
 			QMessageBox msgBox;
 			msgBox.setCaption("Error trying to remove file");
@@ -2776,7 +2822,6 @@ void EspinaVolumeEditor::InitiateSessionGUI(void)
     pickerbutton->setEnabled(true);
     wandButton->setEnabled(true);
     selectbutton->setEnabled(true);
-    polygonButton->setEnabled(true);
     lassoButton->setEnabled(true);
     axialresetbutton->setEnabled(true);
     coronalresetbutton->setEnabled(true);
@@ -2875,9 +2920,13 @@ void EspinaVolumeEditor::ToggleEraseOrPaintButton(bool value)
 				}
 				else
 					labelselector->clearSelection();
-
-				labelselector->setSelectionMode(QAbstractItemView::SingleSelection);
 			}
+
+			// only one label while we are painting, multiple if erasing
+			if (paintbutton->isChecked())
+				labelselector->setSelectionMode(QAbstractItemView::SingleSelection);
+			else
+				labelselector->setSelectionMode(QAbstractItemView::ExtendedSelection);
 			UpdateViewports(All);
 			break;
 		case false:
@@ -2962,12 +3011,14 @@ void EspinaVolumeEditor::ApplyUserAction(SliceVisualization *orientation)
 {
    	if (paintbutton->isChecked())
 	{
-		// there should be just one label in the set
-		std::set<unsigned short>::iterator it = this->_dataManager->GetSelectedLabelsSet().begin();
-		if (it == this->_dataManager->GetSelectedLabelsSet().end())
+   		QMutexLocker locker(actionLock);
+
+		if (this->_dataManager->GetSelectedLabelsSet().empty())
 			this->_editorOperations->Paint(0);
 		else
-			this->_editorOperations->Paint(*it);
+			// there should be just one label in the set
+			this->_editorOperations->Paint(this->_dataManager->GetSelectedLabelsSet().begin().operator *());
+
 		GetPointLabel();
 		return;
 	}
@@ -2981,19 +3032,19 @@ void EspinaVolumeEditor::ApplyUserAction(SliceVisualization *orientation)
 
 	if (lassoButton->isChecked())
 	{
-		this->_editorOperations->AddContourPoint(Vector3ui(_POI[0], _POI[1], _POI[2]), true, orientation);
-		return;
-	}
-
-	if (polygonButton->isChecked())
-	{
-		this->_editorOperations->AddContourPoint(Vector3ui(_POI[0], _POI[1], _POI[2]), false, orientation);
+		this->_editorOperations->AddContourPoint(Vector3ui(_POI[0], _POI[1], _POI[2]), orientation);
 		return;
 	}
 
 	if (erasebutton->isChecked())
 	{
-		this->_editorOperations->Paint(0);
+		QMutexLocker locker(actionLock);
+
+		if (this->_dataManager->GetSelectedLabelsSet().empty())
+			this->_editorOperations->Paint(0);
+		else
+			this->_editorOperations->Erase(this->_dataManager->GetSelectedLabelsSet());
+
 		GetPointLabel();
 		return;
 	}
