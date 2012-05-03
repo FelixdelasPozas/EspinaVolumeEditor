@@ -1641,3 +1641,38 @@ void ContourRepresentation::TranslatePoints(double *vector)
 		this->SetNthNodeWorldPosition(i, worldPos, worldOrient);
 	}
 }
+
+double ContourRepresentation::FindClosestDistanceToContour(int x, int y)
+{
+	double displayPos[3] = { static_cast<double>(x), static_cast<double>(y), 0 };
+	double worldOrient[9] = { 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 };
+	double worldPos_i[3], worldPos_j[3], point[3];
+	double result = 100; // just use a big enough constant to boot operations
+
+	this->PointPlacer->ComputeWorldPosition(this->Renderer, displayPos, point, worldOrient);
+
+	for (int i = 0; i < this->GetNumberOfNodes(); i++)
+	{
+		int j = (i+1) % this->GetNumberOfNodes();
+
+		this->GetNthNodeWorldPosition(i, worldPos_i);
+		this->GetNthNodeWorldPosition(j, worldPos_j);
+
+		//         (y1-y2)x + (x2-x1)y + (x1y2-x2y1)
+		//d(P,L) = ---------------------------------
+		//         sqrt( (x2-x1)^2 + (y2-y1)^2 )
+
+		double tempN = ((worldPos_i[1] - worldPos_j[1]) * point[0]) + ((worldPos_j[0] - worldPos_i[0]) * point[1]) + ((worldPos_i[0] * worldPos_j[1]) - (worldPos_j[0] * worldPos_i[1]));
+		double tempD = sqrt(pow(worldPos_j[0] - worldPos_i[0], 2) + pow(worldPos_j[1]- worldPos_i[1], 2));
+
+		if (tempD == 0.0)
+			continue;
+
+		double distance = tempN / tempD;
+
+		if (distance < result)
+			result = distance;
+	}
+
+	return result;
+}

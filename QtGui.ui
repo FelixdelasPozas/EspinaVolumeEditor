@@ -2035,6 +2035,7 @@ QGroupBox::title {
     <addaction name="a_fileOpen"/>
     <addaction name="a_fileReferenceOpen"/>
     <addaction name="a_fileSave"/>
+    <addaction name="a_fileInfo"/>
     <addaction name="separator"/>
     <addaction name="a_fileExit"/>
    </widget>
@@ -2267,6 +2268,24 @@ QGroupBox::title {
    </property>
    <property name="iconVisibleInMenu">
     <bool>true</bool>
+   </property>
+  </action>
+  <action name="a_fileInfo">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="editor.qrc">
+     <normaloff>:/newPrefix/icons/information.png</normaloff>:/newPrefix/icons/information.png</iconset>
+   </property>
+   <property name="text">
+    <string>Session Information</string>
+   </property>
+   <property name="statusTip">
+    <string>Session Information</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+I</string>
    </property>
   </action>
  </widget>

@@ -49,6 +49,7 @@
 #include "EditorOperations.h"
 #include "QtAbout.h"
 #include "QtPreferences.h"
+#include "QtSessionInfo.h"
 #include "itkvtkpipeline.h"
 #include "Selection.h"
 
@@ -75,6 +76,7 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
 	connect(a_fileReferenceOpen, SIGNAL(triggered()), this, SLOT(EditorReferenceOpen()));
     connect(a_fileSave, SIGNAL(triggered()), this, SLOT(EditorSave()));
     connect(a_fileExit, SIGNAL(triggered()), this, SLOT(EditorExit()));
+    connect(a_fileInfo, SIGNAL(triggered()), this, SLOT(EditorSessionInfo()));
 
     connect(a_undo, SIGNAL(triggered()), this, SLOT(OperationUndo()));
     connect(a_redo, SIGNAL(triggered()), this, SLOT(OperationRedo()));
@@ -497,6 +499,8 @@ EspinaVolumeEditor::~EspinaVolumeEditor()
     	delete _fileMetadata;
 
     delete _sessionTimer;
+
+    RemoveSessionFiles();
 }
 
 void EspinaVolumeEditor::EditorOpen(void)
@@ -520,6 +524,7 @@ void EspinaVolumeEditor::EditorOpen(void)
 
 	// store segmentation filename
 	_segmentationFileName = filename.toStdString();
+	_referenceFileName = std::string();
 
     // MetaImageIO needed to read an image without a estandar extension (segmha in this case)
     typedef itk::Image<unsigned short, 3> ImageType;
@@ -761,6 +766,11 @@ void EspinaVolumeEditor::EditorOpen(void)
     	std::set<unsigned short> labelIndexes;
     	for (std::set<unsigned short>::iterator it = labelScalars.begin(); it != labelScalars.end(); it++)
         	labelIndexes.insert(this->_dataManager->GetLabelForScalar(*it));
+
+    	// make sure is a valid group of labels (deleting invalid labels)
+    	for (std::set<unsigned short>::iterator it = labelScalars.begin(); it != labelScalars.end(); it++)
+        	if ((*it) > this->_dataManager->GetNumberOfLabels())
+        		labelScalars.erase(*it);
 
         SelectLabelGroup(labelIndexes);
     }
@@ -1004,7 +1014,6 @@ void EspinaVolumeEditor::EditorSave()
 
 void EspinaVolumeEditor::EditorExit()
 {
-	RemoveSessionFiles();
 	QApplication::exit();
 }
 
@@ -1302,12 +1311,18 @@ void EspinaVolumeEditor::LabelSelectionChanged(void)
     switch (labelsList.size())
     {
     	case 0:
+    	{
+    		bool selectionCanRelabel =
+    				(selectbutton->isChecked() && (Selection::CUBE == this->_editorOperations->GetSelectionType())) ||
+    				(lassoButton->isChecked() && (Selection::CONTOUR == this->_editorOperations->GetSelectionType()));
+
     		cutbutton->setEnabled(false);
     		if (renderview->isEnabled())
     			rendertypebutton->setEnabled(false);
-    		relabelbutton->setEnabled((selectbutton->isChecked()) && (Selection::CUBE == this->_editorOperations->GetSelectionType()));
+    		relabelbutton->setEnabled(selectionCanRelabel);
     		EnableFilters(false);
     		break;
+    	}
     	case 1:
     		cutbutton->setEnabled(true);
     		rendertypebutton->setEnabled(renderview->isEnabled());
@@ -2716,9 +2731,37 @@ void EspinaVolumeEditor::RestoreSavedSession(void)
 	// initialize the GUI
 	InitiateSessionGUI();
 
-    // initially without a reference image
+    // load reference file if it has one
     if (_hasReferenceImage)
     	LoadReferenceFile(QString(_referenceFileName.c_str()));
+
+    // get the working set of labels for the temporal file
+    QString filename(temporalFilename.c_str());
+    filename.replace(QChar('/'), QChar('\\'));
+
+    QSettings editorSettings("UPM", "Espina Volume Editor");
+    editorSettings.beginGroup("Editor");
+
+    // get working set of labels for this file and apply it, if it exists
+    if ((editorSettings.value(filename).isValid()) && (true == editorSettings.contains(filename)))
+    {
+   		QList<QVariant> labelList = editorSettings.value(filename).toList();
+
+   		std::set<unsigned short> labelScalars;
+    	for (int i = 0; i < labelList.size(); i++)
+    		labelScalars.insert(static_cast<unsigned short>(labelList.at(i).toUInt()));
+
+    	std::set<unsigned short> labelIndexes;
+    	for (std::set<unsigned short>::iterator it = labelScalars.begin(); it != labelScalars.end(); it++)
+        	labelIndexes.insert(this->_dataManager->GetLabelForScalar(*it));
+
+    	// make sure is a valid group of labels (deleting invalid labels)
+    	for (std::set<unsigned short>::iterator it = labelScalars.begin(); it != labelScalars.end(); it++)
+        	if ((*it) > this->_dataManager->GetNumberOfLabels())
+        		labelScalars.erase(*it);
+
+        SelectLabelGroup(labelIndexes);
+    }
 
     // start session timer
     _sessionTimer->start(_saveSessionTime, true);
@@ -2759,6 +2802,14 @@ void EspinaVolumeEditor::RemoveSessionFiles(void)
 			msgBox.setText("An error occurred exiting the editor.\n.Editor MHA session file couldn't be removed.");
 			msgBox.exec();
 		}
+
+	// remove stored metadata
+    QSettings editorSettings("UPM", "Espina Volume Editor");
+    editorSettings.beginGroup("Editor");
+
+    QString filename(temporalFilename.c_str());
+    filename.replace(QChar('/'), QChar('\\'));
+    editorSettings.remove(filename);
 }
 
 void EspinaVolumeEditor::InitiateSessionGUI(void)
@@ -2838,6 +2889,7 @@ void EspinaVolumeEditor::InitiateSessionGUI(void)
 
     a_fileSave->setEnabled(true);
     a_fileReferenceOpen->setEnabled(true);
+    a_fileInfo->setEnabled(true);
     axialsizebutton->setEnabled(true);
     coronalsizebutton->setEnabled(true);
     sagittalsizebutton->setEnabled(true);
@@ -2886,6 +2938,7 @@ void EspinaVolumeEditor::ToggleButtonDefault(bool value)
 	{
 		case true:
 		    this->_editorOperations->ClearSelection();
+		    this->labelselector->update();
 
 		    // need to update the gui according to selected label set
 		    LabelSelectionChanged();
@@ -2905,6 +2958,7 @@ void EspinaVolumeEditor::ToggleEraseOrPaintButton(bool value)
 	{
 		case true:
 			this->_editorOperations->ClearSelection();
+			this->labelselector->update();
 			// only one label allowed for paint so we will choose the last one, if it exists
 			if ((this->_dataManager->GetSelectedLabelSetSize() > 1) && paintbutton->isChecked())
 			{
@@ -3033,6 +3087,7 @@ void EspinaVolumeEditor::ApplyUserAction(SliceVisualization *orientation)
 	if (lassoButton->isChecked())
 	{
 		this->_editorOperations->AddContourPoint(Vector3ui(_POI[0], _POI[1], _POI[2]), orientation);
+		relabelbutton->setEnabled(true);
 		return;
 	}
 
@@ -3061,8 +3116,6 @@ void EspinaVolumeEditor::ApplyUserAction(SliceVisualization *orientation)
 
 	if (wandButton->isChecked() && (0 != _pointScalar))
 	{
-		QMutexLocker locker(actionLock);
-
 		cutbutton->setEnabled(true);
 		relabelbutton->setEnabled(true);
 
@@ -3070,4 +3123,33 @@ void EspinaVolumeEditor::ApplyUserAction(SliceVisualization *orientation)
 
 		labelselector->item(_pointScalar)->setSelected(true);
 	}
+}
+
+void EspinaVolumeEditor::EditorSessionInfo()
+{
+	QFileInfo fileInfo(QString(this->_segmentationFileName.c_str()));
+
+	QtSessionInfo infodialog(this);
+
+	infodialog.SetDimensions(this->_orientationData->GetImageSize());
+	infodialog.SetSpacing(this->_orientationData->GetImageSpacing());
+	infodialog.SetFileInfo(&fileInfo);
+
+	int segmentationsNum = 0;
+	for (unsigned int i = 1; i < this->_dataManager->GetNumberOfLabels(); i++)
+		if (!labelselector->item(i)->isHidden())
+			segmentationsNum++;
+	infodialog.SetNumberOfSegmentations(segmentationsNum);
+
+	Matrix3d matrix;
+	matrix = this->_orientationData->GetImageDirectionCosineMatrix();
+	infodialog.SetDirectionCosineMatrix(matrix);
+
+	if (!this->_referenceFileName.empty())
+	{
+		QFileInfo referenceFileInfo(QString(this->_referenceFileName.c_str()));
+		infodialog.SetReferenceFileInfo(&referenceFileInfo);
+	}
+
+	infodialog.exec();
 }

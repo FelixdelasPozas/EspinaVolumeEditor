@@ -20,13 +20,16 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // QtRelabel class
 //
-QtRelabel::QtRelabel(QWidget *p, Qt::WindowFlags f) : QDialog(p,f)
+QtRelabel::QtRelabel(QWidget *parent_Widget, Qt::WindowFlags f) : QDialog(parent_Widget,f)
 {
     setupUi(this); // this sets up GUI
     _modified = false;
     _newlabel = false;
     _maxcolors = 0;
     _selectedLabel = 0;
+
+    // want to make the dialog appear centered
+	this->move(parent_Widget->geometry().center() - this->rect().center());
 }
 
 QtRelabel::~QtRelabel()

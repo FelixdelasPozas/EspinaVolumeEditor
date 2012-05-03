@@ -1,5 +1,8 @@
 <RCC>
   <qresource prefix="newPrefix">
+    <file>icons/cross-minus.png</file>
+    <file>icons/cross-plus.png</file>
+    <file>icons/information.png</file>
     <file>icons/lasso.png</file>
     <file>icons/wand.png</file>
     <file>icons/eyeoff.svg</file>

@@ -339,6 +339,7 @@ void Selection::ClearSelection(void)
     	this->_coronalView->SetSliceWidget(NULL);
     	this->_sagittalView->SetSliceWidget(NULL);
     	this->_contourWidget = NULL;
+    	this->_rotatedImage = NULL;
     	this->_widgetsCallbackCommand = NULL;
     	this->_selectionIsValid = true;
     }
@@ -1116,6 +1117,7 @@ void Selection::AddContourInitialPoint(const Vector3ui point, SliceVisualization
 	this->_contourWidget->AddObserver(vtkCommand::StartInteractionEvent, this->_widgetsCallbackCommand);
 	this->_contourWidget->AddObserver(vtkCommand::EndInteractionEvent, this->_widgetsCallbackCommand);
 	this->_contourWidget->AddObserver(vtkCommand::InteractionEvent, this->_widgetsCallbackCommand);
+	this->_contourWidget->AddObserver(vtkCommand::KeyPressEvent, this->_widgetsCallbackCommand);
 
 	// make the slice aware of a contour selection
 	callerSlice->SetSliceWidget(this->_contourWidget);

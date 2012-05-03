@@ -246,7 +246,7 @@ class VTK_WIDGETS_EXPORT ContourRepresentation: public vtkContourRepresentation
 //BTX -- used to communicate about the state of the representation
 		enum
 		{
-			Outside = 0, Nearby, Inside
+			Outside = 0, Nearby, Inside, NearContour
 		};
 
 		enum
@@ -429,6 +429,9 @@ class VTK_WIDGETS_EXPORT ContourRepresentation: public vtkContourRepresentation
 
 		// implements shooting algorithm to know if a point is inside a closed polygon
 		bool ShootingAlgorithm(int, int);
+
+		// returns the shortest distance to the contour given a point in world coordinates
+		double FindClosestDistanceToContour(int, int);
 	private:
 		ContourRepresentation(const ContourRepresentation&); //Not implemented
 		void operator=(const ContourRepresentation&); //Not implemented

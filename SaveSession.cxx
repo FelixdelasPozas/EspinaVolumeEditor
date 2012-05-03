@@ -10,6 +10,7 @@
 // qt includes
 #include <QString>
 #include <QDir>
+#include <QSettings>
 
 // itk includes
 #include <itkSmartPointer.h>
@@ -242,6 +243,26 @@ int SaveSessionThread::exec()
 
 	outfile.close();
 	emit progress(100);
+
+	// store labels
+	QSettings editorSettings("UPM", "Espina Volume Editor");
+	QString filename(temporalFilename.c_str());
+	filename.replace(QChar('/'), QChar('\\'));
+	editorSettings.beginGroup("Editor");
+
+	std::set<unsigned short> labelIndexes = this->_dataManager->GetSelectedLabelsSet();
+	std::set<unsigned short> labelScalars;
+
+	for (std::set<unsigned short>::iterator it = labelIndexes.begin(); it != labelIndexes.end(); it++)
+		labelScalars.insert(this->_dataManager->GetScalarForLabel(*it));
+
+	QList<QVariant> labelList;
+	for (std::set<unsigned short>::iterator it = labelScalars.begin(); it != labelScalars.end(); it++)
+		labelList.append(static_cast<int>(*it));
+
+	QVariant variant;
+	variant.setValue(labelList);
+	editorSettings.setValue(filename, variant);
 
 	// everything went fine
 	return 0;

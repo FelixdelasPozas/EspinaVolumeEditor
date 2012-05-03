@@ -13,22 +13,25 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // QtColorPicker class
 //
-QtColorPicker::QtColorPicker(QWidget *p, Qt::WindowFlags f) : QDialog(p,f)
+QtColorPicker::QtColorPicker(QWidget *parent_Widget, Qt::WindowFlags f) : QDialog(parent_Widget,f)
 {
     setupUi(this); // this sets up GUI
-    _modified = false;
-    _data = NULL;
-    _rgb = Vector3d(0.5,0.5,0.5);
+    this->_modified = false;
+    this->_data = NULL;
+    this->_rgb = Vector3d(0.5,0.5,0.5);
     
-    Rslider->setSliderPosition(static_cast<int>(_rgb[0]*255.0));
-    Gslider->setSliderPosition(static_cast<int>(_rgb[1]*255.0));
-    Bslider->setSliderPosition(static_cast<int>(_rgb[2]*255.0));
+    Rslider->setSliderPosition(static_cast<int>(this->_rgb[0]*255.0));
+    Gslider->setSliderPosition(static_cast<int>(this->_rgb[1]*255.0));
+    Bslider->setSliderPosition(static_cast<int>(this->_rgb[2]*255.0));
     
     connect(Rslider, SIGNAL(valueChanged(int)), this, SLOT(RValueChanged(int)));
     connect(Gslider, SIGNAL(valueChanged(int)), this, SLOT(GValueChanged(int)));
     connect(Bslider, SIGNAL(valueChanged(int)), this, SLOT(BValueChanged(int)));
     
     connect(buttonBox, SIGNAL(accepted()), this, SLOT(AcceptedData()));
+
+    // want to make the dialog appear centered
+	this->move(parent_Widget->geometry().center() - this->rect().center());
 }
 
 QtColorPicker::~QtColorPicker()

@@ -315,15 +315,15 @@ int ContourRepresentationGlyph::ComputeInteractionState(int X, int Y, int vtkNot
 	}
 	else
 	{
-		if (!this->ClosedLoop)
+		if (this->FindClosestDistanceToContour(xyz[0], xyz[1]) < tol2)
 		{
-			this->InteractionState = ContourRepresentation::Outside;
-			if (!this->CursorShape)
+			this->InteractionState = ContourRepresentation::NearContour;
+			if (!this->ActiveCursorShape)
 				this->VisibilityOff();
 		}
 		else
 		{
-			if (!this->ShootingAlgorithm(X, Y))
+			if (!this->ClosedLoop)
 			{
 				this->InteractionState = ContourRepresentation::Outside;
 				if (!this->CursorShape)
@@ -331,11 +331,20 @@ int ContourRepresentationGlyph::ComputeInteractionState(int X, int Y, int vtkNot
 			}
 			else
 			{
-				// checking the active node allow better node picking, even being inside the polygon
-				if (-1 == this->ActiveNode)
-					this->InteractionState = ContourRepresentation::Inside;
-				else
+				if (!this->ShootingAlgorithm(X, Y))
+				{
 					this->InteractionState = ContourRepresentation::Outside;
+					if (!this->CursorShape)
+						this->VisibilityOff();
+				}
+				else
+				{
+					// checking the active node allow better node picking, even being inside the polygon
+					if (-1 == this->ActiveNode)
+						this->InteractionState = ContourRepresentation::Inside;
+					else
+						this->InteractionState = ContourRepresentation::Outside;
+				}
 			}
 		}
 	}

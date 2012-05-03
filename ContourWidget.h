@@ -13,6 +13,9 @@
 // vtk includes
 #include <vtkAbstractWidget.h>
 
+// Qt includes
+#include <QCursor>
+
 // forward declarations
 class ContourRepresentation;
 class vtkPolyData;
@@ -117,7 +120,6 @@ class VTK_WIDGETS_EXPORT ContourWidget: public vtkAbstractWidget
 		// orientation of the slice where the widget is (0 = axial, 1 = coronal, 2 = sagittal)
 		vtkGetMacro(Orientation,int);
 		vtkSetMacro(Orientation,int);
-
 	protected:
 		ContourWidget();
 		~ContourWidget();
@@ -138,6 +140,7 @@ class VTK_WIDGETS_EXPORT ContourWidget: public vtkAbstractWidget
 		int ContinuousDraw;
 		int ContinuousActive;
 		int Orientation;
+		bool ShiftKeyDown;
 
 		// Callback interface to capture events when
 		// placing the widget.
@@ -149,6 +152,8 @@ class VTK_WIDGETS_EXPORT ContourWidget: public vtkAbstractWidget
 		static void TranslateContourAction(vtkAbstractWidget*);
 		static void ScaleContourAction(vtkAbstractWidget*);
 		static void ResetAction(vtkAbstractWidget*);
+		static void KeyPressAction(vtkAbstractWidget*);
+		static void KeyReleaseAction(vtkAbstractWidget*);
 
 		// Internal helper methods
 		void SelectNode();
@@ -161,6 +166,8 @@ class VTK_WIDGETS_EXPORT ContourWidget: public vtkAbstractWidget
 	private:
 		ContourWidget(const ContourWidget&);  //Not implemented
 		void operator=(const ContourWidget&);  //Not implemented
+
+		QCursor crossMinusCursor, crossPlusCursor;
 };
 
 #endif // _CONTOURWIDGET_H_

@@ -70,6 +70,7 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
     	virtual void EditorReferenceOpen();
         virtual void EditorSave();
         virtual void EditorExit();
+        virtual void EditorSessionInfo();
         virtual void FullscreenToggle();
         virtual void SliceInteraction(vtkObject*, unsigned long event, void*, void*, vtkCommand*);
         virtual void SwitchSegmentationView();
