@@ -10,6 +10,9 @@
 // project includes
 #include "ContourRepresentation.h"
 
+// c++ includes
+#include <cmath>
+
 // vtk includes
 #include <vtkBox.h>
 #include <vtkCamera.h>
@@ -1344,10 +1347,10 @@ bool ContourRepresentation::CheckContourIntersection(int nodeA)
 
 	for (int i = 0; i < this->GetNumberOfNodes(); i++)
 	{
-		if (this->Intersects(nodeA, i))
+		if (this->NodesIntersection(nodeA, i))
 			return true;
 
-		if (this->Intersects(nodeB, i))
+		if (this->NodesIntersection(nodeB, i))
 			return true;
 	}
 
@@ -1531,7 +1534,7 @@ void ContourRepresentation::RemoveDuplicatedNodes()
 	}
 }
 
-bool ContourRepresentation::Intersects(int nodeA, int nodeC)
+bool ContourRepresentation::NodesIntersection(int nodeA, int nodeC)
 {
 	double a0[3], a1[3], b0[3], b1[3];
 
@@ -1558,7 +1561,12 @@ bool ContourRepresentation::Intersects(int nodeA, int nodeC)
         if ((a0[0] == a1[0]) && (b0[0] == b1[0]))					// special case: [A,B] and [C,D] are vertical line segments.
         {
             if (a0[0] == b0[0])										// true if [A,B] and [C,D] are in the same vertical line.
-                return ((b0[1] <= a0[1]) && (a0[1] <= b1[1]));		// true when A is in the bounds of [C,D] (y coord).
+            {
+            	if (b0[1] < b1[1])									// check if A is in the bounds of [C,D] (y coord).
+            		return ((b0[1] <= a0[1]) && (a0[1] <= b1[1]));
+            	else
+            		return ((b1[1] <= a0[1]) && (a0[1] <= b0[1]));
+            }
             else
             	return false;
         }
@@ -1569,7 +1577,12 @@ bool ContourRepresentation::Intersects(int nodeA, int nodeC)
 
 
         if (cd_offset == ab_offset)									// true only when [A,B] y_intercept == [C,D] y_intercept.
-        	return ((b0[0] <= a0[0]) && (a0[0] <= b1[0]));			// true when A is in the bounds of [C,D] (x coord)
+        {
+        	if (b0[0] < b1[0])										// check if A is in the bounds of [C,D] (x coord)
+        		return ((b0[0] <= a0[0]) && (a0[0] <= b1[0]));
+        	else
+        		return ((b1[0] <= a0[0]) && (a0[0] <= b0[0]));
+        }
         else
         	return false;											// different y_intercepts; no intersection.
 	}
@@ -1582,7 +1595,12 @@ bool ContourRepresentation::Intersects(int nodeA, int nodeC)
         if ((a0[0] == a1[0]) && (b0[0] == b1[0]))					// special case: [A,B] and [C,D] are vertical line segments.
         {
             if (a0[0] == b0[0])										// true if [A,B] and [C,D] are in the same vertical line.
-                return ((b0[1] <= a1[1]) && (a1[1] <= b1[1]));		// true when B is in the bounds of [C,D] (y coord).
+            {
+            	if (b0[1] < b1[1])									// check if B is in the bounds of [C,D] (y coord).
+            		return ((b0[1] <= a1[1]) && (a1[1] <= b1[1]));
+            	else
+            		return ((b1[1] <= a1[1]) && (a1[1] <= b0[1]));
+            }
             else
             	return false;
         }
@@ -1593,10 +1611,14 @@ bool ContourRepresentation::Intersects(int nodeA, int nodeC)
 
 
         if (cd_offset == ab_offset)									// true only when [A,B] y_intercept == [C,D] y_intercept.
-        	return ((b0[0] <= a1[0]) && (a1[0] <= b1[0]));			// true when B is in the bounds of [C,D] (x coord)
+        {
+        	if (b0[0] < b1[0])										// check B is in the bounds of [C,D] (x coord)
+        		return ((b0[0] <= a1[0]) && (a1[0] <= b1[0]));
+        	else
+        		return ((b1[0] <= a1[0]) && (a1[0] <= b0[0]));
+        }
         else
         	return false;											// different y_intercepts; no intersection.
-
 	}
 
 	// [A,B] and [C,D] are disjoint segments
@@ -1606,7 +1628,12 @@ bool ContourRepresentation::Intersects(int nodeA, int nodeC)
         if ((a0[0] == a1[0]) && (b0[0] == b1[0]))
         {
             if (a0[0] == b0[0])										// true if [A,B] and [C,D] are in the same vertical line.
-                return ((b0[1] <= a0[1]) && (a0[1] <= b1[1])) || ((b0[1] <= a1[1]) && (a1[1] <= b1[1])); // true when some bounds of [A,B] are in the bounds of [C,D]
+            {
+            	if (b0[1] < b1[1])									// check if bounds of [A,B] are in the bounds of [C,D]
+            		return ((b0[1] <= a0[1]) && (a0[1] <= b1[1])) || ((b0[1] <= a1[1]) && (a1[1] <= b1[1]));
+            	else
+            		return ((b1[1] <= a0[1]) && (a0[1] <= b0[1])) || ((b1[1] <= a1[1]) && (a1[1] <= b0[1]));
+            }
             else
             	return false;										// different vertical lines, no intersection.
         }
@@ -1616,7 +1643,12 @@ bool ContourRepresentation::Intersects(int nodeA, int nodeC)
         int b_offset = ((b1[0]-b0[0])*b0[1]-(b1[1]-b0[1])*b0[0]) * (a1[0]-a0[0]);
 
         if (b_offset == a_offset)									// true only when [A,B] y_intercept == [C,D] y_intercept.
-            return (b0[0] <= a0[0] && a0[0] <= b1[0]) || (b0[0] <= a1[0] && a1[0] <= b1[0]); // true when some bounds of [A,B] are in the bounds of [C,D].
+        {
+        	if (b0[0] < b1[0])										// true when some bounds of [A,B] are in the bounds of [C,D].
+        		return (b0[0] <= a0[0] && a0[0] <= b1[0]) || (b0[0] <= a1[0] && a1[0] <= b1[0]);
+        	else
+        		return (b1[0] <= a0[0] && a0[0] <= b0[0]) || (b1[0] <= a1[0] && a1[0] <= b0[0]);
+        }
         else
         	return false;					        				// different y intercepts; no intersection.
     }
@@ -1644,31 +1676,47 @@ void ContourRepresentation::TranslatePoints(double *vector)
 
 double ContourRepresentation::FindClosestDistanceToContour(int x, int y)
 {
-	double displayPos[3] = { static_cast<double>(x), static_cast<double>(y), 0 };
-	double worldOrient[9] = { 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 };
-	double worldPos_i[3], worldPos_j[3], point[3];
-	double result = 100; // just use a big enough constant to boot operations
-
-	this->PointPlacer->ComputeWorldPosition(this->Renderer, displayPos, point, worldOrient);
+	double displayPos_i[3], displayPos_j[3];
+	double result = 10000.0; // just use a big enough constant to boot operations
+	double tempN, tempD;
 
 	for (int i = 0; i < this->GetNumberOfNodes(); i++)
 	{
 		int j = (i+1) % this->GetNumberOfNodes();
 
-		this->GetNthNodeWorldPosition(i, worldPos_i);
-		this->GetNthNodeWorldPosition(j, worldPos_j);
+		this->GetNthNodeDisplayPosition(i, displayPos_i);
+		this->GetNthNodeDisplayPosition(j, displayPos_j);
 
-		//         (y1-y2)x + (x2-x1)y + (x1y2-x2y1)
-		//d(P,L) = ---------------------------------
-		//         sqrt( (x2-x1)^2 + (y2-y1)^2 )
+		//            (y1-y2)x + (x2-x1)y + (x1y2-x2y1)
+		//dist(P,L) = ---------------------------------
+		//              sqrt( (x2-x1)^2 + (y2-y1)^2 )
 
-		double tempN = ((worldPos_i[1] - worldPos_j[1]) * point[0]) + ((worldPos_j[0] - worldPos_i[0]) * point[1]) + ((worldPos_i[0] * worldPos_j[1]) - (worldPos_j[0] * worldPos_i[1]));
-		double tempD = sqrt(pow(worldPos_j[0] - worldPos_i[0], 2) + pow(worldPos_j[1]- worldPos_i[1], 2));
+		tempN = ((displayPos_i[1] - displayPos_j[1]) * static_cast<double>(x)) +
+				((displayPos_j[0] - displayPos_i[0]) * static_cast<double>(y)) +
+				((displayPos_i[0] * displayPos_j[1]) - (displayPos_j[0] * displayPos_i[1]));
+
+		tempD = sqrt(pow(displayPos_j[0] - displayPos_i[0], 2) + pow(displayPos_j[1]- displayPos_i[1], 2));
 
 		if (tempD == 0.0)
 			continue;
 
-		double distance = tempN / tempD;
+		double distance = fabs(tempN) / tempD;
+
+		// if the distance is to a point outside the segment i,i+1, then the real distance to the segment is
+		// the distance to one of the nodes
+		double r = ((static_cast<double>(x)-displayPos_i[0])*(displayPos_j[0]-displayPos_i[0]) + (static_cast<double>(y)-displayPos_i[1])*(displayPos_j[1]-displayPos_i[1])) / (tempD*tempD);
+
+		if ((r < 0.0) || (r > 1.0))
+		{
+
+			double dist1 = fabs(sqrt(pow(displayPos_i[0] - static_cast<double>(x),2) + pow(displayPos_i[1] - static_cast<double>(y), 2)));
+			double dist2 = fabs(sqrt(pow(displayPos_j[0] - static_cast<double>(x),2) + pow(displayPos_j[1] - static_cast<double>(y), 2)));
+
+			if (dist1 <= dist2)
+				distance = dist1;
+			else
+				distance = dist2;
+		}
 
 		if (distance < result)
 			result = distance;

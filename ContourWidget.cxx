@@ -49,7 +49,6 @@ ContourWidget::ContourWidget()
 	this->ContinuousDraw = 0;
 	this->ContinuousActive = 0;
 	this->Orientation = 0;
-	this->ShiftKeyDown = false;
 
 	this->CreateDefaultRepresentation();
 
@@ -58,8 +57,8 @@ ContourWidget::ContourWidget()
 	this->CallbackMapper->SetCallbackMethod(vtkCommand::LeftButtonReleaseEvent, vtkWidgetEvent::EndSelect, this, ContourWidget::EndSelectAction);
 	this->CallbackMapper->SetCallbackMethod(vtkCommand::RightButtonPressEvent, vtkWidgetEvent::AddFinalPoint, this, ContourWidget::AddFinalPointAction);
 	this->CallbackMapper->SetCallbackMethod(vtkCommand::MouseMoveEvent, vtkWidgetEvent::Move, this, ContourWidget::MoveAction);
-	this->CallbackMapper->SetCallbackMethod(vtkCommand::KeyPressEvent, vtkWidgetEvent::Translate, this, ContourWidget::KeyPressAction);
-	this->CallbackMapper->SetCallbackMethod(vtkCommand::KeyReleaseEvent, vtkWidgetEvent::EndTranslate, this, ContourWidget::KeyReleaseAction);
+	this->CallbackMapper->SetCallbackMethod(vtkCommand::KeyPressEvent, vtkWidgetEvent::ModifyEvent, this, ContourWidget::KeyPressAction);
+	this->CallbackMapper->SetCallbackMethod(vtkCommand::KeyReleaseEvent, vtkWidgetEvent::ModifyEvent, this, ContourWidget::KeyPressAction);
 
 	QPixmap crossMinusPixmap, crossPlusPixmap;
 	crossMinusPixmap.load(":newPrefix/icons/cross-minus.png", "PNG", Qt::ColorOnly);
@@ -71,6 +70,7 @@ ContourWidget::ContourWidget()
 
 ContourWidget::~ContourWidget()
 {
+	// nothing, all handled by smartpointers or destructors
 }
 
 void ContourWidget::CreateDefaultRepresentation()
@@ -131,7 +131,6 @@ void ContourWidget::SelectAction(vtkAbstractWidget *w)
 	ContourWidget *self = reinterpret_cast<ContourWidget*>(w);
 	ContourRepresentation *rep = reinterpret_cast<ContourRepresentation*>(self->WidgetRep);
 
-	// interactor keypress callbacks don't work, use qapplication keyboard modifiers, only delete and reset
 	Qt::KeyboardModifiers pressedKeys = QApplication::keyboardModifiers();
 
 	int X = self->Interactor->GetEventPosition()[0];
@@ -161,7 +160,8 @@ void ContourWidget::SelectAction(vtkAbstractWidget *w)
 
 			self->AddNode();
 
-			// check if the cursor crosses the actual contour, if so then close the contour and end defining
+			// check if the cursor crosses the actual contour, if so then close the contour
+			// and end defining
 			if (rep->CheckAndCutContourIntersection())
 			{
 				// last check
@@ -190,9 +190,13 @@ void ContourWidget::SelectAction(vtkAbstractWidget *w)
 
 		case ContourWidget::Manipulate:
 		{
+			// NOTE: the 'reset' action is in ContourWidget::KeyPressAction() as it happens when
+			//       the user presses the backspace or delete key
 			if (pressedKeys & Qt::ShiftModifier)
 			{
 				self->DeleteAction(w);
+				state = self->WidgetRep->GetInteractionState();
+				self->SetCursor(state);
 				break;
 			}
 
@@ -293,8 +297,7 @@ void ContourWidget::AddNode()
 	int X = this->Interactor->GetEventPosition()[0];
 	int Y = this->Interactor->GetEventPosition()[1];
 
-	// If the rep already has at least 2 nodes, check how close we are to
-	// the first
+	// If the rep already has at least 2 nodes, check how close we are to the first
 	ContourRepresentation* rep = reinterpret_cast<ContourRepresentation*>(this->WidgetRep);
 
 	int numNodes = rep->GetNumberOfNodes();
@@ -312,13 +315,11 @@ void ContourWidget::AddNode()
 
 		// if in continous draw mode, we dont want to cose the loop until we are at least
 		// numNodes > pixelTolerance away
-
 		int distance2 = static_cast<int>((X - displayPos[0]) * (X - displayPos[0]) + (Y - displayPos[1]) * (Y - displayPos[1]));
 
 		if ((distance2 < pixelTolerance2 && numNodes > 2) || (this->ContinuousDraw && numNodes > pixelTolerance && distance2 < pixelTolerance2))
 		{
-			// yes - we have made a loop. Stop defining and switch to
-			// manipulate mode
+			// yes - we have made a loop. Stop defining and switch to manipulate mode
 			this->WidgetState = ContourWidget::Manipulate;
 			rep->ClosedLoopOn();
 			this->Render();
@@ -445,6 +446,12 @@ void ContourWidget::DeleteAction(vtkAbstractWidget *w)
 	}
 	else
 	{
+		// do not allow less than three nodes, i don't want to use the old (original vtkContourWidget)
+		// solution of opening the contour if we have less than three nodes and put the widget into
+		// ::Define state if we have just one node
+		if (rep->GetNumberOfNodes() <= 3)
+			return;
+
 		int X = self->Interactor->GetEventPosition()[0];
 		int Y = self->Interactor->GetEventPosition()[1];
 		rep->ActivateNode(X, Y);
@@ -452,13 +459,6 @@ void ContourWidget::DeleteAction(vtkAbstractWidget *w)
 			self->InvokeEvent(vtkCommand::InteractionEvent, NULL);
 
 		rep->ActivateNode(X, Y);
-		int numNodes = rep->GetNumberOfNodes();
-		if (numNodes < 3)
-		{
-			rep->ClosedLoopOff();
-			if (numNodes < 2)
-				self->WidgetState = ContourWidget::Define;
-		}
 	}
 
 	int X = self->Interactor->GetEventPosition()[0];
@@ -698,9 +698,12 @@ void ContourWidget::PrintSelf(ostream& os, vtkIndent indent)
 
 void ContourWidget::SetCursor(int cState)
 {
-	// cursor will only change in manipulate mode only
-	if (this->WidgetState != ContourWidget::Manipulate)
+	// cursor will only change in manipulate or start mode only
+	if ((this->WidgetState != ContourWidget::Manipulate) && (this->WidgetState != ContourWidget::Start))
 		return;
+
+	// using vtk keypress/keyrelease events is useless when the interactor loses it's focus
+	Qt::KeyboardModifiers pressedKeys = QApplication::keyboardModifiers();
 
 	if (!this->ManagesCursor && cState != ContourRepresentation::Outside)
 	{
@@ -711,11 +714,17 @@ void ContourWidget::SetCursor(int cState)
 	switch (cState)
 	{
 		case ContourRepresentation::Nearby:
-		case ContourRepresentation::NearContour:
-			if (!this->ShiftKeyDown)
-				QApplication::changeOverrideCursor(crossPlusCursor);
-			else
+		case ContourRepresentation::NearPoint:
+			if (pressedKeys & Qt::ShiftModifier)
 				QApplication::changeOverrideCursor(crossMinusCursor);
+			else
+				QApplication::changeOverrideCursor(Qt::PointingHandCursor);
+			break;
+		case ContourRepresentation::NearContour:
+			if (pressedKeys & Qt::ShiftModifier)
+				QApplication::changeOverrideCursor(Qt::CrossCursor);
+			else
+				QApplication::changeOverrideCursor(crossPlusCursor);
 			break;
 		case ContourRepresentation::Inside:
 			this->RequestCursorShape(VTK_CURSOR_SIZEALL);
@@ -724,65 +733,38 @@ void ContourWidget::SetCursor(int cState)
 			if (this->ManagesCursor)
 			{
 				this->ManagesCursor = false;
-				QApplication::changeOverrideCursor(Qt::CrossCursor);
 				QApplication::restoreOverrideCursor();
 			}
 			break;
 	}
 }
 
+// NOTE: keypress/keyrelease vtk events are mostly useless. when the interactor loses focus and then user
+// 		 presses the keys we are watching outside the interactor it really fucks the widget state as it
+//		 still has the keyboard focus. the solution is a mixed vtk/qt key events watching and using a
+//		 Qt event filter to the classes that use the contour widget (SliceVisualization) to take away or
+//		 put the keyboard focus in the interactor associated with the widgets when the mouse leaves or
+//		 enters those widgets.
 void ContourWidget::KeyPressAction(vtkAbstractWidget *w)
 {
 	ContourWidget *self = reinterpret_cast<ContourWidget*>(w);
 
-	if (self->WidgetState != ContourWidget::Manipulate)
-		return;
+	std::string key = std::string(self->Interactor->GetKeySym());
 
-	std::string key = std::string(self->GetInteractor()->GetKeySym());
-
-	if ("Control_L" == key)
+	if (("Delete" == key) || ("BackSpace" == key))
 	{
-		// must disable the widget to not interfere with its event manager when we invoke an event
-		// to update the area of the contour in the parent class.
 		self->EnabledOff();
 		self->ResetAction(w);
 		self->InvokeEvent(vtkCommand::InteractionEvent, NULL);
-		self->EnabledOn();
 		self->SetCursor(ContourRepresentation::Outside);
-	}
-
-	if ("Shift_L" == key)
-	{
-		self->ShiftKeyDown = true;
-
-		int X = self->Interactor->GetEventPosition()[0];
-		int Y = self->Interactor->GetEventPosition()[1];
-
-		self->WidgetRep->ComputeInteractionState(X, Y);
-		int state = self->WidgetRep->GetInteractionState();
-		self->SetCursor(state);
-	}
-}
-
-void ContourWidget::KeyReleaseAction(vtkAbstractWidget *w)
-{
-	ContourWidget *self = reinterpret_cast<ContourWidget*>(w);
-
-	if (self->WidgetState != ContourWidget::Manipulate)
+		self->EnabledOn();
 		return;
-
-	std::string key = std::string(self->GetInteractor()->GetKeySym());
-
-	if ("Shift_L" == key)
-	{
-		self->ShiftKeyDown = false;
-
-		int X = self->Interactor->GetEventPosition()[0];
-		int Y = self->Interactor->GetEventPosition()[1];
-
-		self->WidgetRep->ComputeInteractionState(X, Y);
-		int state = self->WidgetRep->GetInteractionState();
-		self->SetCursor(state);
 	}
 
+	int X = self->Interactor->GetEventPosition()[0];
+	int Y = self->Interactor->GetEventPosition()[1];
+
+	self->WidgetRep->ComputeInteractionState(X, Y);
+	int state = self->WidgetRep->GetInteractionState();
+	self->SetCursor(state);
 }

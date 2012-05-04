@@ -246,7 +246,7 @@ class VTK_WIDGETS_EXPORT ContourRepresentation: public vtkContourRepresentation
 //BTX -- used to communicate about the state of the representation
 		enum
 		{
-			Outside = 0, Nearby, Inside, NearContour
+			Outside = 0, Nearby, Inside, NearContour, NearPoint
 		};
 
 		enum
@@ -421,10 +421,11 @@ class VTK_WIDGETS_EXPORT ContourRepresentation: public vtkContourRepresentation
 		// and closes the contour in the intersection point. checks for intersection with segments (n-2, n-1) and (n-1,0)
 		bool CheckAndCutContourIntersectionInFinalPoint(void);
 
-		// same as previous method, but just checks (node-1, node) and (node, node+1). used only when translating nodes.
+		// same as previous method, but just checks (n-1, n) and (n, n+1). used only when translating node the node n
+		// after the contour has been defined
 		bool CheckContourIntersection(int);
 
-		// check nodes for duplicates
+		// check nodes if nodes a and b have the same coordinates
 		bool CheckNodesForDuplicates(int, int);
 
 		// implements shooting algorithm to know if a point is inside a closed polygon
@@ -439,7 +440,7 @@ class VTK_WIDGETS_EXPORT ContourRepresentation: public vtkContourRepresentation
 		// helper methods
 		bool LineIntersection(int, double *, int*);
 		void RemoveDuplicatedNodes();
-		bool Intersects(int, int);
+		bool NodesIntersection(int, int);
 		void TranslatePoints(double *);
 };
 

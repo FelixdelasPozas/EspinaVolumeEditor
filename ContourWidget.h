@@ -140,7 +140,6 @@ class VTK_WIDGETS_EXPORT ContourWidget: public vtkAbstractWidget
 		int ContinuousDraw;
 		int ContinuousActive;
 		int Orientation;
-		bool ShiftKeyDown;
 
 		// Callback interface to capture events when
 		// placing the widget.
@@ -152,8 +151,7 @@ class VTK_WIDGETS_EXPORT ContourWidget: public vtkAbstractWidget
 		static void TranslateContourAction(vtkAbstractWidget*);
 		static void ScaleContourAction(vtkAbstractWidget*);
 		static void ResetAction(vtkAbstractWidget*);
-		static void KeyPressAction(vtkAbstractWidget*);
-		static void KeyReleaseAction(vtkAbstractWidget*);
+		static void KeyPressAction(vtkAbstractWidget *);
 
 		// Internal helper methods
 		void SelectNode();

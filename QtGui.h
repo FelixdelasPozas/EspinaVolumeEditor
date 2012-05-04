@@ -133,6 +133,8 @@ class EspinaVolumeEditor : public QMainWindow, private Ui_MainWindow
         void SelectLabelGroup(std::set<unsigned short>);
         void ApplyUserAction(SliceVisualization*);
         
+        bool eventFilter(QObject *, QEvent*);
+
         // renderers for four QVTKWidget viewports
         vtkSmartPointer<vtkRenderer>           _voxelViewRenderer;
         vtkSmartPointer<vtkRenderer>           _axialViewRenderer;

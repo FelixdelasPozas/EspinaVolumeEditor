@@ -8,7 +8,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 // qt includes 
-#include <QtGui>        // including <QtGui> saves us to include every class user, <QString>, <QFileDialog>,...
+#include <QtGui>
 #include <QMetaType>
 #include "QtGui.h"
 
@@ -333,6 +333,10 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
     _connections->Connect(sagittalview->GetRenderWindow()->GetInteractor()->GetInteractorStyle(), 
                           vtkCommand::MouseWheelBackwardEvent, this, 
                           SLOT(SliceInteraction(vtkObject*, unsigned long, void*, void*, vtkCommand*)));
+
+    this->axialview->installEventFilter(this);
+    this->sagittalview->installEventFilter(this);
+    this->coronalview->installEventFilter(this);
     
     // init some global variables
     this->_hasReferenceImage = false;
@@ -994,7 +998,8 @@ void EspinaVolumeEditor::EditorSave()
 
     // save the set of labels as settings, not the indexes but the scalars
 	QSettings editorSettings("UPM", "Espina Volume Editor");
-	filename.replace(QChar('/'), QChar('\\'));
+	QString filenameQt(filenameStd.c_str());
+	filenameQt.replace(QChar('/'), QChar('\\'));
 	editorSettings.beginGroup("UserData");
 
 	std::set<unsigned short> labelIndexes = this->_dataManager->GetSelectedLabelsSet();
@@ -1009,7 +1014,7 @@ void EspinaVolumeEditor::EditorSave()
 
 	QVariant variant;
 	variant.setValue(labelList);
-	editorSettings.setValue(filename, variant);
+	editorSettings.setValue(filenameQt, variant);
 }
 
 void EspinaVolumeEditor::EditorExit()
@@ -1327,7 +1332,7 @@ void EspinaVolumeEditor::LabelSelectionChanged(void)
     		cutbutton->setEnabled(true);
     		rendertypebutton->setEnabled(renderview->isEnabled());
     		relabelbutton->setEnabled(true);
-    		EnableFilters(!wandButton->isChecked());
+    		EnableFilters(!wandButton->isChecked() && !lassoButton->isChecked());
     		break;
     	default:
     		cutbutton->setEnabled(true);
@@ -3037,7 +3042,7 @@ void EspinaVolumeEditor::SelectLabelGroup(std::set<unsigned short> labels)
 	if ((labels.find(0) != labels.end()) || labels.empty())
 	{
 		labelselector->item(0)->setSelected(true);
-		labelselector->scrollToItem(labelselector->item(0), QAbstractItemView::EnsureVisible);
+		labelselector->scrollToItem(labelselector->item(0), QAbstractItemView::PositionAtCenter);
 		return;
 	}
 
@@ -3054,7 +3059,7 @@ void EspinaVolumeEditor::SelectLabelGroup(std::set<unsigned short> labels)
 
 	// scroll to the last one created label
 	std::set<unsigned short>::reverse_iterator rit = labels.rbegin();
-	labelselector->scrollToItem(labelselector->item(*rit), QAbstractItemView::EnsureVisible);
+	labelselector->scrollToItem(labelselector->item(*rit), QAbstractItemView::PositionAtCenter);
 
 	// need to do this because we were blocking labelselector signals and want to update
 	// the selected labels on one call
@@ -3107,9 +3112,16 @@ void EspinaVolumeEditor::ApplyUserAction(SliceVisualization *orientation)
 	if (pickerbutton->isChecked() && (0 != _pointScalar))
 	{
 		if (this->_dataManager->IsColorSelected(_pointScalar))
+		{
 			labelselector->item(_pointScalar)->setSelected(false);
+			if (this->_dataManager->GetSelectedLabelSetSize() != 0)
+				labelselector->scrollToItem(labelselector->item(this->_dataManager->GetSelectedLabelsSet().rbegin().operator *()), QAbstractItemView::PositionAtCenter);
+		}
 		else
+		{
 			labelselector->item(_pointScalar)->setSelected(true);
+			labelselector->scrollToItem(labelselector->item(_pointScalar), QAbstractItemView::PositionAtCenter);
+		}
 
 		return;
 	}
@@ -3152,4 +3164,29 @@ void EspinaVolumeEditor::EditorSessionInfo()
 	}
 
 	infodialog.exec();
+}
+
+bool EspinaVolumeEditor::eventFilter(QObject *object, QEvent *event)
+{
+	// NOTE: we need to give keyboard focus to the slices in case a contourwidget is present in one of them
+	switch(event->type())
+	{
+		case QEvent::Enter:
+	        if (object == axialview)
+	            axialview->setFocus();
+
+	        if (object == coronalview)
+	            coronalview->setFocus();
+
+	        if (object == sagittalview)
+	            sagittalview->setFocus();
+			break;
+		case QEvent::Leave:
+			this->window()->setFocus();
+			break;
+		default:
+			break;
+	}
+
+    return false;
 }

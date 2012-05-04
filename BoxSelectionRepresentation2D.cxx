@@ -89,7 +89,8 @@ BoxSelectionRepresentation2D::BoxSelectionRepresentation2D()
 	this->Spacing[0] = 1.0;
 	this->Spacing[1] = 1.0;
 
-	this->_tolerance = 0.40;
+	// this->tolerance should depend on image spacing instead
+	this->_tolerance = 2.00;
 	this->Moving = 0;
 }
 

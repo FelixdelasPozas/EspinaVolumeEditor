@@ -53,7 +53,7 @@ Selection::Selection()
 	this->_sagittalView = NULL;
 	this->_renderer = NULL;
 	this->_dataManager = NULL;
-	this->_selectionType = EMPTY;
+	this->_selectionType = Selection::EMPTY;
 	this->_size = this->_max = this->_min = Vector3ui(0,0,0);
 	this->_spacing = Vector3d(0.0,0.0,0.0);
 
@@ -113,7 +113,7 @@ void Selection::AddSelectionPoint(const Vector3ui point)
     switch (this->_selectedPoints.size())
     {
         case 0:
-        	this->_selectionType = CUBE;
+        	this->_selectionType = Selection::CUBE;
         	this->_selectedPoints.push_back(point);
         	this->ComputeSelectionBounds();
 
@@ -310,17 +310,13 @@ void Selection::ComputeSelectionCube()
 
 void Selection::ClearSelection(void)
 {
-	// don't do anything if there's no selection
-	if (this->_selectionType == EMPTY)
-		return;
-
 	DeleteSelectionActors();
 	DeleteSelectionVolumes();
     this->_axialView->ClearSelections();
     this->_coronalView->ClearSelections();
     this->_sagittalView->ClearSelections();
 
-    if (this->_selectionType == CUBE)
+    if (this->_selectionType == Selection::CUBE)
     {
     	this->_axialView->SetSliceWidget(NULL);
     	this->_coronalView->SetSliceWidget(NULL);
@@ -333,7 +329,7 @@ void Selection::ClearSelection(void)
 		delete this->_boxRender;
     }
 
-    if (this->_selectionType == CONTOUR)
+    if (this->_selectionType == Selection::CONTOUR)
     {
     	this->_axialView->SetSliceWidget(NULL);
     	this->_coronalView->SetSliceWidget(NULL);
@@ -347,7 +343,7 @@ void Selection::ClearSelection(void)
     this->_selectedPoints.clear();
     this->_min = Vector3ui(0,0,0);
     this->_max = this->_size;
-    this->_selectionType = EMPTY;
+    this->_selectionType = Selection::EMPTY;
 }
 
 const Selection::SelectionType Selection::GetSelectionType()
@@ -421,7 +417,7 @@ void Selection::AddArea(const Vector3ui point)
     Vector3ui min = this->_dataManager->GetBoundingBoxMin(label);
     Vector3ui max = this->_dataManager->GetBoundingBoxMax(label);
 
-    if (this->_selectionType == EMPTY)
+    if (this->_selectionType == Selection::EMPTY)
     {
     	this->_min = min;
     	this->_max = max;
@@ -453,7 +449,7 @@ void Selection::AddArea(const Vector3ui point)
 	// generate render actor
 	ComputeActor(subvolume);
 
-	this->_selectionType = VOLUME;
+	this->_selectionType = Selection::VOLUME;
 }
 
 itk::SmartPointer<ImageType> Selection::GetSegmentationItkImage(const unsigned short label)
@@ -502,8 +498,8 @@ itk::SmartPointer<ImageType> Selection::GetSelectionItkImage(const unsigned shor
 
 	switch(this->_selectionType)
 	{
-		case EMPTY:
-		case DISC:
+		case Selection::EMPTY:
+		case Selection::DISC:
 			objectMin = _dataManager->GetBoundingBoxMin(label);
 			objectMax = _dataManager->GetBoundingBoxMax(label);
 			break;
@@ -606,7 +602,10 @@ bool Selection::VoxelIsInsideSelection(unsigned int x, unsigned int y, unsigned 
 {
 	std::vector<vtkSmartPointer<vtkImageData> >::iterator it;
 	for (it = this->_selectionVolumesList.begin(); it != this->_selectionVolumesList.end(); it++)
-		return VoxelIsInsideSelectionSubvolume(*it, x,y,z);
+	{
+		if (true == VoxelIsInsideSelectionSubvolume(*it, x,y,z))
+			return true;
+	}
 
 	return false;
 }
@@ -618,8 +617,8 @@ bool Selection::VoxelIsInsideSelectionSubvolume(vtkSmartPointer<vtkImageData> su
 
 	switch(this->_selectionType)
 	{
-		case CONTOUR:
-		case DISC:
+		case Selection::CONTOUR:
+		case Selection::DISC:
 		{
 			double origin[3];
 			subvolume->GetOrigin(origin);

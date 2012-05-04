@@ -280,7 +280,7 @@
           </font>
          </property>
          <property name="text">
-          <string>Direction cosine matrix (Orientation);</string>
+          <string>Direction cosine matrix (Orientation):</string>
          </property>
         </widget>
        </item>
