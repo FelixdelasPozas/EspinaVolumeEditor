@@ -1,0 +1,6 @@
+<RCC>
+  <qresource prefix="newPrefix">
+    <file>icons/keyboardicon.png</file>
+    <file>icons/keyboard.png</file>
+  </qresource>
+</RCC>

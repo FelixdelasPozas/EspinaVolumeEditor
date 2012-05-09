@@ -647,6 +647,9 @@ QGroupBox::title {
              <height>24</height>
             </size>
            </property>
+           <property name="shortcut">
+            <string>Q</string>
+           </property>
            <property name="checkable">
             <bool>true</bool>
            </property>
@@ -697,6 +700,9 @@ QGroupBox::title {
              <height>24</height>
             </size>
            </property>
+           <property name="shortcut">
+            <string>E</string>
+           </property>
            <property name="checkable">
             <bool>true</bool>
            </property>
@@ -743,6 +749,9 @@ QGroupBox::title {
              <width>24</width>
              <height>24</height>
             </size>
+           </property>
+           <property name="shortcut">
+            <string>W</string>
            </property>
            <property name="checkable">
             <bool>true</bool>
@@ -791,6 +800,9 @@ QGroupBox::title {
              <height>24</height>
             </size>
            </property>
+           <property name="shortcut">
+            <string>A</string>
+           </property>
            <property name="checkable">
             <bool>true</bool>
            </property>
@@ -837,6 +849,9 @@ QGroupBox::title {
              <width>24</width>
              <height>24</height>
             </size>
+           </property>
+           <property name="shortcut">
+            <string>R</string>
            </property>
            <property name="checkable">
             <bool>true</bool>
@@ -885,6 +900,9 @@ QGroupBox::title {
              <height>24</height>
             </size>
            </property>
+           <property name="shortcut">
+            <string>F</string>
+           </property>
            <property name="autoRaise">
             <bool>true</bool>
            </property>
@@ -926,6 +944,9 @@ QGroupBox::title {
              <height>24</height>
             </size>
            </property>
+           <property name="shortcut">
+            <string>D</string>
+           </property>
            <property name="autoRaise">
             <bool>true</bool>
            </property>
@@ -966,6 +987,9 @@ QGroupBox::title {
              <width>24</width>
              <height>24</height>
             </size>
+           </property>
+           <property name="shortcut">
+            <string>S</string>
            </property>
            <property name="checkable">
             <bool>true</bool>
@@ -1013,6 +1037,9 @@ QGroupBox::title {
              <width>24</width>
              <height>24</height>
             </size>
+           </property>
+           <property name="shortcut">
+            <string>Z</string>
            </property>
            <property name="checkable">
             <bool>true</bool>
@@ -1093,6 +1120,9 @@ QGroupBox::title {
              <height>24</height>
             </size>
            </property>
+           <property name="shortcut">
+            <string>U</string>
+           </property>
            <property name="checkable">
             <bool>false</bool>
            </property>
@@ -1137,6 +1167,9 @@ QGroupBox::title {
              <height>24</height>
             </size>
            </property>
+           <property name="shortcut">
+            <string>I</string>
+           </property>
            <property name="autoRaise">
             <bool>true</bool>
            </property>
@@ -1177,6 +1210,9 @@ QGroupBox::title {
              <width>24</width>
              <height>24</height>
             </size>
+           </property>
+           <property name="shortcut">
+            <string>O</string>
            </property>
            <property name="autoRaise">
             <bool>true</bool>
@@ -1225,6 +1261,9 @@ QGroupBox::title {
              <height>24</height>
             </size>
            </property>
+           <property name="shortcut">
+            <string>P</string>
+           </property>
            <property name="autoRaise">
             <bool>true</bool>
            </property>
@@ -1265,6 +1304,9 @@ QGroupBox::title {
              <width>24</width>
              <height>24</height>
             </size>
+           </property>
+           <property name="shortcut">
+            <string>J</string>
            </property>
            <property name="autoRaise">
             <bool>true</bool>
@@ -2060,6 +2102,7 @@ QGroupBox::title {
      <string>&amp;Help</string>
     </property>
     <addaction name="a_about"/>
+    <addaction name="a_keyhelp"/>
    </widget>
    <addaction name="menu_Menu"/>
    <addaction name="menu_Edit"/>
@@ -2090,6 +2133,9 @@ QGroupBox::title {
    <property name="shortcut">
     <string>Ctrl+O</string>
    </property>
+   <property name="shortcutContext">
+    <enum>Qt::ApplicationShortcut</enum>
+   </property>
    <property name="iconVisibleInMenu">
     <bool>true</bool>
    </property>
@@ -2107,6 +2153,9 @@ QGroupBox::title {
    </property>
    <property name="shortcut">
     <string>Ctrl+Q</string>
+   </property>
+   <property name="shortcutContext">
+    <enum>Qt::ApplicationShortcut</enum>
    </property>
    <property name="iconVisibleInMenu">
     <bool>true</bool>
@@ -2129,6 +2178,9 @@ QGroupBox::title {
    <property name="shortcut">
     <string>Ctrl+Z</string>
    </property>
+   <property name="shortcutContext">
+    <enum>Qt::ApplicationShortcut</enum>
+   </property>
    <property name="iconVisibleInMenu">
     <bool>true</bool>
    </property>
@@ -2150,6 +2202,9 @@ QGroupBox::title {
    <property name="shortcut">
     <string>Ctrl+Y</string>
    </property>
+   <property name="shortcutContext">
+    <enum>Qt::ApplicationShortcut</enum>
+   </property>
    <property name="iconVisibleInMenu">
     <bool>true</bool>
    </property>
@@ -2168,6 +2223,9 @@ QGroupBox::title {
    <property name="shortcut">
     <string>Ctrl+C</string>
    </property>
+   <property name="shortcutContext">
+    <enum>Qt::ApplicationShortcut</enum>
+   </property>
    <property name="iconVisibleInMenu">
     <bool>true</bool>
    </property>
@@ -2185,6 +2243,9 @@ QGroupBox::title {
    <property name="shortcut">
     <string>Ctrl+F</string>
    </property>
+   <property name="shortcutContext">
+    <enum>Qt::ApplicationShortcut</enum>
+   </property>
   </action>
   <action name="a_about">
    <property name="icon">
@@ -2199,6 +2260,9 @@ QGroupBox::title {
    </property>
    <property name="shortcut">
     <string>Ctrl+A</string>
+   </property>
+   <property name="shortcutContext">
+    <enum>Qt::ApplicationShortcut</enum>
    </property>
    <property name="iconVisibleInMenu">
     <bool>true</bool>
@@ -2220,6 +2284,9 @@ QGroupBox::title {
    </property>
    <property name="shortcut">
     <string>Ctrl+S</string>
+   </property>
+   <property name="shortcutContext">
+    <enum>Qt::ApplicationShortcut</enum>
    </property>
    <property name="iconVisibleInMenu">
     <bool>true</bool>
@@ -2245,6 +2312,9 @@ QGroupBox::title {
    <property name="shortcut">
     <string>Ctrl+P</string>
    </property>
+   <property name="shortcutContext">
+    <enum>Qt::ApplicationShortcut</enum>
+   </property>
    <property name="iconVisibleInMenu">
     <bool>true</bool>
    </property>
@@ -2266,6 +2336,9 @@ QGroupBox::title {
    <property name="shortcut">
     <string>Space</string>
    </property>
+   <property name="shortcutContext">
+    <enum>Qt::ApplicationShortcut</enum>
+   </property>
    <property name="iconVisibleInMenu">
     <bool>true</bool>
    </property>
@@ -2286,6 +2359,30 @@ QGroupBox::title {
    </property>
    <property name="shortcut">
     <string>Ctrl+I</string>
+   </property>
+   <property name="shortcutContext">
+    <enum>Qt::ApplicationShortcut</enum>
+   </property>
+  </action>
+  <action name="a_keyhelp">
+   <property name="icon">
+    <iconset resource="editor.qrc">
+     <normaloff>:/newPrefix/icons/keyboardicon.png</normaloff>:/newPrefix/icons/keyboardicon.png</iconset>
+   </property>
+   <property name="text">
+    <string>Keyboard Shortcuts</string>
+   </property>
+   <property name="toolTip">
+    <string>Keyboard shortcuts for the editor </string>
+   </property>
+   <property name="statusTip">
+    <string>Keyboard shortcuts for the editor</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+K</string>
+   </property>
+   <property name="shortcutContext">
+    <enum>Qt::ApplicationShortcut</enum>
    </property>
   </action>
  </widget>

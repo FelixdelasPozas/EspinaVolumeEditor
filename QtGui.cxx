@@ -50,6 +50,7 @@
 #include "QtAbout.h"
 #include "QtPreferences.h"
 #include "QtSessionInfo.h"
+#include "QtKeyboardHelp.h"
 #include "itkvtkpipeline.h"
 #include "Selection.h"
 
@@ -86,6 +87,7 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
     connect(a_preferences, SIGNAL(triggered()), this, SLOT(Preferences()));
 
     connect(a_about, SIGNAL(triggered()), this, SLOT(About()));
+    connect(a_keyhelp, SIGNAL(triggered()), this, SLOT(KeyboardHelp()));
     
     // configure widgets
     connect(axialslider, SIGNAL(valueChanged(int)), this, SLOT(MoveAxialSlider(int)));
@@ -141,21 +143,22 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
     connect(lassoButton, SIGNAL(clicked(bool)), this, SLOT(ToggleButtonDefault(bool)));
 
     QSettings editorSettings("UPM", "Espina Volume Editor");
+    editorSettings.beginGroup("Editor");
 
     // get timer settings, create session timer and connect signals
-    if (false == editorSettings.contains("Editor/Autosave Session Data"))
+    if (false == editorSettings.contains("Autosave Session Data"))
     {
     	this->_saveSessionEnabled = true;
     	this->_saveSessionTime = 20 * 60 * 1000;
-    	editorSettings.setValue("Editor/Autosave Session Data", true);
-    	editorSettings.setValue("Editor/Autosave Session Time", 20);
+    	editorSettings.setValue("Autosave Session Data", true);
+    	editorSettings.setValue("Autosave Session Time", 20);
     	editorSettings.sync();
     }
     else
     {
     	bool *returnValue = new bool(false);
-    	this->_saveSessionEnabled = editorSettings.value("Editor/Autosave Session Data").toBool();
-    	this->_saveSessionTime = editorSettings.value("Editor/Autosave Session Time").toUInt(returnValue) * 60 * 1000;
+    	this->_saveSessionEnabled = editorSettings.value("Autosave Session Data").toBool();
+    	this->_saveSessionTime = editorSettings.value("Autosave Session Time").toUInt(returnValue) * 60 * 1000;
 
     	if (false == *returnValue)
     		this->_saveSessionTime = 20 * 60 * 1000;
@@ -191,6 +194,7 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
      // initialize renderers
     vtkSmartPointer<vtkInteractorStyleImage> axialinteractorstyle = vtkSmartPointer<vtkInteractorStyleImage>::New();
     axialinteractorstyle->AutoAdjustCameraClippingRangeOn();
+    axialinteractorstyle->KeyPressActivationOff();
     this->_axialViewRenderer = vtkSmartPointer<vtkRenderer>::New();
     this->_axialViewRenderer->SetBackground(0, 0, 0);
     this->_axialViewRenderer->GetActiveCamera()->SetParallelProjection(true);
@@ -200,6 +204,7 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
 
     vtkSmartPointer<vtkInteractorStyleImage> coronalinteractorstyle = vtkSmartPointer<vtkInteractorStyleImage>::New();
     coronalinteractorstyle->AutoAdjustCameraClippingRangeOn();
+    coronalinteractorstyle->KeyPressActivationOff();
     this->_coronalViewRenderer = vtkSmartPointer<vtkRenderer>::New();
     this->_coronalViewRenderer->SetBackground(0, 0, 0);
     this->_coronalViewRenderer->GetActiveCamera()->SetParallelProjection(true);
@@ -208,6 +213,7 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
 
     vtkSmartPointer<vtkInteractorStyleImage> sagittalinteractorstyle = vtkSmartPointer<vtkInteractorStyleImage>::New();
     sagittalinteractorstyle->AutoAdjustCameraClippingRangeOn();
+    sagittalinteractorstyle->KeyPressActivationOff();
     this->_sagittalViewRenderer = vtkSmartPointer<vtkRenderer>::New();
     this->_sagittalViewRenderer->SetBackground(0, 0, 0);
     this->_sagittalViewRenderer->GetActiveCamera()->SetParallelProjection(true);
@@ -216,6 +222,7 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
 
     vtkSmartPointer<vtkInteractorStyleTrackballCamera> voxelinteractorstyle = vtkSmartPointer<vtkInteractorStyleTrackballCamera>::New();
     voxelinteractorstyle->AutoAdjustCameraClippingRangeOn();
+    voxelinteractorstyle->KeyPressActivationOff();
     this->_voxelViewRenderer = vtkSmartPointer<vtkRenderer>::New();
     this->_voxelViewRenderer->SetBackground(0, 0, 0);
     renderview->GetRenderWindow()->AddRenderer(_voxelViewRenderer);
@@ -348,57 +355,57 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
     this->_axialSliceVisualization = new SliceVisualization(SliceVisualization::Axial);
 
     // get editor configuration
-    if (false == editorSettings.contains("Editor/UndoRedo System Buffer Size"))
+    if (false == editorSettings.contains("UndoRedo System Buffer Size"))
     {
-    	editorSettings.setValue("Editor/UndoRedo System Buffer Size",  150 * 1024 * 1024);
-    	editorSettings.setValue("Editor/Filters Radius", 1);
-    	editorSettings.setValue("Editor/Watershed Flood Level", 0.50);
-    	editorSettings.setValue("Editor/Segmentation Opacity", 75);
-    	editorSettings.setValue("Editor/Paint-Erase Radius", 1);
+    	editorSettings.setValue("UndoRedo System Buffer Size",  150 * 1024 * 1024);
+    	editorSettings.setValue("Filters Radius", 1);
+    	editorSettings.setValue("Watershed Flood Level", 0.50);
+    	editorSettings.setValue("Segmentation Opacity", 75);
+    	editorSettings.setValue("Paint-Erase Radius", 1);
     	// no need to set values, classes have their own default values at init
     }
     else
     {
     	bool *returnValue = new bool(false);
 
-    	unsigned long size = editorSettings.value("Editor/UndoRedo System Buffer Size").toULongLong(returnValue);
+    	unsigned long size = editorSettings.value("UndoRedo System Buffer Size").toULongLong(returnValue);
     	if (false == *returnValue)
     	{
     		this->_dataManager->SetUndoRedoBufferSize(150*1024*1024);
-        	editorSettings.setValue("Editor/UndoRedo System Buffer Size",  150 * 1024 * 1024);
+        	editorSettings.setValue("UndoRedo System Buffer Size",  150 * 1024 * 1024);
     	}
     	else
     		this->_dataManager->SetUndoRedoBufferSize(size);
 
-    	this->_editorOperations->SetFiltersRadius(editorSettings.value("Editor/Filters Radius").toInt(returnValue));
+    	this->_editorOperations->SetFiltersRadius(editorSettings.value("Filters Radius").toInt(returnValue));
     	if (false == *returnValue)
     	{
     		this->_editorOperations->SetFiltersRadius(1);
-    		editorSettings.setValue("Editor/Filters Radius", 1);
+    		editorSettings.setValue("Filters Radius", 1);
     	}
 
-    	this->_editorOperations->SetWatershedLevel(editorSettings.value("Editor/Watershed Flood Level").toDouble(returnValue));
+    	this->_editorOperations->SetWatershedLevel(editorSettings.value("Watershed Flood Level").toDouble(returnValue));
     	if (false == *returnValue)
     	{
     		this->_editorOperations->SetWatershedLevel(0.50);
-    		editorSettings.setValue("Editor/Watershed Flood Level", 0.50);
+    		editorSettings.setValue("Watershed Flood Level", 0.50);
     	}
 
-    	unsigned int opacity = editorSettings.value("Editor/Segmentation Opacity").toUInt(returnValue);
+    	unsigned int opacity = editorSettings.value("Segmentation Opacity").toUInt(returnValue);
     	if (false == *returnValue)
     	{
     		opacity = 75;
-    		editorSettings.setValue("Editor/Segmentation Opacity", 75);
+    		editorSettings.setValue("Segmentation Opacity", 75);
     	}
     	this->_sagittalSliceVisualization->SetSegmentationOpacity(opacity);
     	this->_axialSliceVisualization->SetSegmentationOpacity(opacity);
     	this->_coronalSliceVisualization->SetSegmentationOpacity(opacity);
 
-    	this->_paintEraseRadius = editorSettings.value("Editor/Paint-Erase Radius").toUInt(returnValue);
+    	this->_paintEraseRadius = editorSettings.value("Paint-Erase Radius").toUInt(returnValue);
     	if (false == *returnValue)
     	{
     		this->_paintEraseRadius = 1;
-    		editorSettings.setValue("Editor/Paint-Erase Radius", 1);
+    		editorSettings.setValue("Paint-Erase Radius", 1);
     	}
     }
 	editorSettings.sync();
@@ -1015,6 +1022,21 @@ void EspinaVolumeEditor::EditorSave()
 	QVariant variant;
 	variant.setValue(labelList);
 	editorSettings.setValue(filenameQt, variant);
+
+	this->_segmentationFileName = filenameStd;
+
+    // put the name of the opened file in the window title
+    std::string caption = std::string("Espina Volume Editor - ") + this->_segmentationFileName;
+    this->setCaption(QString(caption.c_str()));
+
+    // after saving the segmentation file we don't need the (actually) stored session files, remove them
+    // and reset the timer
+    if (this->_saveSessionEnabled)
+    {
+    	this->RemoveSessionFiles();
+    	this->_sessionTimer->stop();
+    	this->_sessionTimer->start(this->_saveSessionTime, true);
+    }
 }
 
 void EspinaVolumeEditor::EditorExit()
@@ -1423,13 +1445,14 @@ void EspinaVolumeEditor::Preferences()
 
     // save settings
     QSettings editorSettings("UPM", "Espina Volume Editor");
-	editorSettings.setValue("Editor/UndoRedo System Buffer Size", static_cast<unsigned long long>(configdialog.GetSize()));
-	editorSettings.setValue("Editor/Filters Radius", configdialog.GetRadius());
-	editorSettings.setValue("Editor/Watershed Flood Level", configdialog.GetLevel());
-	editorSettings.setValue("Editor/Segmentation Opacity", configdialog.GetSegmentationOpacity());
-	editorSettings.setValue("Editor/Paint-Erase Radius", configdialog.GetPaintEraseRadius());
-	editorSettings.setValue("Editor/Autosave Session Data", configdialog.GetSaveSessionEnabled());
-	editorSettings.setValue("Editor/Autosave Session Time", configdialog.GetSaveSessionTime());
+    editorSettings.beginGroup("Editor");
+	editorSettings.setValue("UndoRedo System Buffer Size", static_cast<unsigned long long>(configdialog.GetSize()));
+	editorSettings.setValue("Filters Radius", configdialog.GetRadius());
+	editorSettings.setValue("Watershed Flood Level", configdialog.GetLevel());
+	editorSettings.setValue("Segmentation Opacity", configdialog.GetSegmentationOpacity());
+	editorSettings.setValue("Paint-Erase Radius", configdialog.GetPaintEraseRadius());
+	editorSettings.setValue("Autosave Session Data", configdialog.GetSaveSessionEnabled());
+	editorSettings.setValue("Autosave Session Time", configdialog.GetSaveSessionTime());
 	editorSettings.sync();
 
 	// configure editor
@@ -1663,6 +1686,12 @@ void EspinaVolumeEditor::About()
 {
     QtAbout aboutdialog(this);
     aboutdialog.exec();
+}
+
+void EspinaVolumeEditor::KeyboardHelp()
+{
+	QtKeyboardHelp keyboardHelpDialog(this);
+	keyboardHelpDialog.exec();
 }
 
 void EspinaVolumeEditor::ErodeVolume()
@@ -2475,38 +2504,38 @@ void EspinaVolumeEditor::DisableRenderView(void)
 
 void EspinaVolumeEditor::SaveSession(void)
 {
-	_saveSessionThread = new SaveSessionThread(this);
-	_saveSessionThread->start();
+	this->_saveSessionThread = new SaveSessionThread(this);
+	this->_saveSessionThread->start();
 }
 
 void EspinaVolumeEditor::SaveSessionStart(void)
 {
-	_progress->ManualSet("Save Session", 0, true);
+	this->_progress->ManualSet("Save Session", 0, true);
 }
 
 void EspinaVolumeEditor::SaveSessionProgress(int value)
 {
-	_progress->ManualUpdate(value, true);
+	this->_progress->ManualUpdate(value, true);
 }
 
 void EspinaVolumeEditor::SaveSessionEnd(void)
 {
-	_progress->ManualReset(true);
+	this->_progress->ManualReset(true);
 
 	// we use singleshot timers so until the save session operation has ended we don't restart it
-	_sessionTimer->start(_saveSessionTime, true);
+	this->_sessionTimer->start(_saveSessionTime, true);
 
-	delete _saveSessionThread;
-	_saveSessionThread = NULL;
+	delete this->_saveSessionThread;
+	this->_saveSessionThread = NULL;
 }
 
 void EspinaVolumeEditor::SwitchSegmentationView(void)
 {
 	// don't care about the key if the image doesn't have a reference image
-	if (!_hasReferenceImage)
+	if (!this->_hasReferenceImage)
 		return;
 
-	switch(_segmentationsAreVisible)
+	switch(this->_segmentationsAreVisible)
 	{
 		case false:
 			eyebutton->setIcon(QPixmap(":/newPrefix/icons/eyeoff.svg"));
@@ -2768,10 +2797,17 @@ void EspinaVolumeEditor::RestoreSavedSession(void)
         SelectLabelGroup(labelIndexes);
     }
 
+    // put the name of the opened file in the window title
+    std::string caption = std::string("Espina Volume Editor - ") + this->_segmentationFileName;
+    this->setCaption(QString(caption.c_str()));
+
     // start session timer
-    _sessionTimer->start(_saveSessionTime, true);
+    if (this->_saveSessionEnabled)
+    	this->_sessionTimer->start(_saveSessionTime, true);
 
     _progress->ManualReset();
+
+    // NOTE: we don't delete the session files in the case the editor crashes again
 }
 
 void EspinaVolumeEditor::RemoveSessionFiles(void)

@@ -70,7 +70,9 @@ ContourWidget::ContourWidget()
 
 ContourWidget::~ContourWidget()
 {
-	// nothing, all handled by smartpointers or destructors
+	// restore the pointer if the widget has changed it
+	if (this->ManagesCursor == true)
+		QApplication::restoreOverrideCursor();
 }
 
 void ContourWidget::CreateDefaultRepresentation()
@@ -251,6 +253,15 @@ void ContourWidget::AddFinalPointAction(vtkAbstractWidget *w)
 		style->OnRightButtonDown();
 		return;
 	}
+
+	int numnodes = rep->GetNumberOfNodes();
+
+	// the last node is the cursor so we need to check if there are really that amount of unique points in the representation
+	if (rep->CheckNodesForDuplicates(numnodes-1, numnodes-2))
+		numnodes--;
+
+	if (numnodes < 3)
+		return;
 
 	if ((self->WidgetState != ContourWidget::Manipulate) && (rep->GetNumberOfNodes() >= 1))
 	{

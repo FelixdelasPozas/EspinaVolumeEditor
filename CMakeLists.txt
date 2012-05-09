@@ -20,10 +20,10 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-SET(QtSrcs QtGui.cxx QtPreferences.cxx QtRelabel.cxx QtAbout.cxx QtColorPicker.cxx SaveSession.cxx QtSessionInfo.cxx)
-SET(UIS QtGui.ui QtPreferences.ui QtRelabel.ui QtAbout.ui QtColorPicker.ui QtSessionInfo.ui)
-SET (QtHeaders QtGui.h QtPreferences.h QtRelabel.h QtAbout.h QtColorPicker.h SaveSession.h QtSessionInfo.h)
-SET (QtResources editor.qrc about.qrc colorpicker.qrc)
+SET(QtSrcs QtGui.cxx QtPreferences.cxx QtRelabel.cxx QtAbout.cxx QtColorPicker.cxx SaveSession.cxx QtSessionInfo.cxx QtKeyboardHelp.cxx)
+SET(UIS QtGui.ui QtPreferences.ui QtRelabel.ui QtAbout.ui QtColorPicker.ui QtSessionInfo.ui QtKeyboardHelp.ui)
+SET (QtHeaders QtGui.h QtPreferences.h QtRelabel.h QtAbout.h QtColorPicker.h SaveSession.h QtSessionInfo.h QtKeyboardHelp.h)
+SET (QtResources editor.qrc about.qrc colorpicker.qrc keyboardhelp.qrc)
 QT4_WRAP_UI(UIHeaders ${UIS})
 QT4_WRAP_CPP(MOCSrcs ${QtHeaders} )
 QT4_ADD_RESOURCES(QtResources_CXX ${QtResources})

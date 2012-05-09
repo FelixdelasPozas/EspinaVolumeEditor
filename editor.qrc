@@ -1,5 +1,6 @@
 <RCC>
   <qresource prefix="newPrefix">
+    <file>icons/keyboardicon.png</file>
     <file>icons/cross-minus.png</file>
     <file>icons/cross-plus.png</file>
     <file>icons/information.png</file>
