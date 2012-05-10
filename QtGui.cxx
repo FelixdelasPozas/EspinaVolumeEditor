@@ -2998,6 +2998,7 @@ void EspinaVolumeEditor::ToggleEraseOrPaintButton(bool value)
 	switch (value)
 	{
 		case true:
+		{
 			this->_editorOperations->ClearSelection();
 			this->labelselector->update();
 			// only one label allowed for paint so we will choose the last one, if it exists
@@ -3022,8 +3023,69 @@ void EspinaVolumeEditor::ToggleEraseOrPaintButton(bool value)
 				labelselector->setSelectionMode(QAbstractItemView::SingleSelection);
 			else
 				labelselector->setSelectionMode(QAbstractItemView::ExtendedSelection);
+
+			// get the mouse position and put the actor there if it's over a slice widget, this only
+			// can happen when the user uses the keyboard shortcuts to activate the paint/erase operation
+			// as the mouse could be still over a slice widget (if the user clicks on the button of the
+			// UI then it's out of the widget obviously)
+			Vector3d spacing = this->_dataManager->GetOrientationData()->GetImageSpacing();
+			double dPoint[3] = { 0,0,0 };
+			int iPoint[3];
+
+			if (this->axialview->underMouse())
+			{
+				QPoint widgetPos = this->axialview->mapFromGlobal(QCursor::pos());
+				QRect widgetRect = this->axialview->rect();
+
+				this->_axialViewRenderer->SetDisplayPoint(widgetPos.x() - widgetRect.left(), widgetRect.bottom() - widgetPos.y(), 0);
+				this->_axialViewRenderer->DisplayToWorld();
+				this->_axialViewRenderer->GetWorldPoint(dPoint);
+
+				iPoint[0] = floor(dPoint[0]/spacing[0]) + ((fmod(dPoint[0], spacing[0]) > (0.5*spacing[0])) ? 1 : 0) + 1;
+				iPoint[1] = floor(dPoint[1]/spacing[1]) + ((fmod(dPoint[1], spacing[1]) > (0.5*spacing[1])) ? 1 : 0) + 1;
+				iPoint[2] = this->axialslider->value()-1;
+
+				this->_editorOperations->UpdatePaintEraseActors(iPoint[0], iPoint[1], iPoint[2], this->_paintEraseRadius, this->_axialSliceVisualization);
+
+			}
+			else
+			{
+				if (this->coronalview->underMouse())
+				{
+					QPoint widgetPos = this->coronalview->mapFromGlobal(QCursor::pos());
+					QRect widgetRect = this->coronalview->rect();
+
+					this->_coronalViewRenderer->SetDisplayPoint(widgetPos.x() - widgetRect.left(), widgetRect.bottom() - widgetPos.y(), 0);
+					this->_coronalViewRenderer->DisplayToWorld();
+					this->_coronalViewRenderer->GetWorldPoint(dPoint);
+
+					iPoint[0] = floor(dPoint[0]/spacing[0]) + ((fmod(dPoint[0], spacing[0]) > (0.5*spacing[0])) ? 1 : 0) + 1;
+					iPoint[1] = this->coronalslider->value()-1;
+					iPoint[2] = floor(dPoint[1]/spacing[2]) + ((fmod(dPoint[1], spacing[2]) > (0.5*spacing[2])) ? 1 : 0) + 1;
+
+					this->_editorOperations->UpdatePaintEraseActors(iPoint[0], iPoint[1], iPoint[2], this->_paintEraseRadius, this->_coronalSliceVisualization);
+				}
+				else
+					if (this->sagittalview->underMouse())
+					{
+						QPoint widgetPos = this->sagittalview->mapFromGlobal(QCursor::pos());
+						QRect widgetRect = this->sagittalview->rect();
+
+						this->_sagittalViewRenderer->SetDisplayPoint(widgetPos.x() - widgetRect.left(), widgetRect.bottom() - widgetPos.y(), 0);
+						this->_sagittalViewRenderer->DisplayToWorld();
+						this->_sagittalViewRenderer->GetWorldPoint(dPoint);
+
+						iPoint[0] = this->sagittalslider->value()-1;
+						iPoint[1] = floor(dPoint[0]/spacing[1]) + ((fmod(dPoint[0], spacing[1]) > (0.5*spacing[1])) ? 1 : 0) + 1;
+						iPoint[2] = floor(dPoint[1]/spacing[2]) + ((fmod(dPoint[1], spacing[2]) > (0.5*spacing[2])) ? 1 : 0) + 1;
+
+						this->_editorOperations->UpdatePaintEraseActors(iPoint[0], iPoint[1], iPoint[2], this->_paintEraseRadius, this->_sagittalSliceVisualization);
+					}
+			}
+
 			UpdateViewports(All);
 			break;
+		}
 		case false:
 			labelselector->setSelectionMode(QAbstractItemView::ExtendedSelection);
 			break;
