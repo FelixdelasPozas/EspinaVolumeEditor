@@ -18,7 +18,7 @@
 #include <vtkPiecewiseFunction.h>
 #include <vtkColorTransferFunction.h>
 #include <vtkVolumeRayCastMapper.h>
-//#include <vtkSmartVolumeMapper.h>
+#include <vtkGPUVolumeRayCastMapper.h>
 
 // c++ includes
 #include <set>
@@ -57,6 +57,9 @@ class VoxelVolumeRender
         // compute volume using raycast and reconstruct highlighted labels set while doing it
         void ComputeRayCastVolume();
         //
+        // compute volume using GPU assisted raycast
+        void ComputeGPURender();
+        //
         // compute mesh for a label
         void ComputeMesh(const unsigned short label);
 
@@ -73,7 +76,10 @@ class VoxelVolumeRender
         vtkSmartPointer<vtkVolume> 							_volume;
         //
         // software raycast volume mapper
-        vtkSmartPointer<vtkVolumeRayCastMapper> 			_volumemapper;
+        vtkSmartPointer<vtkVolumeRayCastMapper> 			_CPUmapper;
+        //
+        // GPU fast volume mapper
+        vtkSmartPointer<vtkGPUVolumeRayCastMapper> 			_GPUmapper;
         //
         // set of highlighted labels (selected labels)
         std::set<unsigned short>							_highlightedLabels;

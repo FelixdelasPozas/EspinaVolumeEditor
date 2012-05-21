@@ -25,7 +25,6 @@
 #include <vtkVolumeRayCastCompositeFunction.h>
 #include <vtkCamera.h>
 #include <vtkImageClip.h>
-
 #include <vtkImageCanvasSource2D.h>
 #include <vtkTexture.h>
 #include <vtkTextureMapToPlane.h>
@@ -46,12 +45,21 @@ VoxelVolumeRender::VoxelVolumeRender(DataManager *data, vtkSmartPointer<vtkRende
     this->_renderer = renderer;
     this->_progress = progress;
     this->_volume = NULL;
-    this->_volumemapper = NULL;
+    this->_CPUmapper = NULL;
+    this->_GPUmapper = NULL;
     this->_min = this->_max = Vector3ui(0,0,0);
     this->_renderingIsVolume = true;
 
-    // the raycasted volume is always present
-    ComputeRayCastVolume();
+    // fallback to CPU render if GPU is not available
+    this->_GPUmapper = vtkSmartPointer<vtkGPUVolumeRayCastMapper>::New();
+    if (this->_GPUmapper->IsRenderSupported(renderer->GetRenderWindow(), NULL))
+    	ComputeGPURender();
+    else
+    {
+    	this->_GPUmapper = NULL;
+    	ComputeRayCastVolume();
+    }
+
     UpdateFocusExtent();
 }
 
@@ -202,13 +210,13 @@ void VoxelVolumeRender::ComputeRayCastVolume()
     double rgba[4];
 
     // model mapper
-    this->_volumemapper = vtkSmartPointer<vtkVolumeRayCastMapper>::New();
-    this->_volumemapper->SetInput(this->_dataManager->GetStructuredPoints());
-    this->_volumemapper->IntermixIntersectingGeometryOn();
+    this->_CPUmapper = vtkSmartPointer<vtkVolumeRayCastMapper>::New();
+    this->_CPUmapper->SetInput(this->_dataManager->GetStructuredPoints());
+    this->_CPUmapper->IntermixIntersectingGeometryOn();
 
     // standard composite function
     vtkSmartPointer<vtkVolumeRayCastCompositeFunction> volumefunction = vtkSmartPointer<vtkVolumeRayCastCompositeFunction>::New();
-    this->_volumemapper->SetVolumeRayCastFunction(volumefunction);
+    this->_CPUmapper->SetVolumeRayCastFunction(volumefunction);
 
     // assign label colors
     this->_colorfunction = vtkSmartPointer<vtkColorTransferFunction>::New();
@@ -241,10 +249,59 @@ void VoxelVolumeRender::ComputeRayCastVolume()
     volumeproperty->SetInterpolationTypeToNearest();
 
     this->_volume = vtkSmartPointer<vtkVolume>::New();
-    this->_volume->SetMapper(this->_volumemapper);
+    this->_volume->SetMapper(this->_CPUmapper);
     this->_volume->SetProperty(volumeproperty);
 
     this->_renderer->AddVolume(_volume);
+}
+
+// TODO: max memory in bytes for texture is right now just a fixed value, we must get the GPU memory size before setting this
+// (but vtkGPUinfo doesn't work...)
+void VoxelVolumeRender::ComputeGPURender()
+{
+    double rgba[4];
+    vtkSmartPointer<vtkLookupTable> lookupTable = this->_dataManager->GetLookupTable();
+
+    // GPU mapper created before, while instance init
+    this->_GPUmapper->SetInput(this->_dataManager->GetStructuredPoints());
+    this->_GPUmapper->SetScalarModeToUsePointData();
+    this->_GPUmapper->SetMaxMemoryInBytes(1024*1024*256);  		// GeForce 8600 GT has 256 Mb of RAM
+    this->_GPUmapper->SetMaxMemoryFraction(1.0);				// use all of it if necessary
+    this->_GPUmapper->SetAutoAdjustSampleDistances(false);
+    this->_GPUmapper->SetMaximumImageSampleDistance(1.0); 		// this allows a much more defined volume when rotating the volume, as it uses 1 ray per pixel
+
+    // assign label colors
+    this->_colorfunction = vtkSmartPointer<vtkColorTransferFunction>::New();
+    this->_colorfunction->AllowDuplicateScalarsOff();
+    for (unsigned short int i = 0; i != lookupTable->GetNumberOfTableValues(); i++)
+    {
+    	lookupTable->GetTableValue(i, rgba);
+        this->_colorfunction->AddRGBPoint(i,rgba[0], rgba[1], rgba[2]);
+    }
+
+    // we need to set all labels to an opacity of 0.0
+    this->_opacityfunction = vtkSmartPointer<vtkPiecewiseFunction>::New();
+    this->_opacityfunction->AddPoint(0, 0.0);
+    for (int i=1; i != lookupTable->GetNumberOfTableValues(); i++)
+        this->_opacityfunction->AddPoint(i, 0.0);
+
+    // volume property
+    vtkSmartPointer<vtkVolumeProperty> volumeproperty = vtkSmartPointer<vtkVolumeProperty>::New();
+    volumeproperty->SetColor(this->_colorfunction);
+    volumeproperty->SetScalarOpacity(this->_opacityfunction);
+    volumeproperty->SetSpecular(0.0);
+    volumeproperty->ShadeOn();
+    volumeproperty->SetInterpolationTypeToNearest();
+
+    // create volume and add to render
+    if (NULL != this->_volume)
+    	this->_renderer->RemoveActor(this->_volume);
+
+    this->_volume = vtkSmartPointer<vtkVolume>::New();
+    this->_volume->SetMapper(this->_GPUmapper);
+    this->_volume->SetProperty(volumeproperty);
+
+    this->_renderer->AddVolume(this->_volume);
 }
 
 // update object focus extent and center the group of segmentations
@@ -253,15 +310,29 @@ void VoxelVolumeRender::UpdateFocusExtent(void)
 	// no labels case
 	if (this->_highlightedLabels.empty())
 	{
-		this->_volumemapper->SetCroppingRegionPlanes(0,0,0,0,0,0);
-	    this->_volumemapper->CroppingOn();
-	    this->_volumemapper->SetCroppingRegionFlagsToSubVolume();
-	    this->_volumemapper->Update();
+		if (NULL != this->_GPUmapper)
+		{
+			this->_GPUmapper->SetCroppingRegionPlanes(0,0,0,0,0,0);
+			this->_GPUmapper->CroppingOn();
+			this->_GPUmapper->SetCroppingRegionFlagsToSubVolume();
+			this->_GPUmapper->Update();
+		}
+		else
+		{
+			this->_CPUmapper->SetCroppingRegionPlanes(0,0,0,0,0,0);
+			this->_CPUmapper->CroppingOn();
+			this->_CPUmapper->SetCroppingRegionFlagsToSubVolume();
+			this->_CPUmapper->Update();
+		}
 	    return;
 	}
 
 	double croppingCoords[6];
-	this->_volumemapper->GetCroppingRegionPlanes(croppingCoords);
+	if (NULL != this->_GPUmapper)
+		this->_GPUmapper->GetCroppingRegionPlanes(croppingCoords);
+	else
+		this->_CPUmapper->GetCroppingRegionPlanes(croppingCoords);
+
 	this->_min = this->_max = Vector3ui(0,0,0);
 
 	// calculate combined centroid for the group of segmentations
@@ -307,10 +378,20 @@ void VoxelVolumeRender::UpdateFocusExtent(void)
 		return;
 	}
 
-	this->_volumemapper->SetCroppingRegionPlanes(bounds);
-    this->_volumemapper->CroppingOn();
-    this->_volumemapper->SetCroppingRegionFlagsToSubVolume();
-    this->_volumemapper->Update();
+	if (NULL != this->_GPUmapper)
+	{
+		this->_GPUmapper->SetCroppingRegionPlanes(bounds);
+		this->_GPUmapper->CroppingOn();
+		this->_GPUmapper->SetCroppingRegionFlagsToSubVolume();
+		this->_GPUmapper->Update();
+	}
+	else
+	{
+		this->_CPUmapper->SetCroppingRegionPlanes(bounds);
+		this->_CPUmapper->CroppingOn();
+		this->_CPUmapper->SetCroppingRegionFlagsToSubVolume();
+		this->_CPUmapper->Update();
+	}
 
     // if we are rendering as mesh then recompute mesh (if not, mesh will get clipped against
     // boundaries set at the time of creation if the object grows outside old bounding box)
