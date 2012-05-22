@@ -31,6 +31,9 @@
 #include <vtkPolyDataMapper.h>
 #include <vtkTransformTextureCoords.h>
 
+#include <vtkGPUInfoList.h>
+#include <vtkGPUInfo.h>
+
 // project includes
 #include "DataManager.h"
 #include "VoxelVolumeRender.h"
@@ -45,20 +48,32 @@ VoxelVolumeRender::VoxelVolumeRender(DataManager *data, vtkSmartPointer<vtkRende
     this->_renderer = renderer;
     this->_progress = progress;
     this->_volume = NULL;
+<<<<<<< HEAD
     this->_CPUmapper = NULL;
+=======
+    this->_volumemapper = NULL;
+>>>>>>> 0608fda3f49dcdd08de7a2694d9de8e42ffa79ce
     this->_GPUmapper = NULL;
     this->_min = this->_max = Vector3ui(0,0,0);
     this->_renderingIsVolume = true;
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 0608fda3f49dcdd08de7a2694d9de8e42ffa79ce
     // fallback to CPU render if GPU is not available
     this->_GPUmapper = vtkSmartPointer<vtkGPUVolumeRayCastMapper>::New();
     if (this->_GPUmapper->IsRenderSupported(renderer->GetRenderWindow(), NULL))
     	ComputeGPURender();
     else
+<<<<<<< HEAD
     {
     	this->_GPUmapper = NULL;
     	ComputeRayCastVolume();
     }
+=======
+    	ComputeRayCastVolume();
+>>>>>>> 0608fda3f49dcdd08de7a2694d9de8e42ffa79ce
 
     UpdateFocusExtent();
 }
@@ -310,6 +325,7 @@ void VoxelVolumeRender::UpdateFocusExtent(void)
 	// no labels case
 	if (this->_highlightedLabels.empty())
 	{
+<<<<<<< HEAD
 		if (NULL != this->_GPUmapper)
 		{
 			this->_GPUmapper->SetCroppingRegionPlanes(0,0,0,0,0,0);
@@ -324,15 +340,25 @@ void VoxelVolumeRender::UpdateFocusExtent(void)
 			this->_CPUmapper->SetCroppingRegionFlagsToSubVolume();
 			this->_CPUmapper->Update();
 		}
+=======
+		this->_GPUmapper->SetCroppingRegionPlanes(0,0,0,0,0,0);
+	    this->_GPUmapper->CroppingOn();
+	    this->_GPUmapper->SetCroppingRegionFlagsToSubVolume();
+	    this->_GPUmapper->Update();
+>>>>>>> 0608fda3f49dcdd08de7a2694d9de8e42ffa79ce
 	    return;
 	}
 
 	double croppingCoords[6];
+<<<<<<< HEAD
 	if (NULL != this->_GPUmapper)
 		this->_GPUmapper->GetCroppingRegionPlanes(croppingCoords);
 	else
 		this->_CPUmapper->GetCroppingRegionPlanes(croppingCoords);
 
+=======
+	this->_GPUmapper->GetCroppingRegionPlanes(croppingCoords);
+>>>>>>> 0608fda3f49dcdd08de7a2694d9de8e42ffa79ce
 	this->_min = this->_max = Vector3ui(0,0,0);
 
 	// calculate combined centroid for the group of segmentations
@@ -378,6 +404,7 @@ void VoxelVolumeRender::UpdateFocusExtent(void)
 		return;
 	}
 
+<<<<<<< HEAD
 	if (NULL != this->_GPUmapper)
 	{
 		this->_GPUmapper->SetCroppingRegionPlanes(bounds);
@@ -392,6 +419,12 @@ void VoxelVolumeRender::UpdateFocusExtent(void)
 		this->_CPUmapper->SetCroppingRegionFlagsToSubVolume();
 		this->_CPUmapper->Update();
 	}
+=======
+	this->_GPUmapper->SetCroppingRegionPlanes(bounds);
+    this->_GPUmapper->CroppingOn();
+    this->_GPUmapper->SetCroppingRegionFlagsToSubVolume();
+    this->_GPUmapper->Update();
+>>>>>>> 0608fda3f49dcdd08de7a2694d9de8e42ffa79ce
 
     // if we are rendering as mesh then recompute mesh (if not, mesh will get clipped against
     // boundaries set at the time of creation if the object grows outside old bounding box)

@@ -81,6 +81,9 @@ class VoxelVolumeRender
         // GPU fast volume mapper
         vtkSmartPointer<vtkGPUVolumeRayCastMapper> 			_GPUmapper;
         //
+        // GPU fast volume mapper
+        vtkSmartPointer<vtkGPUVolumeRayCastMapper> 			_GPUmapper;
+        //
         // set of highlighted labels (selected labels)
         std::set<unsigned short>							_highlightedLabels;
         //
