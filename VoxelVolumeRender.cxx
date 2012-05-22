@@ -31,6 +31,9 @@
 #include <vtkPolyDataMapper.h>
 #include <vtkTransformTextureCoords.h>
 
+#include <vtkGPUInfoList.h>
+#include <vtkGPUInfo.h>
+
 // project includes
 #include "DataManager.h"
 #include "VoxelVolumeRender.h"
