@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>566</width>
-    <height>514</height>
+    <height>549</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -59,7 +59,7 @@
         </font>
        </property>
        <property name="text">
-        <string>Espina Volume Editor 1.0.6</string>
+        <string>Espina Volume Editor 1.0.7</string>
        </property>
        <property name="alignment">
         <set>Qt::AlignCenter</set>

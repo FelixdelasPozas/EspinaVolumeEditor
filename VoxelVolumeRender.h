@@ -4,7 +4,9 @@
 //
 // File: VoxelVolumeRender.h
 // Purpose: renders a vtkStructuredPoints volume (raycasting volume or colored meshes)
-// Notes:
+// Notes: An implementation with vtkMultiBlockDataSet that allow mesh representation with just one
+//        actor and mapper is disabled but the code is still present because it's and objective
+//        worth pursuing in the future
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #ifndef _VOXELVOLUMERENDER_H_
@@ -19,7 +21,7 @@
 #include <vtkColorTransferFunction.h>
 #include <vtkVolumeRayCastMapper.h>
 #include <vtkGPUVolumeRayCastMapper.h>
-#include <vtkMultiBlockDataSet.h>
+//#include <vtkMultiBlockDataSet.h>
 
 // c++ includes
 #include <set>
@@ -52,7 +54,6 @@ class VoxelVolumeRender
         void ColorHighlightExclusive(unsigned short);
         void ColorDimAll(void);
         void UpdateColorTable(void);
-        void ComputeMesh(const unsigned short);
     private:
         // private methods
         //
@@ -62,8 +63,12 @@ class VoxelVolumeRender
         // compute volume using GPU assisted raycast
         void ComputeGPURender();
         //
-        // compute mesh representation for the volume
-        void ComputeMeshes(void);
+//        // compute mesh representation for the volume
+//        void ComputeMeshes(void);
+        //
+        // compute mesh representation for a given segmentation
+        void ComputeMesh(const unsigned short);
+
 
         // attributes
         vtkSmartPointer<vtkRenderer>         				_renderer;
@@ -93,21 +98,32 @@ class VoxelVolumeRender
         // mesh actors list
         struct ActorInformation
         {
+        		vtkSmartPointer<vtkActor>	meshActor;
         		Vector3ui 					actorMin;
         		Vector3ui 					actorMax;
-        		ActorInformation(): actorMin(Vector3ui(0,0,0)), actorMax(Vector3ui(0,0,0)) { };
+        		ActorInformation(): actorMin(Vector3ui(0,0,0)), actorMax(Vector3ui(0,0,0)) { meshActor = NULL; };
         };
-        std::map<const unsigned short, struct VoxelVolumeRender::ActorInformation* >	_segmentationInfoList;
+        std::map<const unsigned short, struct VoxelVolumeRender::ActorInformation* >	_actorList;
+        
+//	MultiBlockDataSet implementation disabled        
+//        struct ActorInformation
+//        {
+//        		Vector3ui 					actorMin;
+//        		Vector3ui 					actorMax;
+//        		ActorInformation(): actorMin(Vector3ui(0,0,0)), actorMax(Vector3ui(0,0,0)) { };
+//        };
+//        std::map<const unsigned short, struct VoxelVolumeRender::ActorInformation* >	_segmentationInfoList;
+
         //
         // mesh/volume rendering status
         bool												_renderingIsVolume;
         //
-        // MultiBlockDataSet will avoid having one actor/mapper for each segmentation, with
-        // this we will have just one actor and one mapper for all segmentations
-        vtkSmartPointer<vtkMultiBlockDataSet> 				_blockData;
-        //
-        // lookuptable needed for mesh color modification
-        vtkSmartPointer<vtkLookupTable>						_meshLUT;
+//        // MultiBlockDataSet will avoid having one actor/mapper for each segmentation, with
+//        // this we will have just one actor and one mapper for all segmentations
+//        vtkSmartPointer<vtkMultiBlockDataSet> 				_blockData;
+//        //
+//        // lookuptable needed for mesh color modification
+//        vtkSmartPointer<vtkLookupTable>						_meshLUT;
 
 };
 
