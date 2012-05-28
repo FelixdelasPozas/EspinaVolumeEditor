@@ -28,11 +28,15 @@
 #include <vtkImageCanvasSource2D.h>
 #include <vtkTexture.h>
 #include <vtkTextureMapToPlane.h>
-#include <vtkPolyDataMapper.h>
+#include <vtkCompositePolyDataMapper2.h>
 #include <vtkTransformTextureCoords.h>
-
-#include <vtkGPUInfoList.h>
+#include <vtkXGPUInfoList.h>
 #include <vtkGPUInfo.h>
+#include <vtkPointData.h>
+#include <vtkCellData.h>
+#include <vtkFloatArray.h>
+#include <vtkRenderWindow.h>
+#include <vtkCellDataToPointData.h>
 
 // project includes
 #include "DataManager.h"
@@ -53,6 +57,14 @@ VoxelVolumeRender::VoxelVolumeRender(DataManager *data, vtkSmartPointer<vtkRende
     this->_min = this->_max = Vector3ui(0,0,0);
     this->_renderingIsVolume = true;
 
+    this->_blockData = vtkSmartPointer<vtkMultiBlockDataSet>::New();
+    this->_blockData->SetUpdateExtentToWholeExtent();
+    this->_blockData->Initialize();
+
+    // we will use the mesh and ray-cast methods at the same time, but alternating
+    // visibility between the two
+    this->ComputeMeshes();
+
     // fallback to CPU render if GPU is not available
     this->_GPUmapper = vtkSmartPointer<vtkGPUVolumeRayCastMapper>::New();
     if (this->_GPUmapper->IsRenderSupported(renderer->GetRenderWindow(), NULL))
@@ -64,23 +76,147 @@ VoxelVolumeRender::VoxelVolumeRender(DataManager *data, vtkSmartPointer<vtkRende
     }
 
     UpdateFocusExtent();
+
+    // TODO: see if depth peeling is really necessary (consumes a lot of GPU memory)
+
+    // activate depth peeling for polygon sorting
+    vtkRenderWindow *rw = this->_renderer->GetRenderWindow();
+    rw->SetAlphaBitPlanes(true);
+    rw->SetMultiSamples(false);
+    this->_renderer->SetUseDepthPeeling(true);
+    this->_renderer->SetMaximumNumberOfPeels(100);
+    this->_renderer->SetOcclusionRatio(0.0);
 }
 
 VoxelVolumeRender::~VoxelVolumeRender()
 {
     // using smartpointers
     
-    // delete actors from renderers before leaving. volume actor always present
-	this->_renderer->RemoveActor(_volume);
+    // delete actor from renderer before leaving
+	if (this->_renderingIsVolume)
+		this->_renderer->RemoveActor(this->_volume);
+	else
+		this->_renderer->RemoveActor(this->_mesh);
+}
 
-	std::map<unsigned short, struct ActorInformation* >::iterator it;
-	for (it = this->_actorList.begin(); it != this->_actorList.end(); it++)
+void VoxelVolumeRender::ComputeMeshes(void)
+{
+	double rgba[4];
+    double weight = 1.0/((3.0*this->_dataManager->GetNumberOfLabels())+1);
+
+	for (unsigned short i = 1; i < this->_dataManager->GetNumberOfLabels(); i++)
 	{
-		this->_renderer->RemoveActor((*it).second->meshActor);
-		(*it).second->meshActor = NULL;
-		delete (*it).second;
-		this->_actorList.erase((*it).first);
+		struct VoxelVolumeRender::ActorInformation* actorInfo = new struct VoxelVolumeRender::ActorInformation();
+	    actorInfo->actorMin = this->_dataManager->GetBoundingBoxMin(i);
+	    actorInfo->actorMax = this->_dataManager->GetBoundingBoxMax(i);
+	    this->_segmentationInfoList.insert(std::pair<const unsigned short, VoxelVolumeRender::ActorInformation*>(i, actorInfo));
+
+		// first crop the region and then use the vtk-itk pipeline to get a itk::Image of the region
+	    Vector3ui size = this->_dataManager->GetOrientationData()->GetTransformedSize();
+		Vector3ui objectMin = actorInfo->actorMin;
+		Vector3ui objectMax = actorInfo->actorMax;
+
+		// the object bounds collide with the object, we must add one not to clip the mesh at the borders
+		if (objectMin[0] > 0) objectMin[0]--;
+		if (objectMin[1] > 0) objectMin[1]--;
+		if (objectMin[2] > 0) objectMin[2]--;
+		if (objectMax[0] < size[0]) objectMax[0]++;
+		if (objectMax[1] < size[1])	objectMax[1]++;
+		if (objectMax[2] < size[2])	objectMax[2]++;
+
+		// image clipping
+		vtkSmartPointer<vtkImageClip> imageClip = vtkSmartPointer<vtkImageClip>::New();
+		imageClip->SetInput(this->_dataManager->GetStructuredPoints());
+		imageClip->SetOutputWholeExtent(objectMin[0], objectMax[0], objectMin[1], objectMax[1], objectMin[2], objectMax[2]);
+		imageClip->ClipDataOn();
+		this->_progress->Observe(imageClip, "Clip", weight);
+		imageClip->Update();
+		this->_progress->Ignore(imageClip);
+
+	    // generate iso surface
+	    vtkSmartPointer<vtkDiscreteMarchingCubes> marcher = vtkSmartPointer<vtkDiscreteMarchingCubes>::New();
+		marcher->SetInput(imageClip->GetOutput());
+		marcher->ReleaseDataFlagOn();
+		marcher->SetNumberOfContours(1);
+		marcher->GenerateValues(1, i, i);
+		marcher->ComputeScalarsOn();
+		marcher->ComputeNormalsOff();
+		marcher->ComputeGradientsOff();
+		this->_progress->Observe(marcher, "March", weight);
+		marcher->Update();
+		this->_progress->Ignore(marcher);
+
+		// pass the cell data (segmentation scalars) to point data to color the segmentation
+		// in the mapper
+		vtkSmartPointer<vtkCellDataToPointData> cell2point = vtkSmartPointer<vtkCellDataToPointData>::New();
+		cell2point->SetInputConnection(marcher->GetOutputPort());
+
+		// decimate surface
+	    vtkSmartPointer<vtkDecimatePro> decimator = vtkSmartPointer<vtkDecimatePro>::New();
+		decimator->SetInputConnection(cell2point->GetOutputPort());
+		decimator->ReleaseDataFlagOn();
+		decimator->SetGlobalWarningDisplay(false);
+		decimator->SetTargetReduction(0.95);
+		decimator->PreserveTopologyOn();
+		decimator->BoundaryVertexDeletionOn();
+		decimator->SplittingOff();
+		this->_progress->Observe(decimator, "Decimate", weight);
+		decimator->Update();
+		this->_progress->Ignore(decimator);
+
+		// surface smoothing
+	    vtkSmartPointer<vtkWindowedSincPolyDataFilter> smoother = vtkSmartPointer<vtkWindowedSincPolyDataFilter>::New();
+		smoother->SetInputConnection(decimator->GetOutputPort());
+		smoother->ReleaseDataFlagOn();
+		smoother->SetGlobalWarningDisplay(false);
+		smoother->BoundarySmoothingOn();
+		smoother->FeatureEdgeSmoothingOn();
+		smoother->SetNumberOfIterations(15);
+		smoother->SetFeatureAngle(120);
+		smoother->SetEdgeAngle(90);
+
+		// compute normals for a better looking volume
+	    vtkSmartPointer<vtkPolyDataNormals> normals = vtkSmartPointer<vtkPolyDataNormals>::New();
+		normals->SetInputConnection(smoother->GetOutputPort());
+		normals->SetInformation(marcher->GetInformation());
+		normals->ReleaseDataFlagOff();
+		normals->SetFeatureAngle(120);
+		normals->GetOutput()->Update();
+
+		this->_blockData->SetBlock(i-1, normals->GetOutput());
 	}
+
+	// copy the lookuptable from datamanager and make all colors transparent
+	vtkSmartPointer<vtkLookupTable> originalLUT = this->_dataManager->GetLookupTable();
+	this->_meshLUT = vtkSmartPointer<vtkLookupTable>::New();
+	this->_meshLUT->Allocate();
+	this->_meshLUT->SetNumberOfTableValues(originalLUT->GetNumberOfTableValues());
+    for (int index = 0; index != originalLUT->GetNumberOfTableValues(); index++)
+    {
+    	originalLUT->GetTableValue(index, rgba);
+        this->_meshLUT->SetTableValue(index, rgba[0], rgba[1], rgba[2], 0.0);
+    }
+    this->_meshLUT->SetTableRange(0,originalLUT->GetNumberOfTableValues()-1);
+
+	// model mapper, will color the segmentations using the scalar field of the points
+    vtkSmartPointer<vtkCompositePolyDataMapper2> isoMapper = vtkSmartPointer<vtkCompositePolyDataMapper2>::New();
+    this->_progress->Observe(isoMapper, "Map", weight);
+	isoMapper->SetInputConnection(this->_blockData->GetProducerPort());
+	isoMapper->ReleaseDataFlagOn();
+	isoMapper->ImmediateModeRenderingOn();
+	isoMapper->SetLookupTable(this->_meshLUT);
+	isoMapper->SetColorModeToMapScalars();
+	isoMapper->SetScalarModeToUsePointData();
+	isoMapper->SetUseLookupTableScalarRange(true);
+	isoMapper->SetResolveCoincidentTopologyToPolygonOffset();
+	isoMapper->SetStatic(false);
+	this->_progress->Ignore(isoMapper);
+
+	// create the actor a assign a color to it, but don't add it to the renderer
+	this->_mesh = vtkSmartPointer<vtkActor>::New();
+	this->_mesh->SetMapper(isoMapper);
+	this->_mesh->GetProperty()->SetOpacity(1);
+	this->_mesh->GetProperty()->SetSpecular(0.2);
 }
 
 // NOTE: some filters make use of SetGlobalWarningDisplay(false) because if we delete
@@ -90,14 +226,12 @@ VoxelVolumeRender::~VoxelVolumeRender()
 //       not even an error.
 void VoxelVolumeRender::ComputeMesh(const unsigned short label)
 {
-    double rgba[4];
-
     struct VoxelVolumeRender::ActorInformation* actorInfo;
 
     // delete previous actor if any exists and the actual object bounding box is bigger than the stored with the actor.
-    if (this->_actorList.find(label) != this->_actorList.end())
+    if (this->_segmentationInfoList.find(label) != this->_segmentationInfoList.end())
     {
-    	actorInfo = this->_actorList[label];
+    	actorInfo = this->_segmentationInfoList[label];
 
     	Vector3ui min = this->_dataManager->GetBoundingBoxMin(label);
     	Vector3ui max = this->_dataManager->GetBoundingBoxMax(label);
@@ -109,19 +243,17 @@ void VoxelVolumeRender::ComputeMesh(const unsigned short label)
     		return;
     	}
 
-    	this->_renderer->RemoveActor(this->_actorList[label]->meshActor);
-    	delete this->_actorList[label];
-    	this->_actorList[label] = NULL;
-    	this->_actorList.erase(label);
+    	delete this->_segmentationInfoList[label];
+    	this->_segmentationInfoList[label] = NULL;
+    	this->_segmentationInfoList.erase(label);
     }
 
     actorInfo = new struct VoxelVolumeRender::ActorInformation();
     actorInfo->actorMin = this->_dataManager->GetBoundingBoxMin(label);
     actorInfo->actorMax = this->_dataManager->GetBoundingBoxMax(label);
-    actorInfo->meshActor = vtkSmartPointer<vtkActor>::New();
-    this->_actorList.insert(std::pair<const unsigned short, VoxelVolumeRender::ActorInformation*>(label, actorInfo));
+    this->_segmentationInfoList.insert(std::pair<const unsigned short, VoxelVolumeRender::ActorInformation*>(label, actorInfo));
 
-	// first crop the region and then use the vtk-itk pipeline to get a itk::Image of the region
+	// first crop the region
 	Vector3ui objectMin = this->_dataManager->GetBoundingBoxMin(label);
 	Vector3ui objectMax = this->_dataManager->GetBoundingBoxMax(label);
 	Vector3ui size = this->_dataManager->GetOrientationData()->GetTransformedSize();
@@ -150,7 +282,7 @@ void VoxelVolumeRender::ComputeMesh(const unsigned short label)
 	marcher->ReleaseDataFlagOn();
 	marcher->SetNumberOfContours(1);
 	marcher->GenerateValues(1, label, label);
-	marcher->ComputeScalarsOff();
+	marcher->ComputeScalarsOn();
 	marcher->ComputeNormalsOff();
 	marcher->ComputeGradientsOff();
 	this->_progress->Observe(marcher, "March", weight);
@@ -187,25 +319,22 @@ void VoxelVolumeRender::ComputeMesh(const unsigned short label)
 	normals->ReleaseDataFlagOn();
 	normals->SetFeatureAngle(120);
 
-	// model mapper
-    vtkSmartPointer<vtkPolyDataMapper> isoMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-    this->_progress->Observe(isoMapper, "Map", weight);
-	isoMapper->SetInputConnection(normals->GetOutputPort());
-	isoMapper->ReleaseDataFlagOn();
-	isoMapper->ImmediateModeRenderingOn();
-	isoMapper->ScalarVisibilityOff();
-	isoMapper->Update();
-	this->_progress->Ignore(isoMapper);
+	// assign a color to it and update the block in the multi block data
+	vtkPolyData *segmentation = normals->GetOutput();
+	segmentation->Update();
 
-	// create the actor a assign a color to it
-	actorInfo->meshActor->SetMapper(isoMapper);
-	this->_dataManager->GetColorComponents(label, rgba);
-	actorInfo->meshActor->GetProperty()->SetColor(rgba[0], rgba[1], rgba[2]);
-	actorInfo->meshActor->GetProperty()->SetOpacity(1);
-	actorInfo->meshActor->GetProperty()->SetSpecular(0.2);
+	// we must fill the point array with the segmentation scalar, so we can colour it later
+	vtkSmartPointer<vtkFloatArray> pointData = vtkSmartPointer<vtkFloatArray>::New();
+	pointData->SetNumberOfTuples(segmentation->GetNumberOfPoints());
 
-	// add the actor to the renderer
-	this->_renderer->AddActor(actorInfo->meshActor);
+	for (int j = 0; j < segmentation->GetNumberOfPoints(); j++)
+	    pointData->SetTuple1(j,label);
+
+	segmentation->GetPointData()->SetScalars(pointData);
+	this->_blockData->SetBlock(label-1, segmentation);
+	this->_blockData->Update();
+
+	this->_progress->Reset();
 }
 
 void VoxelVolumeRender::ComputeRayCastVolume()
@@ -258,20 +387,27 @@ void VoxelVolumeRender::ComputeRayCastVolume()
     this->_renderer->AddVolume(_volume);
 }
 
-// TODO: max memory in bytes for texture is right now just a fixed value, we must get the GPU memory size before setting this
-// (but vtkGPUinfo doesn't work...)
 void VoxelVolumeRender::ComputeGPURender()
 {
-    double rgba[4];
+	double rgba[4];
+
+	vtkSmartPointer<vtkXGPUInfoList> info = vtkSmartPointer<vtkXGPUInfoList>::New();
+	info->Probe();
+
+	assert(0 != info->GetNumberOfGPUs());
+	vtkSmartPointer<vtkGPUInfo> gpuInfo = info->GetGPUInfo(0);
+
     vtkSmartPointer<vtkLookupTable> lookupTable = this->_dataManager->GetLookupTable();
 
     // GPU mapper created before, while instance init
     this->_GPUmapper->SetInput(this->_dataManager->GetStructuredPoints());
     this->_GPUmapper->SetScalarModeToUsePointData();
-    this->_GPUmapper->SetMaxMemoryInBytes(1024*1024*256);  		// GeForce 8600 GT has 256 Mb of RAM
-    this->_GPUmapper->SetMaxMemoryFraction(1.0);				// use all of it if necessary
     this->_GPUmapper->SetAutoAdjustSampleDistances(false);
-    this->_GPUmapper->SetMaximumImageSampleDistance(1.0); 		// this allows a much more defined volume when rotating the volume, as it uses 1 ray per pixel
+    this->_GPUmapper->SetMaximumImageSampleDistance(1.0); 		// this allows a much more defined volume when rotating, as it uses 1 ray per pixel
+
+    // at this point if the volume has been reduced (see this->_GPUmapper->GetReductionRatio(double *) ) it's because the volume is bigger
+    // than the memory of the card and doesn't fit, there is no workaround for this except get a better graphic card or use the software
+    // solution (not really a solution after all, too slow)
 
     // assign label colors
     this->_colorfunction = vtkSmartPointer<vtkColorTransferFunction>::New();
@@ -355,6 +491,9 @@ void VoxelVolumeRender::UpdateFocusExtent(void)
 		Vector3ui minBounds = this->_dataManager->GetBoundingBoxMin((*it));
 		Vector3ui maxBounds = this->_dataManager->GetBoundingBoxMax((*it));
 
+		if ((minBounds != this->_segmentationInfoList[*it]->actorMin) || (maxBounds != this->_segmentationInfoList[*it]->actorMax))
+			this->ComputeMesh(*it);
+
 		if (this->_min[0] > minBounds[0]) this->_min[0] = minBounds[0];
 		if (this->_min[1] > minBounds[1]) this->_min[1] = minBounds[1];
 		if (this->_min[2] > minBounds[2]) this->_min[2] = minBounds[2];
@@ -395,30 +534,17 @@ void VoxelVolumeRender::UpdateFocusExtent(void)
 		this->_CPUmapper->SetCroppingRegionFlagsToSubVolume();
 		this->_CPUmapper->Update();
 	}
-
-    // if we are rendering as mesh then recompute mesh (if not, mesh will get clipped against
-    // boundaries set at the time of creation if the object grows outside old bounding box)
-    // Volume render does not need this, updating the extent is just fine
-    if (!this->_actorList.empty())
-    	this->ViewAsMesh();
 }
 
 void VoxelVolumeRender::ViewAsMesh(void)
 {
-	// hide all highlighted volumes
-	std::set<unsigned short>::iterator it;
-	for (it = this->_highlightedLabels.begin(); it != this->_highlightedLabels.end(); it++)
-	{
-		if (this->_renderingIsVolume)
-			this->_opacityfunction->AddPoint(*it, 0.0);
+	if (!this->_renderingIsVolume)
+		return;
 
-		ComputeMesh(*it);
-	}
+	this->_renderer->RemoveActor(this->_volume);
+	this->_renderer->AddActor(this->_mesh);
+
 	this->_progress->Reset();
-
-	if (this->_renderingIsVolume)
-		this->_opacityfunction->Modified();
-
 	this->_renderingIsVolume = false;
 }
 
@@ -427,71 +553,47 @@ void VoxelVolumeRender::ViewAsVolume(void)
 	if (this->_renderingIsVolume)
 		return;
 
-	// delete all actors and while we're at it modify opacity values for volume rendering
-	std::map<unsigned short, struct ActorInformation* >::iterator it;
-	for (it = this->_actorList.begin(); it != this->_actorList.end(); it++)
-	{
-		this->_renderer->RemoveActor((*it).second->meshActor);
-		(*it).second->meshActor = NULL;
-		delete (*it).second;
-		this->_opacityfunction->AddPoint((*it).first, 1.0);
-		this->_actorList.erase((*it).first);
-	}
-	this->_actorList.clear();
-	this->_opacityfunction->Modified();
+	this->_renderer->RemoveActor(this->_mesh);
+	this->_renderer->AddActor(this->_volume);
+
+	this->_progress->Reset();
 	this->_renderingIsVolume = true;
 }
 
-// NOTE: this->_opacityfunction->Modified() not signaled. need to use UpdateColorTable() after
-// calling this one to signal changes to pipeline
+// NOTE: this->_opacityfunction->Modified() & this->_meshLUT->Modified() not signaled.
+// need to use UpdateColorTable() after calling this one to signal changes to pipeline
 void VoxelVolumeRender::ColorHighlight(const unsigned short label)
 {
 	if (0 == label)
 		return;
 
+	double rgba[4];
 	if (this->_highlightedLabels.find(label) == this->_highlightedLabels.end())
 	{
-		switch(this->_renderingIsVolume)
-		{
-			case true:
-				this->_opacityfunction->AddPoint(label, 1.0);
-				break;
-			case false:
-				ComputeMesh(label);
-				this->_progress->Reset();
-				break;
-			default:
-				break;
-		}
 		this->_highlightedLabels.insert(label);
+
+		this->_opacityfunction->AddPoint(label, 1.0);
+        this->_meshLUT->GetTableValue(label, rgba);
+        this->_meshLUT->SetTableValue(label, rgba[0], rgba[1], rgba[2], 1.0);
 	}
 }
 
-// NOTE: this->_opacityfunction->Modified() not signaled. need to use UpdateColorTable() after
-// calling this one to signal changes to pipeline.
+// NOTE: this->_opacityfunction->Modified() & this->_meshLUT->Modified() not signaled.
+// need to use UpdateColorTable() after calling this one to signal changes to pipeline.
 // NOTE: alpha parameter defaults to 0.0, see .h
-void VoxelVolumeRender::ColorDim(const unsigned short label, float alpha)
+void VoxelVolumeRender::ColorDim(const unsigned short label, double alpha)
 {
 	if (0 == label)
 		return;
 
+	double rgba[4];
 	if (this->_highlightedLabels.find(label) != this->_highlightedLabels.end())
 	{
-		switch(this->_renderingIsVolume)
-		{
-			case true:
-				this->_opacityfunction->AddPoint(label, alpha);
-				break;
-			case false:
-				// actor MUST exist
-				this->_renderer->RemoveActor(this->_actorList[label]->meshActor);
-				delete this->_actorList[label];
-				this->_actorList.erase(label);
-				break;
-			default: // can't happen
-				break;
-		}
 		this->_highlightedLabels.erase(label);
+
+		this->_opacityfunction->AddPoint(label, alpha);
+        this->_meshLUT->GetTableValue(label, rgba);
+        this->_meshLUT->SetTableValue(label, rgba[0], rgba[1], rgba[2], alpha);
 	}
 }
 
@@ -504,7 +606,7 @@ void VoxelVolumeRender::ColorHighlightExclusive(unsigned short label)
 	if (this->_highlightedLabels.find(label) == this->_highlightedLabels.end())
 		ColorHighlight(label);
 
-	this->_opacityfunction->Modified();
+	UpdateColorTable();
 }
 
 void VoxelVolumeRender::ColorDimAll(void)
@@ -513,11 +615,12 @@ void VoxelVolumeRender::ColorDimAll(void)
 	for (it = this->_highlightedLabels.begin(); it != this->_highlightedLabels.end(); it++)
 		ColorDim(*it);
 
-	this->_opacityfunction->Modified();
+	UpdateColorTable();
 }
 
 // needed to be public as a method so we can signal changes to the opacity function
 void VoxelVolumeRender::UpdateColorTable(void)
 {
 	this->_opacityfunction->Modified();
+	this->_meshLUT->Modified();
 }

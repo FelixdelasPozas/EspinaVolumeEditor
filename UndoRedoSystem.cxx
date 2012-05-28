@@ -344,6 +344,7 @@ void UndoRedoSystem::DoAction(const UndoRedoBuffer actionBuffer)
         Vector3ui point = action_point.first;
         _dataManager->SetVoxelScalar(point[0], point[1], point[2], action_point.second);
     }
+    this->_dataManager->SignalDataAsModified();
 
     std::vector<std::pair<unsigned short, struct DataManager::ObjectInformation*> >::iterator it;
 
@@ -445,6 +446,7 @@ void UndoRedoSystem::SignalCancelAction()
         Vector3ui point = action_point.first;
         _dataManager->SetVoxelScalarRaw(point[0], point[1], point[2], action_point.second);
     }
+    this->_dataManager->SignalDataAsModified();
 
     // delete dinamically allocated objects
     while (!(*_action).actionObjects.empty())

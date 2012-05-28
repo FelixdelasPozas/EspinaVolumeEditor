@@ -236,7 +236,6 @@ void DataManager::SetVoxelScalar(unsigned int x, unsigned int y, unsigned int z,
 
     _actionsBuffer->StorePoint(Vector3ui(x,y,z), *pixel);
     *pixel = scalar;
-    _structuredPoints->Modified();
 }
 
 void DataManager::SetVoxelScalarRaw(unsigned int x, unsigned int y, unsigned int z, unsigned short scalar)
@@ -247,7 +246,6 @@ void DataManager::SetVoxelScalarRaw(unsigned int x, unsigned int y, unsigned int
         return;
     
     *pixel = scalar;
-    _structuredPoints->Modified();
 }
 
 unsigned short DataManager::SetLabel(Vector3d rgb)
@@ -716,4 +714,9 @@ void DataManager::SetSelectedLabelsSet(std::set<unsigned short> labelSet)
 const int DataManager::GetSelectedLabelSetSize(void)
 {
 	return this->_selectedLabels.size();
+}
+
+void DataManager::SignalDataAsModified(void)
+{
+	this->_structuredPoints->Modified();
 }

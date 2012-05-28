@@ -783,7 +783,7 @@ void EspinaVolumeEditor::EditorOpen(void)
         	if ((*it) > this->_dataManager->GetNumberOfLabels())
         		labelScalars.erase(*it);
 
-        SelectLabelGroup(labelIndexes);
+    	SelectLabelGroup(labelIndexes);
     }
 
     _progress->ManualReset();
@@ -989,7 +989,7 @@ void EspinaVolumeEditor::EditorSave()
     	filenameStd += std::string(".segmha");
 
     QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
-    _editorOperations->SaveImage(filenameStd);
+    this->_editorOperations->SaveImage(filenameStd);
 
 	if (!_fileMetadata->Write(QString(filenameStd.c_str()), _dataManager))
 	{
@@ -1022,6 +1022,7 @@ void EspinaVolumeEditor::EditorSave()
 	QVariant variant;
 	variant.setValue(labelList);
 	editorSettings.setValue(filenameQt, variant);
+	editorSettings.sync();
 
 	this->_segmentationFileName = filenameStd;
 
@@ -2819,9 +2820,6 @@ void EspinaVolumeEditor::RemoveSessionFiles(void)
 	std::string temporalFilename = baseFilename + std::string(".session");
 	std::string temporalFilenameMHA = baseFilename + std::string(".mha");
 
-	// with the lock we make sure there's no save session action in progress
-	QMutexLocker locker(actionLock);
-
 	QFile file(QString(temporalFilename.c_str()));
 	if (true == file.exists())
 		if (false == file.remove())
@@ -2851,6 +2849,7 @@ void EspinaVolumeEditor::RemoveSessionFiles(void)
     QString filename(temporalFilename.c_str());
     filename.replace(QChar('/'), QChar('\\'));
     editorSettings.remove(filename);
+	editorSettings.sync();
 }
 
 void EspinaVolumeEditor::InitiateSessionGUI(void)
@@ -2864,7 +2863,7 @@ void EspinaVolumeEditor::InitiateSessionGUI(void)
     // add volume actors to 3D renderer
 	_volumeRender = new VoxelVolumeRender(_dataManager, _voxelViewRenderer, _progress);
 
-    // visualize slices in all planes
+	// visualize slices in all planes
     _sagittalSliceVisualization->Initialize(_dataManager->GetStructuredPoints(), _dataManager->GetLookupTable(), _sagittalViewRenderer, _orientationData);
     _coronalSliceVisualization->Initialize(_dataManager->GetStructuredPoints(), _dataManager->GetLookupTable(),  _coronalViewRenderer, _orientationData);
     _axialSliceVisualization->Initialize(_dataManager->GetStructuredPoints(), _dataManager->GetLookupTable(), _axialViewRenderer, _orientationData);

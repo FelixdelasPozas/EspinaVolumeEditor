@@ -129,6 +129,7 @@ void EditorOperations::ItkImageToPoints(itk::SmartPointer<ImageType> image)
     	index = it.GetIndex();
     	_dataManager->SetVoxelScalar(index[0], index[1], index[2], it.Get());
     }
+    this->_dataManager->SignalDataAsModified();
     
     return;
 }
@@ -197,8 +198,10 @@ void EditorOperations::Cut(std::set<unsigned short> labels)
     	default:
     		break;
     }
-    _progress->ManualReset();
-    _dataManager->OperationEnd();
+    this->_dataManager->SignalDataAsModified();
+
+    this->_progress->ManualReset();
+    this->_dataManager->OperationEnd();
 }
 
 // BEWARE: new label scalar and boolean indicating if it's a new color returned by reference
@@ -293,11 +296,12 @@ bool EditorOperations::Relabel(QWidget *parent, Metadata *data, std::set<unsigne
     	default:
     		break;
     }
+    this->_dataManager->SignalDataAsModified();
 
     labels->clear();
     labels->insert(newlabel);
-    _progress->ManualReset();
-    _dataManager->OperationEnd();
+    this->_progress->ManualReset();
+    this->_dataManager->OperationEnd();
     return true;
 }
 
@@ -558,7 +562,7 @@ std::set<unsigned short> EditorOperations::Watershed(const unsigned short label)
     const LabelMapType::LabelObjectContainerType & labelObjectContainer = outputLabelMap->GetLabelObjectContainer();
 
     // for the randomized label colors
-    srand(time(NULL));
+    std::srand(static_cast<unsigned int>(std::time(NULL)));
     for(iter = labelObjectContainer.begin(); iter != labelObjectContainer.end(); iter++)
     {
         unsigned short newlabel = 0;
@@ -595,9 +599,10 @@ std::set<unsigned short> EditorOperations::Watershed(const unsigned short label)
             }
         }
     }
+    this->_dataManager->SignalDataAsModified();
 
-    _progress->Reset();
-    _dataManager->OperationEnd();
+    this->_progress->Reset();
+    this->_dataManager->OperationEnd();
     return createdLabels;
 }
 
@@ -650,7 +655,7 @@ void EditorOperations::EditorError(itk::ExceptionObject &excp)
 // with itk::ImageFileWriter as the orientation is saved correctly as RAI.
 void EditorOperations::SaveImage(const std::string filename)
 {
-    _progress->ManualSet("Save Image");
+    this->_progress->ManualSet("Save Image");
     
     itk::SmartPointer<ImageType> image = ImageType::New();
     image = this->_selection->GetItkImage();
@@ -667,9 +672,9 @@ void EditorOperations::SaveImage(const std::string filename)
     newOrigin[1] = point[1];
     newOrigin[2] = point[2];
     infoChanger->SetOutputOrigin(newOrigin);
-    _progress->Observe(infoChanger,"Fix Image", 0.2);
+    this->_progress->Observe(infoChanger,"Fix Image", 0.2);
     infoChanger->Update();
-    _progress->Ignore(infoChanger);
+    this->_progress->Ignore(infoChanger);
     
     // convert to labelmap and restore original scalars for labels
 	typedef itk::LabelImageToLabelMapFilter<ImageType, LabelMapType> ConverterType;
@@ -677,9 +682,9 @@ void EditorOperations::SaveImage(const std::string filename)
 
 	converter->SetInput(infoChanger->GetOutput());
 	converter->ReleaseDataFlagOn();
-	_progress->Observe(converter, "Label Map", 0.2);
+	this->_progress->Observe(converter, "Label Map", 0.2);
 	converter->Update();
-	_progress->Ignore(converter);
+	this->_progress->Ignore(converter);
 	converter->GetOutput()->Optimize();
 
 	if(0 == converter->GetOutput()->GetNumberOfLabelObjects())
@@ -689,7 +694,7 @@ void EditorOperations::SaveImage(const std::string filename)
 		msgBox.setIcon(QMessageBox::Warning);
 		msgBox.setText("There are no segmentations in the image. Not saving an empty image.");
 		msgBox.exec();
-		_progress->ManualReset();
+		this->_progress->ManualReset();
 		return;
 	}
 
@@ -703,9 +708,9 @@ void EditorOperations::SaveImage(const std::string filename)
     for (unsigned short i = 1; i < _dataManager->GetNumberOfLabels(); i++)
     	labelChanger->SetChange(i,_dataManager->GetScalarForLabel(i));
 
-    _progress->Observe(labelChanger, "Fix Labels", 0.2);
+    this->_progress->Observe(labelChanger, "Fix Labels", 0.2);
     labelChanger->Update();
-    _progress->Ignore(labelChanger);
+    this->_progress->Ignore(labelChanger);
 
 	// itklabelmap->itkimage
 	typedef itk::LabelMapToLabelImageFilter<LabelMapType, ImageType> LabelMapToImageFilterType;
@@ -715,9 +720,9 @@ void EditorOperations::SaveImage(const std::string filename)
 	labelConverter->SetNumberOfThreads(1);
 	labelConverter->ReleaseDataFlagOn();
 
-	_progress->Observe(labelConverter, "Convert Image", 0.2);
+	this->_progress->Observe(labelConverter, "Convert Image", 0.2);
 	labelConverter->Update();
-	_progress->Ignore(labelConverter);
+	this->_progress->Ignore(labelConverter);
 
     // save as an mha and rename
     std::string tempfilename = filename + std::string(".mha");
@@ -729,7 +734,7 @@ void EditorOperations::SaveImage(const std::string filename)
     writer->SetFileName(tempfilename.c_str());
     writer->SetInput(labelConverter->GetOutput());
     writer->UseCompressionOn();
-    _progress->Observe(writer, "Write", 0.2);
+    this->_progress->Observe(writer, "Write", 0.2);
     
 	try
 	{
@@ -744,8 +749,8 @@ void EditorOperations::SaveImage(const std::string filename)
 		msgBox.setText(text.c_str());
 		msgBox.setDetailedText(excp.what());
 		msgBox.exec();
-		_progress->Ignore(writer);
-	    _progress->ManualReset();
+		this->_progress->Ignore(writer);
+		this->_progress->ManualReset();
 		return;
 	}
 
@@ -771,8 +776,8 @@ void EditorOperations::SaveImage(const std::string filename)
 		}
 	}
     
-    _progress->Ignore(writer);
-    _progress->ManualReset();
+	this->_progress->Ignore(writer);
+	this->_progress->ManualReset();
 }
 
 itk::SmartPointer<LabelMapType> EditorOperations::GetImageLabelMap()
@@ -886,8 +891,9 @@ void EditorOperations::Paint(unsigned short label)
 			for (unsigned int y = min[1]; y <= max[1]; y++)
 				for (unsigned int z = min[2]; z <= max[2]; z++)
 					if (this->_selection->VoxelIsInsideSelection(x, y, z))
-						_dataManager->SetVoxelScalar(x, y, z, label);
+						this->_dataManager->SetVoxelScalar(x, y, z, label);
 	}
+	this->_dataManager->SignalDataAsModified();
 }
 
 void EditorOperations::Erase(std::set<unsigned short> labels)
@@ -901,6 +907,7 @@ void EditorOperations::Erase(std::set<unsigned short> labels)
 				for (unsigned int z = min[2]; z <= max[2]; z++)
 					if (this->_selection->VoxelIsInsideSelection(x, y, z))
 						if (labels.find(this->_dataManager->GetVoxelScalar(x,y,z)) != labels.end())
-							_dataManager->SetVoxelScalar(x, y, z, 0);
+							this->_dataManager->SetVoxelScalar(x, y, z, 0);
 	}
+	this->_dataManager->SignalDataAsModified();
 }

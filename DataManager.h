@@ -174,6 +174,9 @@ class DataManager
         // switch tables
         void SwitchLookupTables(vtkSmartPointer<vtkLookupTable>);
 
+        // signals the structured points as modified
+        void SignalDataAsModified();
+
         friend class SaveSessionThread;
         friend class EspinaVolumeEditor;
     private:
