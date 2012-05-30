@@ -516,11 +516,6 @@ EspinaVolumeEditor::~EspinaVolumeEditor()
 
 void EspinaVolumeEditor::EditorOpen(void)
 {
-	renderview->setEnabled(true);
-	axialview->setEnabled(true);
-	sagittalview->setEnabled(true);
-	coronalview->setEnabled(true);
-
     QMessageBox msgBox;
 	msgBox.setCaption("Error loading segmentation file");
 
@@ -531,6 +526,11 @@ void EspinaVolumeEditor::EditorOpen(void)
     else
         return;
     
+	renderview->setEnabled(true);
+	axialview->setEnabled(true);
+	sagittalview->setEnabled(true);
+	coronalview->setEnabled(true);
+
 	QMutexLocker locker(actionLock);
 
 	// store segmentation filename
