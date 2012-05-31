@@ -58,11 +58,12 @@ class VoxelVolumeRender
         // private methods
         //
         // compute volume using raycast and reconstruct highlighted labels set while doing it
-        void ComputeRayCastVolume();
+        void ComputeCPURender();
         //
         // compute volume using GPU assisted raycast
         void ComputeGPURender();
         //
+        void ComputeRayCast();
 //        // compute mesh representation for the volume
 //        void ComputeMeshes(void);
         //

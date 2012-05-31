@@ -67,18 +67,22 @@ VoxelVolumeRender::VoxelVolumeRender(DataManager *data, vtkSmartPointer<vtkRende
 //    // visibility between the two (MultiBlockDataSet implementation)
 //    this->ComputeMeshes();
 
-    // fallback to CPU render if GPU is not available
+    // ComputeRayCast();
+    ComputeCPURender();
+    UpdateFocusExtent();
+}
+
+void VoxelVolumeRender::ComputeRayCast(void)
+{
+	// fallback to CPU render if GPU is not available
     this->_GPUmapper = vtkSmartPointer<vtkGPUVolumeRayCastMapper>::New();
-    if (this->_GPUmapper->IsRenderSupported(renderer->GetRenderWindow(), NULL))
+    if (this->_GPUmapper->IsRenderSupported(this->_renderer->GetRenderWindow(), NULL))
     	ComputeGPURender();
     else
     {
     	this->_GPUmapper = NULL;
-    	ComputeRayCastVolume();
+    	ComputeCPURender();
     }
-
-    UpdateFocusExtent();
-
 }
 
 VoxelVolumeRender::~VoxelVolumeRender()
@@ -349,7 +353,7 @@ VoxelVolumeRender::~VoxelVolumeRender()
 //	this->_progress->Reset();
 //}
 
-void VoxelVolumeRender::ComputeRayCastVolume()
+void VoxelVolumeRender::ComputeCPURender()
 {
     double rgba[4];
 
