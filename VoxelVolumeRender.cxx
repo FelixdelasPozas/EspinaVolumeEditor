@@ -790,19 +790,12 @@ void VoxelVolumeRender::UpdateFocusExtent(void)
 	    return;
 	}
 
-	double croppingCoords[6];
-	if (NULL != this->_GPUmapper)
-		this->_GPUmapper->GetCroppingRegionPlanes(croppingCoords);
-	else
-		this->_CPUmapper->GetCroppingRegionPlanes(croppingCoords);
-
-	this->_min = this->_max = Vector3ui(0,0,0);
-
 	// calculate combined centroid for the group of segmentations
 	// NOTE: this is not really necesary and it's not the right thing to do, what we should be doing
 	// is (this->_min/2, this->_max/2) coords to center the view, but doing this avoids "jumps" in
 	// the view while operating with multiple labels, as all individual labels are centered in
 	// their centroid.
+        this->_min = this->_max = Vector3ui(0,0,0);
 	std::set<unsigned short>::iterator it = this->_highlightedLabels.begin();
 
 	// bootstrap min/max values from the first of the selected segmentations
@@ -832,14 +825,6 @@ void VoxelVolumeRender::UpdateFocusExtent(void)
 			(this->_min[0]-1.5)*spacing[0], (this->_max[0]+1.5)*spacing[0],
 			(this->_min[1]-1.5)*spacing[1], (this->_max[1]+1.5)*spacing[1],
 			(this->_min[2]-1.5)*spacing[2], (this->_max[2]+1.5)*spacing[2]	};
-
-	// do not update if the region is smaller and contained in the previous one, to avoid recalculation of the mesh actors.
-	if ((bounds[0] >= croppingCoords[0]) && (bounds[1] <= croppingCoords[1]) &&
-		(bounds[2] >= croppingCoords[2]) && (bounds[3] <= croppingCoords[3]) &&
-		(bounds[4] >= croppingCoords[4]) && (bounds[5] <= croppingCoords[5]))
-	{
-		return;
-	}
 
 	if (NULL != this->_GPUmapper)
 	{
