@@ -278,8 +278,8 @@ void Selection::ComputeSelectionCube()
 
     // create selection volume (plus borders for correct actor generation)
     vtkSmartPointer<vtkImageData> subvolume = vtkSmartPointer<vtkImageData>::New();
-	subvolume->SetNumberOfScalarComponents(1);
-	subvolume->SetScalarTypeToUnsignedChar();
+    subvolume->SetNumberOfScalarComponents(1);
+    subvolume->SetScalarTypeToUnsignedChar();
     subvolume->SetSpacing(this->_spacing[0], this->_spacing[1], this->_spacing[2]);
     subvolume->SetExtent(minBounds[0], maxBounds[0], minBounds[1], maxBounds[1], minBounds[2], maxBounds[2]);
     subvolume->AllocateScalars();

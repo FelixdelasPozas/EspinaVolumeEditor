@@ -3181,8 +3181,16 @@ void EspinaVolumeEditor::ApplyUserAction(SliceVisualization *orientation)
 
 	if (selectbutton->isChecked())
 	{
+	        // need to block signals from the QApplication so it won't create new events to get queued while
+	        // processing this event. This somehow fixed a nasty visual tearing effect when creating a box
+	        // while the render draws meshes. (??)
+	        this->blockSignals(true);
+	        QApplication::removePostedEvents(this);
+
 		_editorOperations->AddSelectionPoint(Vector3ui(_POI[0], _POI[1], _POI[2]));
 		relabelbutton->setEnabled(true);
+
+		this->blockSignals(false);
 		return;
 	}
 
