@@ -227,7 +227,7 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
     this->_voxelViewRenderer->SetBackground(0, 0, 0);
     renderview->GetRenderWindow()->AddRenderer(_voxelViewRenderer);
     renderview->GetRenderWindow()->GetInteractor()->SetInteractorStyle(voxelinteractorstyle);
-    
+
     _connections = vtkSmartPointer<vtkEventQtSlotConnect>::New();
     
     // we need to go deeper than window interactor to get mouse release events, so instead connecting the
@@ -344,7 +344,7 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
     this->axialview->installEventFilter(this);
     this->sagittalview->installEventFilter(this);
     this->coronalview->installEventFilter(this);
-    
+
     // init some global variables
     this->_hasReferenceImage = false;
     this->_pointScalar = 0;
@@ -410,67 +410,68 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *p) : QMainWin
     }
 	editorSettings.sync();
 
-    // initialize editor progress bar
-    this->_progress = new ProgressAccumulator();
-    this->_progress->SetProgressBar(progressBar, progressLabel);
-    this->_progress->Reset();
+  // initialize editor progress bar
+  this->_progress = new ProgressAccumulator();
+  this->_progress->SetProgressBar(progressBar, progressLabel);
+  this->_progress->Reset();
 
-    this->_segmentationsAreVisible = true;
+  this->_segmentationsAreVisible = true;
 
-    // create mutex for mutual exclusion sections
-    actionLock = new QMutex();
+  // create mutex for mutual exclusion sections
+  actionLock = new QMutex();
 
     // let's see if a previous session crashed
-	std::string homedir = std::string(getenv("HOME"));
-	std::string username = std::string(getenv("USER"));
-	std::string baseFilename = homedir + std::string("/.espinaeditor-") + username;
-	std::string temporalFilename = baseFilename + std::string(".session");
-	std::string temporalFilenameMHA = baseFilename + std::string(".mha");
-
-	QFile file(QString(temporalFilename.c_str()));
-	QFile fileMHA(QString(temporalFilenameMHA.c_str()));
-
-	if ((true == file.exists()) && (true == fileMHA.exists()))
-	{
-		char *buffer;
-		unsigned short int size;
-		std::ifstream infile;
-		std::string segmentationFilename;
-		std::string detailedText = std::string("Session segmentation file is:\n");
-
-		// get the information about the file for the user
-		infile.open(temporalFilename.c_str(), std::ofstream::in|std::ofstream::binary);
-		infile.read(reinterpret_cast<char*>(&size), sizeof(unsigned short int));
-		buffer = (char*) malloc(size+1);
-		infile.read(buffer, size);
-		buffer[size] = '\0';
-		segmentationFilename = std::string(buffer);
-		free(buffer);
-		detailedText += segmentationFilename;
-		infile.close();
-
-		QMessageBox msgBox;
-		msgBox.setIcon(QMessageBox::Information);
-		msgBox.setCaption("Previous session data detected");
-		msgBox.setText("Data from a previous Editor session exists (maybe the editor crashed or didn't exit cleanly).");
-		msgBox.setInformativeText("Do you want to restore that session?");
-		msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-		msgBox.setDefaultButton(QMessageBox::Yes);
-		msgBox.setDetailedText(detailedText.c_str());
-		int returnValue = msgBox.exec();
-
-	    switch (returnValue)
-	    {
-	    	case QMessageBox::Yes:
-	    		RestoreSavedSession();
-	    		break;
-	    	case QMessageBox::No:
-	    		RemoveSessionFiles();
-	    		break;
-	    	default:
-	    		break;
-	    }
-	}
+//	std::string homedir = std::string(getenv("HOME"));
+//	std::string username = std::string(getenv("USER"));
+//	std::string baseFilename = homedir + std::string("/.espinaeditor-") + username;
+//	std::string temporalFilename = baseFilename + std::string(".session");
+//	std::string temporalFilenameMHA = baseFilename + std::string(".mha");
+//
+//	qDebug() << "9";
+//	QFile file(QString(temporalFilename.c_str()));
+//	QFile fileMHA(QString(temporalFilenameMHA.c_str()));
+//
+//	if ((true == file.exists()) && (true == fileMHA.exists()))
+//	{
+//		char *buffer;
+//		unsigned short int size;
+//		std::ifstream infile;
+//		std::string segmentationFilename;
+//		std::string detailedText = std::string("Session segmentation file is:\n");
+//
+//		// get the information about the file for the user
+//		infile.open(temporalFilename.c_str(), std::ofstream::in|std::ofstream::binary);
+//		infile.read(reinterpret_cast<char*>(&size), sizeof(unsigned short int));
+//		buffer = (char*) malloc(size+1);
+//		infile.read(buffer, size);
+//		buffer[size] = '\0';
+//		segmentationFilename = std::string(buffer);
+//		free(buffer);
+//		detailedText += segmentationFilename;
+//		infile.close();
+//
+//		QMessageBox msgBox;
+//		msgBox.setIcon(QMessageBox::Information);
+//		msgBox.setCaption("Previous session data detected");
+//		msgBox.setText("Data from a previous Editor session exists (maybe the editor crashed or didn't exit cleanly).");
+//		msgBox.setInformativeText("Do you want to restore that session?");
+//		msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+//		msgBox.setDefaultButton(QMessageBox::Yes);
+//		msgBox.setDetailedText(detailedText.c_str());
+//		int returnValue = msgBox.exec();
+//
+//	    switch (returnValue)
+//	    {
+//	    	case QMessageBox::Yes:
+//	    		RestoreSavedSession();
+//	    		break;
+//	    	case QMessageBox::No:
+//	    		RemoveSessionFiles();
+//	    		break;
+//	    	default:
+//	    		break;
+//	    }
+//	}
 }
 
 EspinaVolumeEditor::~EspinaVolumeEditor()
@@ -511,7 +512,7 @@ EspinaVolumeEditor::~EspinaVolumeEditor()
 
     delete _sessionTimer;
 
-    RemoveSessionFiles();
+    //RemoveSessionFiles();
 }
 
 void EspinaVolumeEditor::EditorOpen(void)
@@ -735,7 +736,7 @@ void EspinaVolumeEditor::EditorOpen(void)
 	
 	// get the vtkStructuredPoints out of the vtkImage
 	vtkSmartPointer<vtkImageToStructuredPoints> convert = vtkSmartPointer<vtkImageToStructuredPoints>::New();
-	convert->SetInput(vtkImporter->GetOutput());
+	convert->SetInputData(vtkImporter->GetOutput());
 	convert->ReleaseDataFlagOn();
 	_progress->Observe(convert,"Convert Points",0.14);
 	convert->Update();
@@ -831,7 +832,7 @@ void EspinaVolumeEditor::LoadReferenceFile(QString filename)
     // orientation, to match both images we'll have to flip the volume in the Y and Z
     // axis, but preserving the image extent
     vtkSmartPointer<vtkImageFlip> imageflipY = vtkSmartPointer<vtkImageFlip>::New();
-    imageflipY->SetInput(reader->GetOutput());
+    imageflipY->SetInputData(reader->GetOutput());
     imageflipY->SetFilteredAxis(1);
     imageflipY->PreserveImageExtentOn();
     _progress->Observe(imageflipY,"Flip Y Axis",(1.0/4.0));
@@ -839,7 +840,7 @@ void EspinaVolumeEditor::LoadReferenceFile(QString filename)
     _progress->Ignore(imageflipY);
 
     vtkSmartPointer<vtkImageFlip> imageflipZ = vtkSmartPointer<vtkImageFlip>::New();
-    imageflipZ->SetInput(imageflipY->GetOutput());
+    imageflipZ->SetInputData(imageflipY->GetOutput());
     imageflipZ->SetFilteredAxis(2);
     imageflipZ->PreserveImageExtentOn();
     _progress->Observe(imageflipZ,"Flip Z Axis",(1.0/4.0));
@@ -909,7 +910,7 @@ void EspinaVolumeEditor::LoadReferenceFile(QString filename)
 	}
 
 	vtkSmartPointer<vtkImageChangeInformation> changer = vtkSmartPointer<vtkImageChangeInformation>::New();
-	changer->SetInput(image);
+	changer->SetInputData(image);
 
     if (segmentationspacing != Vector3d(spacing[0], spacing[1], spacing[2]))
     	changer->SetOutputSpacing(segmentationspacing[0], segmentationspacing[1], segmentationspacing[2]);
@@ -922,14 +923,14 @@ void EspinaVolumeEditor::LoadReferenceFile(QString filename)
    	_progress->Ignore(changer);
 
     vtkSmartPointer<vtkImageToStructuredPoints> convert = vtkSmartPointer<vtkImageToStructuredPoints>::New();
-    convert->SetInput(changer->GetOutput());
+    convert->SetInputData(changer->GetOutput());
     _progress->Observe(convert,"Convert",(1.0/4.0));
     convert->Update();
     _progress->Ignore(convert);
     
     vtkSmartPointer<vtkStructuredPoints> structuredPoints = vtkSmartPointer<vtkStructuredPoints>::New();
     structuredPoints = convert->GetStructuredPointsOutput();
-    structuredPoints->Update();
+    structuredPoints->Modified();
 
     // now that we have a reference image make the background of the segmentation completely transparent
     double rgba[4] = { 0.0, 0.0, 0.0, 0.0 };
@@ -1531,20 +1532,17 @@ void EspinaVolumeEditor::SwitchVoxelRender()
 	if (!renderview->isEnabled())
 		return;
 
-    switch(renderIsAVolume)
+    if(renderIsAVolume)
     {
-    	case false:
+      _volumeRender->ViewAsMesh();
+      rendertypebutton->setIcon(QIcon(":/newPrefix/icons/voxel.png"));
+        rendertypebutton->setToolTip(tr("Switch to volume renderer"));
+    }
+    else
+    {
     		_volumeRender->ViewAsVolume();
             rendertypebutton->setIcon(QIcon(":/newPrefix/icons/mesh.png"));
             rendertypebutton->setToolTip(tr("Switch to mesh renderer"));
-            break;
-        case true:
-        	_volumeRender->ViewAsMesh();
-        	rendertypebutton->setIcon(QIcon(":/newPrefix/icons/voxel.png"));
-            rendertypebutton->setToolTip(tr("Switch to volume renderer"));
-            break;
-        default:
-            break;
     }
     
     renderIsAVolume = !renderIsAVolume;
@@ -2301,9 +2299,8 @@ void EspinaVolumeEditor::ViewZoom(void)
     
     QToolButton *button = qobject_cast<QToolButton *>(sender());
     
-    switch (zoomstatus)
+    if (zoomstatus)
     {
-        case true:
             viewgrid->setColumnStretch(0,1);
             viewgrid->setColumnStretch(1,1);
             viewgrid->setRowStretch(0,1);
@@ -2368,8 +2365,9 @@ void EspinaVolumeEditor::ViewZoom(void)
 
             // we weren't updating the other view when zoomed, so we must update all views now.
             UpdateViewports(All);
-            break;
-        case false:
+    }
+    else
+    {
             if (button == axialsizebutton)
             {
                 viewgrid->setColumnStretch(0,1);
@@ -2446,10 +2444,6 @@ void EspinaVolumeEditor::ViewZoom(void)
             }
 
             button->setIcon(QIcon(":/newPrefix/icons/tomin.png"));
-            break;
-        default:
-            // never happens
-            break;
     }
 
     // slice thumbnail could have now different view limits as the view size has changed, update it  
@@ -2471,9 +2465,8 @@ void EspinaVolumeEditor::DisableRenderView(void)
 	static bool disabled = false;
 	disabled = !disabled;
 
-	switch(disabled)
+	if(disabled)
 	{
-		case true:
 			renderview->setEnabled(false);
 			_voxelViewRenderer->DrawOff();
             voxelresetbutton->setEnabled(false);
@@ -2483,8 +2476,9 @@ void EspinaVolumeEditor::DisableRenderView(void)
 			renderdisablebutton->setIcon(QIcon(":/newPrefix/icons/cog_add.png"));
             renderdisablebutton->setStatusTip(tr("Enable render view"));
             renderdisablebutton->setToolTip(tr("Enables the rendering view of the volume"));
-			break;
-		case false:
+	}
+	else
+	{
 			renderview->setEnabled(true);
 			_voxelViewRenderer->DrawOn();
             voxelresetbutton->setEnabled(true);
@@ -2496,10 +2490,6 @@ void EspinaVolumeEditor::DisableRenderView(void)
             renderdisablebutton->setStatusTip(tr("Disable render view"));
             renderdisablebutton->setToolTip(tr("Disables the rendering view of the volume"));
             UpdateViewports(Render);
-			break;
-		default:
-			break;
-
 	}
 }
 
@@ -2536,9 +2526,8 @@ void EspinaVolumeEditor::SwitchSegmentationView(void)
 	if (!this->_hasReferenceImage)
 		return;
 
-	switch(this->_segmentationsAreVisible)
+	if(!this->_segmentationsAreVisible)
 	{
-		case false:
 			eyebutton->setIcon(QPixmap(":/newPrefix/icons/eyeoff.svg"));
 			eyebutton->setToolTip(tr("Hide all segmentations"));
 			eyebutton->setStatusTip(tr("Hide all segmentations"));
@@ -2547,8 +2536,9 @@ void EspinaVolumeEditor::SwitchSegmentationView(void)
 			eyelabel->setStatusTip(tr("Hide all segmentations"));
 			a_hide_segmentations->setText(tr("Hide Segmentations"));
 			a_hide_segmentations->setIcon(QPixmap(":/newPrefix/icons/eyeoff.svg"));
-			break;
-		case true:
+	}
+	else
+	{
 			eyebutton->setIcon(QPixmap(":/newPrefix/icons/eyeon.svg"));
 			eyebutton->setToolTip(tr("Show all segmentations"));
 			eyebutton->setStatusTip(tr("Show all segmentations"));
@@ -2557,9 +2547,6 @@ void EspinaVolumeEditor::SwitchSegmentationView(void)
 			eyelabel->setStatusTip(tr("Show all segmentations"));
 			a_hide_segmentations->setText(tr("Show Segmentations"));
 			a_hide_segmentations->setIcon(QPixmap(":/newPrefix/icons/eyeon.svg"));
-			break;
-		default:
-			break;
 	}
 
 	_segmentationsAreVisible = !_segmentationsAreVisible;
@@ -2756,7 +2743,7 @@ void EspinaVolumeEditor::RestoreSavedSession(void)
 
 	// get the vtkStructuredPoints out of the vtkImage
 	vtkSmartPointer<vtkImageToStructuredPoints> convert = vtkSmartPointer<vtkImageToStructuredPoints>::New();
-	convert->SetInput(vtkImporter->GetOutput());
+	convert->SetInputData(vtkImporter->GetOutput());
 	convert->ReleaseDataFlagOn();
 	convert->Update();
 
@@ -2974,9 +2961,8 @@ void EspinaVolumeEditor::InitiateSessionGUI(void)
 
 void EspinaVolumeEditor::ToggleButtonDefault(bool value)
 {
-	switch(value)
+	if(value)
 	{
-		case true:
 		    this->_editorOperations->ClearSelection();
 		    this->labelselector->update();
 
@@ -2984,120 +2970,110 @@ void EspinaVolumeEditor::ToggleButtonDefault(bool value)
 		    LabelSelectionChanged();
 
 		    UpdateViewports(All);
-			break;
-		case false:
-			break;
-		default:
-			break;
 	}
 }
 
 void EspinaVolumeEditor::ToggleEraseOrPaintButton(bool value)
 {
-	switch (value)
-	{
-		case true:
-		{
-			this->_editorOperations->ClearSelection();
-			this->labelselector->update();
-			// only one label allowed for paint so we will choose the last one, if it exists
-			if ((this->_dataManager->GetSelectedLabelSetSize() > 1) && paintbutton->isChecked())
-			{
-				std::set<unsigned short> labels = this->_dataManager->GetSelectedLabelsSet();
-				std::set<unsigned short>::reverse_iterator rit = labels.rbegin();
-				if (rit != labels.rend())
-				{
-					labelselector->blockSignals(true);
-					labelselector->clearSelection();
-					labelselector->blockSignals(false);
-					labelselector->item(*rit)->setSelected(true);
-					labelselector->scrollToItem(labelselector->item(*rit));
-				}
-				else
-					labelselector->clearSelection();
-			}
+  if (value)
+  {
+    this->_editorOperations->ClearSelection();
+    this->labelselector->update();
+    // only one label allowed for paint so we will choose the last one, if it exists
+    if ((this->_dataManager->GetSelectedLabelSetSize() > 1) && paintbutton->isChecked())
+    {
+      std::set<unsigned short> labels = this->_dataManager->GetSelectedLabelsSet();
+      std::set<unsigned short>::reverse_iterator rit = labels.rbegin();
+      if (rit != labels.rend())
+      {
+        labelselector->blockSignals(true);
+        labelselector->clearSelection();
+        labelselector->blockSignals(false);
+        labelselector->item(*rit)->setSelected(true);
+        labelselector->scrollToItem(labelselector->item(*rit));
+      }
+      else
+        labelselector->clearSelection();
+    }
 
-			// only one label while we are painting, multiple if erasing
-			if (paintbutton->isChecked())
-				labelselector->setSelectionMode(QAbstractItemView::SingleSelection);
-			else
-				labelselector->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    // only one label while we are painting, multiple if erasing
+    if (paintbutton->isChecked())
+      labelselector->setSelectionMode(QAbstractItemView::SingleSelection);
+    else
+      labelselector->setSelectionMode(QAbstractItemView::ExtendedSelection);
 
-			// get the mouse position and put the actor there if it's over a slice widget, this only
-			// can happen when the user uses the keyboard shortcuts to activate the paint/erase operation
-			// as the mouse could be still over a slice widget (if the user clicks on the button of the
-			// UI then it's out of the widget obviously)
-			Vector3d spacing = this->_dataManager->GetOrientationData()->GetImageSpacing();
-			double dPoint[3] = { 0,0,0 };
-			int iPoint[3];
+    // get the mouse position and put the actor there if it's over a slice widget, this only
+    // can happen when the user uses the keyboard shortcuts to activate the paint/erase operation
+    // as the mouse could be still over a slice widget (if the user clicks on the button of the
+    // UI then it's out of the widget obviously)
+    Vector3d spacing = this->_dataManager->GetOrientationData()->GetImageSpacing();
+    double dPoint[3] =
+    { 0, 0, 0 };
+    int iPoint[3];
 
-			if (this->axialview->underMouse())
-			{
-				QPoint widgetPos = this->axialview->mapFromGlobal(QCursor::pos());
-				QRect widgetRect = this->axialview->rect();
+    if (this->axialview->underMouse())
+    {
+      QPoint widgetPos = this->axialview->mapFromGlobal(QCursor::pos());
+      QRect widgetRect = this->axialview->rect();
 
-				this->_axialViewRenderer->SetDisplayPoint(widgetPos.x() - widgetRect.left(), widgetRect.bottom() - widgetPos.y(), 0);
-				this->_axialViewRenderer->DisplayToWorld();
-				this->_axialViewRenderer->GetWorldPoint(dPoint);
+      this->_axialViewRenderer->SetDisplayPoint(widgetPos.x() - widgetRect.left(), widgetRect.bottom() - widgetPos.y(), 0);
+      this->_axialViewRenderer->DisplayToWorld();
+      this->_axialViewRenderer->GetWorldPoint(dPoint);
 
-				iPoint[0] = floor(dPoint[0]/spacing[0]) + ((fmod(dPoint[0], spacing[0]) > (0.5*spacing[0])) ? 1 : 0) + 1;
-				iPoint[1] = floor(dPoint[1]/spacing[1]) + ((fmod(dPoint[1], spacing[1]) > (0.5*spacing[1])) ? 1 : 0) + 1;
-				iPoint[2] = this->axialslider->value()-1;
+      iPoint[0] = floor(dPoint[0] / spacing[0]) + ((fmod(dPoint[0], spacing[0]) > (0.5 * spacing[0])) ? 1 : 0) + 1;
+      iPoint[1] = floor(dPoint[1] / spacing[1]) + ((fmod(dPoint[1], spacing[1]) > (0.5 * spacing[1])) ? 1 : 0) + 1;
+      iPoint[2] = this->axialslider->value() - 1;
 
-				this->_editorOperations->UpdatePaintEraseActors(iPoint[0], iPoint[1], iPoint[2], this->_paintEraseRadius, this->_axialSliceVisualization);
+      this->_editorOperations->UpdatePaintEraseActors(iPoint[0], iPoint[1], iPoint[2], this->_paintEraseRadius, this->_axialSliceVisualization);
 
-			}
-			else
-			{
-				if (this->coronalview->underMouse())
-				{
-					QPoint widgetPos = this->coronalview->mapFromGlobal(QCursor::pos());
-					QRect widgetRect = this->coronalview->rect();
+    }
+    else
+    {
+      if (this->coronalview->underMouse())
+      {
+        QPoint widgetPos = this->coronalview->mapFromGlobal(QCursor::pos());
+        QRect widgetRect = this->coronalview->rect();
 
-					this->_coronalViewRenderer->SetDisplayPoint(widgetPos.x() - widgetRect.left(), widgetRect.bottom() - widgetPos.y(), 0);
-					this->_coronalViewRenderer->DisplayToWorld();
-					this->_coronalViewRenderer->GetWorldPoint(dPoint);
+        this->_coronalViewRenderer->SetDisplayPoint(widgetPos.x() - widgetRect.left(), widgetRect.bottom() - widgetPos.y(), 0);
+        this->_coronalViewRenderer->DisplayToWorld();
+        this->_coronalViewRenderer->GetWorldPoint(dPoint);
 
-					iPoint[0] = floor(dPoint[0]/spacing[0]) + ((fmod(dPoint[0], spacing[0]) > (0.5*spacing[0])) ? 1 : 0) + 1;
-					iPoint[1] = this->coronalslider->value()-1;
-					iPoint[2] = floor(dPoint[1]/spacing[2]) + ((fmod(dPoint[1], spacing[2]) > (0.5*spacing[2])) ? 1 : 0) + 1;
+        iPoint[0] = floor(dPoint[0] / spacing[0]) + ((fmod(dPoint[0], spacing[0]) > (0.5 * spacing[0])) ? 1 : 0) + 1;
+        iPoint[1] = this->coronalslider->value() - 1;
+        iPoint[2] = floor(dPoint[1] / spacing[2]) + ((fmod(dPoint[1], spacing[2]) > (0.5 * spacing[2])) ? 1 : 0) + 1;
 
-					this->_editorOperations->UpdatePaintEraseActors(iPoint[0], iPoint[1], iPoint[2], this->_paintEraseRadius, this->_coronalSliceVisualization);
-				}
-				else
-					if (this->sagittalview->underMouse())
-					{
-						QPoint widgetPos = this->sagittalview->mapFromGlobal(QCursor::pos());
-						QRect widgetRect = this->sagittalview->rect();
+        this->_editorOperations->UpdatePaintEraseActors(iPoint[0], iPoint[1], iPoint[2], this->_paintEraseRadius, this->_coronalSliceVisualization);
+      }
+      else
+        if (this->sagittalview->underMouse())
+        {
+          QPoint widgetPos = this->sagittalview->mapFromGlobal(QCursor::pos());
+          QRect widgetRect = this->sagittalview->rect();
 
-						this->_sagittalViewRenderer->SetDisplayPoint(widgetPos.x() - widgetRect.left(), widgetRect.bottom() - widgetPos.y(), 0);
-						this->_sagittalViewRenderer->DisplayToWorld();
-						this->_sagittalViewRenderer->GetWorldPoint(dPoint);
+          this->_sagittalViewRenderer->SetDisplayPoint(widgetPos.x() - widgetRect.left(), widgetRect.bottom() - widgetPos.y(), 0);
+          this->_sagittalViewRenderer->DisplayToWorld();
+          this->_sagittalViewRenderer->GetWorldPoint(dPoint);
 
-						iPoint[0] = this->sagittalslider->value()-1;
-						iPoint[1] = floor(dPoint[0]/spacing[1]) + ((fmod(dPoint[0], spacing[1]) > (0.5*spacing[1])) ? 1 : 0) + 1;
-						iPoint[2] = floor(dPoint[1]/spacing[2]) + ((fmod(dPoint[1], spacing[2]) > (0.5*spacing[2])) ? 1 : 0) + 1;
+          iPoint[0] = this->sagittalslider->value() - 1;
+          iPoint[1] = floor(dPoint[0] / spacing[1]) + ((fmod(dPoint[0], spacing[1]) > (0.5 * spacing[1])) ? 1 : 0) + 1;
+          iPoint[2] = floor(dPoint[1] / spacing[2]) + ((fmod(dPoint[1], spacing[2]) > (0.5 * spacing[2])) ? 1 : 0) + 1;
 
-						this->_editorOperations->UpdatePaintEraseActors(iPoint[0], iPoint[1], iPoint[2], this->_paintEraseRadius, this->_sagittalSliceVisualization);
-					}
-			}
+          this->_editorOperations->UpdatePaintEraseActors(iPoint[0], iPoint[1], iPoint[2], this->_paintEraseRadius, this->_sagittalSliceVisualization);
+        }
+    }
 
-			UpdateViewports(All);
-			break;
-		}
-		case false:
-			labelselector->setSelectionMode(QAbstractItemView::ExtendedSelection);
-			break;
-		default:
-			break;
-	}
+    UpdateViewports(All);
+  }
+	else
+  {
+    labelselector->setSelectionMode(QAbstractItemView::ExtendedSelection);
+  }
 }
 
 void EspinaVolumeEditor::ToggleWandButton(bool value)
 {
-	switch(value)
+	if(value)
 	{
-		case true:
 			this->_editorOperations->ClearSelection();
 			// as this operation could select only connected parts of a segmentation, we deselect the currently selected set
 			labelselector->blockSignals(true);
@@ -3106,12 +3082,10 @@ void EspinaVolumeEditor::ToggleWandButton(bool value)
 			labelselector->item(0)->setSelected(true);
 			labelselector->scrollToItem(labelselector->item(0));
 		    UpdateViewports(All);
-			break;
-		case false:
-			this->_editorOperations->ClearSelection();
-			break;
-		default: // can't happen
-			break;
+	}
+	else
+	{
+	  this->_editorOperations->ClearSelection();
 	}
 }
 

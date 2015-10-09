@@ -22,7 +22,6 @@
 #include <vtkCommand.h>
 #include <vtkLinearContourLineInterpolator.h>
 #include <vtkImageActorPointPlacer.h>
-#include <vtkFastNumericConversion.h>
 
 // itk includes
 #include <itkConnectedThresholdImageFilter.h>
@@ -278,12 +277,9 @@ void Selection::ComputeSelectionCube()
 
     // create selection volume (plus borders for correct actor generation)
     vtkSmartPointer<vtkImageData> subvolume = vtkSmartPointer<vtkImageData>::New();
-    subvolume->SetNumberOfScalarComponents(1);
-    subvolume->SetScalarTypeToUnsignedChar();
     subvolume->SetSpacing(this->_spacing[0], this->_spacing[1], this->_spacing[2]);
     subvolume->SetExtent(minBounds[0], maxBounds[0], minBounds[1], maxBounds[1], minBounds[2], maxBounds[2]);
-    subvolume->AllocateScalars();
-    subvolume->Update();
+    subvolume->AllocateScalars(VTK_UNSIGNED_CHAR, 1);
 
     // fill volume
     unsigned char *voxel = static_cast<unsigned char*>(subvolume->GetScalarPointer());
@@ -436,7 +432,7 @@ void Selection::AddArea(const Vector3ui point)
 	// create a copy of the subvolume
 	vtkSmartPointer<vtkImageData> subvolume = vtkSmartPointer<vtkImageData>::New();
 	subvolume->DeepCopy(vtkImporter->GetOutput());
-	subvolume->Update();
+	subvolume->Modified();
 
 	// add volume to list
 	this->_selectionVolumesList.push_back(subvolume);
@@ -460,7 +456,7 @@ itk::SmartPointer<ImageType> Selection::GetSegmentationItkImage(const unsigned s
 	// first crop the region and then use the vtk-itk pipeline to get a
 	// itk::Image of the region
 	vtkSmartPointer<vtkImageClip> imageClip = vtkSmartPointer<vtkImageClip>::New();
-	imageClip->SetInput(this->_dataManager->GetStructuredPoints());
+	imageClip->SetInputData(this->_dataManager->GetStructuredPoints());
 	imageClip->SetOutputWholeExtent(objectMin[0], objectMax[0], objectMin[1], objectMax[1], objectMin[2], objectMax[2]);
 	imageClip->ClipDataOn();
 	imageClip->Update();
@@ -468,7 +464,7 @@ itk::SmartPointer<ImageType> Selection::GetSegmentationItkImage(const unsigned s
     typedef itk::VTKImageImport<ImageType> ITKImport;
     itk::SmartPointer<ITKImport> itkImport = ITKImport::New();
     vtkSmartPointer<vtkImageExport> vtkExport = vtkSmartPointer<vtkImageExport>::New();
-    vtkExport->SetInput(imageClip->GetOutput());
+    vtkExport->SetInputData(imageClip->GetOutput());
     ConnectPipelines(vtkExport, itkImport);
     itkImport->Update();
 
@@ -494,7 +490,7 @@ itk::SmartPointer<ImageType> Selection::GetSelectionItkImage(const unsigned shor
 	// first crop the region and then use the vtk-itk pipeline to get a
 	// itk::Image of the region
 	vtkSmartPointer<vtkImageClip> imageClip = vtkSmartPointer<vtkImageClip>::New();
-	imageClip->SetInput(this->_dataManager->GetStructuredPoints());
+	imageClip->SetInputData(this->_dataManager->GetStructuredPoints());
 
 	switch(this->_selectionType)
 	{
@@ -547,7 +543,7 @@ itk::SmartPointer<ImageType> Selection::GetSelectionItkImage(const unsigned shor
     typedef itk::VTKImageImport<ImageType> ITKImport;
     itk::SmartPointer<ITKImport> itkImport = ITKImport::New();
     vtkSmartPointer<vtkImageExport> vtkExport = vtkSmartPointer<vtkImageExport>::New();
-    vtkExport->SetInput(imageClip->GetOutput());
+    vtkExport->SetInputData(imageClip->GetOutput());
     ConnectPipelines(vtkExport, itkImport);
     itkImport->Update();
 
@@ -570,7 +566,7 @@ itk::SmartPointer<ImageType> Selection::GetItkImage(void)
     typedef itk::VTKImageImport<ImageType> ITKImport;
     itk::SmartPointer<ITKImport> itkImport = ITKImport::New();
     vtkSmartPointer<vtkImageExport> vtkExport = vtkSmartPointer<vtkImageExport>::New();
-    vtkExport->SetInput(_dataManager->GetStructuredPoints());
+    vtkExport->SetInputData(_dataManager->GetStructuredPoints());
     ConnectPipelines(vtkExport, itkImport);
     itkImport->Update();
 
@@ -652,7 +648,7 @@ void Selection::ComputeActor(vtkSmartPointer<vtkImageData> volume)
 
     // generate surface
     vtkSmartPointer<vtkDiscreteMarchingCubes> marcher = vtkSmartPointer<vtkDiscreteMarchingCubes>::New();
-	marcher->SetInput(volume);
+	marcher->SetInputData(volume);
 	marcher->ReleaseDataFlagOn();
 	marcher->SetGlobalWarningDisplay(false);
 	marcher->SetNumberOfContours(1);
@@ -731,7 +727,6 @@ void Selection::SetSelectionDisc(int x, int y, int z, int radius, SliceVisualiza
 	{
 		vtkSmartPointer<vtkImageData> image = vtkSmartPointer<vtkImageData>::New();
 		image->SetSpacing(_spacing[0], _spacing[1], _spacing[2]);
-		image->SetScalarTypeToInt();
 		image->SetOrigin(0.0,0.0,0.0);
 
 		int extent[6] = { 0,0,0,0,0,0 };
@@ -751,7 +746,7 @@ void Selection::SetSelectionDisc(int x, int y, int z, int radius, SliceVisualiza
 				break;
 		}
 		image->SetExtent(extent);
-		image->AllocateScalars();
+		image->AllocateScalars(VTK_INT, 1);
 
 		// after creating the image, fill it according to radius value
 		int *pointer;
@@ -794,17 +789,17 @@ void Selection::SetSelectionDisc(int x, int y, int z, int radius, SliceVisualiza
 			default:
 				break;
 		}
-		image->Update();
+		image->Modified();
 
 		// create clipper and changer to set the pipeline, but update them later
 		int clipperExtent[6] = { 0,0,0,0,0,0 };
 		this->_clipper = vtkSmartPointer<vtkImageClip>::New();
-		this->_clipper->SetInput(image);
+		this->_clipper->SetInputData(image);
 		this->_clipper->ClipDataOn();
 		this->_clipper->SetOutputWholeExtent(clipperExtent);
 
 		this->_changer = vtkSmartPointer<vtkImageChangeInformation>::New();
-		this->_changer->SetInput(this->_clipper->GetOutput());
+		this->_changer->SetInputData(this->_clipper->GetOutput());
 
 		vtkSmartPointer<vtkImageData> translatedVolume = this->_changer->GetOutput();
 		this->_selectionVolumesList.push_back(translatedVolume);
@@ -1124,7 +1119,7 @@ void Selection::AddContourInitialPoint(const Vector3ui point, SliceVisualization
 	// create the volume that will represent user selected points. the spacing is 1 because we will not
 	// use it's output directly, we will create our own volume instead with ComputeContourSelectionVolume()
 	this->_polyDataToStencil = vtkSmartPointer<vtkPolyDataToImageStencil>::New();
-	this->_polyDataToStencil->SetInput(representation->GetContourRepresentationAsPolyData());
+	this->_polyDataToStencil->SetInputData(representation->GetContourRepresentationAsPolyData());
 	this->_polyDataToStencil->SetOutputOrigin(0,0,0);
 
 	// change stencil properties according to slice orientation
@@ -1179,7 +1174,7 @@ void Selection::ContourSelectionWidgetCallback (vtkObject *caller, unsigned long
 		representation->PlaceFinalPoints();
 
 	// update the representation volume (update the pipeline)
-	self->_polyDataToStencil->SetInput(representation->GetContourRepresentationAsPolyData());
+	self->_polyDataToStencil->SetInputData(representation->GetContourRepresentationAsPolyData());
 	self->_polyDataToStencil->Modified();
 
 	// adquire new rotated and clipped image
@@ -1210,7 +1205,7 @@ void Selection::ContourSelectionWidgetCallback (vtkObject *caller, unsigned long
 void Selection::ComputeContourSelectionVolume(const unsigned int *bounds)
 {
 	vtkImageData *image = this->_stencilToImage->GetOutput();
-	image->Update();
+	image->Modified();
 
 	// need to create a volume with the extent changed (1 voxel thicker on every axis) for the slices
 	// to correctly hide/show the volume and the widgets
@@ -1229,11 +1224,10 @@ void Selection::ComputeContourSelectionVolume(const unsigned int *bounds)
 
 	// create the volume and properties according to the slice orientation and use contour representation bounds to make it smaller.
 	this->_rotatedImage = vtkImageData::New();
-	this->_rotatedImage->SetScalarTypeToInt();
 	this->_rotatedImage->SetSpacing(this->_spacing[0], this->_spacing[1], this->_spacing[2]);
 	this->_rotatedImage->SetOrigin((static_cast<int>(bounds[0])-1)*this->_spacing[0], (static_cast<int>(bounds[2])-1)*this->_spacing[1], (static_cast<int>(bounds[4])-1)*this->_spacing[2]);
 	this->_rotatedImage->SetDimensions(bounds[1]-bounds[0]+3, bounds[3]-bounds[2]+3, bounds[5]-bounds[4]+3);
-	this->_rotatedImage->AllocateScalars();
+	this->_rotatedImage->AllocateScalars(VTK_INT, 1);
 	memset(this->_rotatedImage->GetScalarPointer(), 0, this->_rotatedImage->GetScalarSize()*(bounds[1]-bounds[0]+3)*(bounds[3]-bounds[2]+3)*(bounds[5]-bounds[4]+3));
 
 	if (this->_selectionIsValid)
@@ -1307,7 +1301,7 @@ void Selection::UpdateContourSlice(Vector3ui point)
 	}
 
 	this->_changer = vtkSmartPointer<vtkImageChangeInformation>::New();
-	this->_changer->SetInput(this->_rotatedImage);
+	this->_changer->SetInputData(this->_rotatedImage);
 	this->_changer->SetOutputOrigin(origin);
 	this->_changer->Update();
 

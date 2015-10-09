@@ -61,7 +61,8 @@ class ContourRepresentationInternals
 };
 //ETX
 
-class VTK_WIDGETS_EXPORT ContourRepresentation: public vtkContourRepresentation
+class ContourRepresentation
+: public vtkContourRepresentation
 {
 		//BTX
 		friend class ContourWidget;

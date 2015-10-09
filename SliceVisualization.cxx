@@ -16,7 +16,6 @@
 #include <vtkDataSetMapper.h>
 #include <vtkProperty.h>
 #include <vtkCellArray.h>
-#include <vtkFastNumericConversion.h>
 #include <vtkTextProperty.h>
 #include <vtkCoordinate.h>
 #include <vtkImageCanvasSource2D.h>
@@ -29,6 +28,8 @@
 #include <vtkPolyDataMapper2D.h>
 #include <vtkImageCast.h>
 #include <vtkImageDataGeometryFilter.h>
+#include <vtkMath.h>
+#include <vtkImageMapper3D.h>
 
 // project includes
 #include "SliceVisualization.h"
@@ -49,6 +50,10 @@ SliceVisualization::SliceVisualization(OrientationType orientation)
 	this->_renderer = NULL;
 	this->_orientation = orientation;
 	this->_sliceWidget = NULL;
+	this->_boundsX = 0;
+	this->_boundsY = 0;
+	this->_referenceColors = NULL;
+	this->_reslice = NULL;
 
 	// create 2D actors texture
 	vtkSmartPointer<vtkImageCanvasSource2D> volumeTextureIcon = vtkSmartPointer<vtkImageCanvasSource2D>::New();
@@ -167,17 +172,19 @@ void SliceVisualization::GenerateSlice(
     vtkSmartPointer<vtkImageReslice> reslice = vtkSmartPointer<vtkImageReslice>::New();
     reslice->SetOptimization(true);
     reslice->BorderOn();
-    reslice->SetInput(points);
+    reslice->SetInputData(points);
     reslice->SetOutputDimensionality(2);
     reslice->SetResliceAxes(_axesMatrix);
+    reslice->Update();
     
     this->_segmentationcolors = vtkSmartPointer<vtkImageMapToColors>::New();
     this->_segmentationcolors->SetLookupTable(colorTable);
     this->_segmentationcolors->SetOutputFormatToRGBA();
     this->_segmentationcolors->SetInputConnection(reslice->GetOutputPort());
+    this->_segmentationcolors->Update();
     
     this->_segmentationActor = vtkSmartPointer<vtkImageActor>::New();
-    this->_segmentationActor->SetInput(this->_segmentationcolors->GetOutput());
+    this->_segmentationActor->SetInputData(this->_segmentationcolors->GetOutput());
     this->_segmentationActor->SetInterpolate(false);
     
     this->_picker = vtkSmartPointer<vtkPropPicker>::New();
@@ -185,6 +192,7 @@ void SliceVisualization::GenerateSlice(
     this->_picker->InitializePickList();
     this->_picker->AddPickList(this->_segmentationActor);
     this->_segmentationActor->PickableOn();
+    this->_segmentationActor->Update();
     
     this->_renderer->AddActor(this->_segmentationActor);
 }
@@ -195,10 +203,10 @@ void SliceVisualization::GenerateCrosshair()
     vtkSmartPointer<vtkPolyData> horizontaldata = vtkSmartPointer<vtkPolyData>::New();
     
     vtkSmartPointer<vtkDataSetMapper> vertmapper = vtkSmartPointer<vtkDataSetMapper>::New();
-    vertmapper->SetInput(verticaldata);
+    vertmapper->SetInputData(verticaldata);
     
     vtkSmartPointer<vtkDataSetMapper> horimapper = vtkSmartPointer<vtkDataSetMapper>::New();
-    horimapper->SetInput(horizontaldata);
+    horimapper->SetInputData(horizontaldata);
     
     this->_vertactor = vtkSmartPointer<vtkActor>::New();
     this->_vertactor->SetMapper(vertmapper);
@@ -232,6 +240,7 @@ void SliceVisualization::Update(Vector3ui point)
     
     UpdateSlice(point);
     this->_thumbRenderer->Render();
+    this->_renderer->Render();
     UpdateCrosshair(point);
 }
 
@@ -272,13 +281,23 @@ void SliceVisualization::UpdateSlice(Vector3ui point)
             break;
     }
     
-    // reclaculate visibility for all volume selection actors
+    // recalculate visibility for all volume selection actors
 	for_each(this->_actorList.begin(), this->_actorList.end(), std::bind1st(std::mem_fun(&SliceVisualization::ModifyActorVisibility), this));
 
 	this->_axesMatrix->Modified();
 	this->_textbuffer += out.str();
 	this->_text->SetInput(this->_textbuffer.c_str());
 	this->_text->Modified();
+	this->_segmentationcolors->Update();
+	this->_segmentationActor->GetMapper()->Update();
+	this->_segmentationActor->Update();
+  if(this->_blendActor)
+  {
+    this->_reslice->Update();
+    this->_referenceColors->Update();
+    this->_blendActor->GetMapper()->Update();
+    this->_blendActor->Update();
+  }
 }
 
 void SliceVisualization::UpdateCrosshair(Vector3ui point)
@@ -341,8 +360,8 @@ void SliceVisualization::UpdateCrosshair(Vector3ui point)
     this->_POIVerticalLine->SetPoints(verticalpoints);
     this->_POIVerticalLine->SetLines(verticalline);
 
-    this->_POIHorizontalLine->Update();
-    this->_POIVerticalLine->Update();
+    this->_POIHorizontalLine->Modified();
+    this->_POIVerticalLine->Modified();
 }
 
 SliceVisualization::PickingType SliceVisualization::GetPickData(int* X, int* Y)
@@ -372,16 +391,16 @@ SliceVisualization::PickingType SliceVisualization::GetPickData(int* X, int* Y)
     switch(this->_orientation)
     {
         case Axial:
-            *X = vtkFastNumericConversion::Round(point[0]/this->_spacing[0]);
-            *Y = vtkFastNumericConversion::Round(point[1]/this->_spacing[1]);
+            *X = vtkMath::Round(point[0]/this->_spacing[0]);
+            *Y = vtkMath::Round(point[1]/this->_spacing[1]);
             break;
         case Coronal:
-            *X = vtkFastNumericConversion::Round(point[0]/this->_spacing[0]);
-            *Y = vtkFastNumericConversion::Round(point[1]/this->_spacing[2]);
+            *X = vtkMath::Round(point[0]/this->_spacing[0]);
+            *Y = vtkMath::Round(point[1]/this->_spacing[2]);
             break;
         case Sagittal:
-            *X = vtkFastNumericConversion::Round(point[0]/this->_spacing[1]);
-            *Y = vtkFastNumericConversion::Round(point[1]/this->_spacing[2]);
+            *X = vtkMath::Round(point[0]/this->_spacing[1]);
+            *Y = vtkMath::Round(point[1]/this->_spacing[2]);
             break;
         default:
             break;
@@ -456,10 +475,11 @@ void SliceVisualization::GenerateThumbnail()
     vtkSmartPointer<vtkPolyData> sliceborder = vtkSmartPointer<vtkPolyData>::New();
     sliceborder->SetPoints(points);
     sliceborder->SetLines(lines);
-    sliceborder->Update();
+    sliceborder->Modified();
 
     vtkSmartPointer <vtkPolyDataMapper> slicemapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-    slicemapper->SetInput(sliceborder);
+    slicemapper->SetInputData(sliceborder);
+    slicemapper->Update();
 
     this->_sliceActor = vtkSmartPointer<vtkActor>::New();
     this->_sliceActor->SetMapper(slicemapper);
@@ -474,7 +494,7 @@ void SliceVisualization::GenerateThumbnail()
     this->_square = vtkSmartPointer<vtkPolyData>::New();
 
     vtkSmartPointer <vtkPolyDataMapper> mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-    mapper->SetInput(this->_square);
+    mapper->SetInputData(this->_square);
 
     this->_squareActor = vtkSmartPointer<vtkActor>::New();
     this->_squareActor->SetMapper(mapper);
@@ -544,7 +564,7 @@ void SliceVisualization::ZoomEvent()
         this->_square->Reset();
         this->_square->SetPoints(points);
         this->_square->SetLines(lines);
-        this->_square->Update();
+        this->_square->Modified();
 
         this->_thumbRenderer->DrawOn();
         this->_thumbRenderer->GetRenderWindow()->Render();
@@ -553,12 +573,13 @@ void SliceVisualization::ZoomEvent()
 
 void SliceVisualization::SetReferenceImage(vtkSmartPointer<vtkStructuredPoints> stackImage)
 {
-	vtkSmartPointer < vtkImageReslice > reslice = vtkSmartPointer< vtkImageReslice > ::New();
-	reslice->SetOptimization(true);
-	reslice->BorderOn();
-	reslice->SetInput(stackImage);
-	reslice->SetOutputDimensionality(2);
-	reslice->SetResliceAxes(this->_axesMatrix);
+	_reslice = vtkSmartPointer< vtkImageReslice > ::New();
+	_reslice->SetOptimization(true);
+	_reslice->BorderOn();
+	_reslice->SetInputData(stackImage);
+	_reslice->SetOutputDimensionality(2);
+	_reslice->SetResliceAxes(this->_axesMatrix);
+	_reslice->Update();
 
 	// the image is grayscale, so only uses 256 colors
 	vtkSmartPointer<vtkLookupTable> colorTable = vtkSmartPointer<vtkLookupTable>::New();
@@ -570,31 +591,45 @@ void SliceVisualization::SetReferenceImage(vtkSmartPointer<vtkStructuredPoints> 
 	colorTable->SetNumberOfColors(256);
 	colorTable->Build();
 	
-	vtkSmartPointer<vtkImageMapToColors> stackcolors = vtkSmartPointer<vtkImageMapToColors>::New();
-	stackcolors->SetLookupTable(colorTable);
-	stackcolors->SetOutputFormatToRGBA();
-	stackcolors->SetInputConnection(reslice->GetOutputPort());
+	this->_referenceColors = vtkSmartPointer<vtkImageMapToColors>::New();
+	this->_referenceColors->SetInputData(_reslice->GetOutput());
+	this->_referenceColors->SetLookupTable(colorTable);
+	this->_referenceColors->SetUpdateExtentToWholeExtent();
+	this->_referenceColors->Update();
 	
-	// remove actual actor and add the blended actor with both the segmentation and the stack
-	this->_blendimages = vtkSmartPointer<vtkImageBlend>::New();
-	this->_blendimages->SetInput(0, stackcolors->GetOutput());
-	this->_blendimages->SetInput(1, this->_segmentationcolors->GetOutput());
-	this->_blendimages->SetOpacity(1, static_cast<double>(this->_segmentationOpacity/100.0));
-	this->_blendimages->SetBlendModeToNormal();
-	this->_blendimages->Update();
+//	vtkSmartPointer<vtkImageMapToColors> stackcolors = vtkSmartPointer<vtkImageMapToColors>::New();
+//	stackcolors->SetLookupTable(colorTable);
+//	stackcolors->SetOutputFormatToRGBA();
+//	stackcolors->SetInputConnection(reslice->GetOutputPort());
+//	stackcolors->Update();
+//
+//	// remove actual actor and add the blended actor with both the segmentation and the stack
+//	this->_blendimages = vtkSmartPointer<vtkImageBlend>::New();
+//	this->_blendimages->SetInputData(0, stackcolors->GetOutput());
+//	this->_blendimages->SetInputData(1, this->_segmentationcolors->GetOutput());
+//	this->_blendimages->SetOpacity(1, static_cast<double>(this->_segmentationOpacity/100.0));
+//	this->_blendimages->SetBlendModeToNormal();
+//	this->_blendimages->Update();
 
 	this->_blendActor = vtkSmartPointer<vtkImageActor>::New();
-	this->_blendActor->SetInput(_blendimages->GetOutput());
+//	this->_blendActor->SetInputData(_blendimages->GetOutput());
+	this->_blendActor->SetInputData(_referenceColors->GetOutput());
 	this->_blendActor->PickableOn();
 	this->_blendActor->SetInterpolate(false);
+	this->_blendActor->Update();
 	
-	this->_picker->DeletePickList(this->_segmentationActor);
+	double pos[3];
+	this->_blendActor->GetPosition(pos);
+	pos[2] -= 0.5;
+	this->_blendActor->SetPosition(pos);
+
+//	this->_picker->DeletePickList(this->_segmentationActor);
 	this->_picker->AddPickList(this->_blendActor);
 
-	this->_renderer->RemoveActor(this->_segmentationActor);
+//	this->_renderer->RemoveActor(this->_segmentationActor);
 	this->_renderer->AddActor(this->_blendActor);
 
-	this->_thumbRenderer->RemoveActor(this->_segmentationActor);
+//	this->_thumbRenderer->RemoveActor(this->_segmentationActor);
 	this->_thumbRenderer->AddActor(this->_blendActor);
 
 	// change color for the crosshair because reference images tend to be too white and it messes with it
@@ -603,8 +638,8 @@ void SliceVisualization::SetReferenceImage(vtkSmartPointer<vtkStructuredPoints> 
 	this->_squareActor->GetProperty()->SetColor(0,0,0);
 	this->_sliceActor->GetProperty()->SetColor(0,0,0);
 
-    // this stupid action allows the selection actors to be seen, if we don't do this actors are occluded by
-    // the blended one
+  // this stupid action allows the selection actors to be seen, if we don't do this actors are occluded by
+  // the blended one
 	for_each(this->_actorList.begin(), this->_actorList.end(), std::bind1st(std::mem_fun(&SliceVisualization::ModifyActorVisibility), this));
 }
 
@@ -628,17 +663,14 @@ void SliceVisualization::ToggleSegmentationView(void)
 {
 	float opacity = 0.0;
 
-	switch(this->_segmentationHidden)
+	if(this->_segmentationHidden)
 	{
-		case true:
 			this->_segmentationHidden = false;
 			opacity = _segmentationOpacity/100.0;
-			break;
-		case false:
+	}
+	else
+	{
 			this->_segmentationHidden = true;
-			break;
-		default:
-			break;
 	}
 
 	if (this->_blendimages)
@@ -705,6 +737,7 @@ void SliceVisualization::ModifyActorVisibility(struct ActorData* actorInformatio
 			}
 		}
 	}
+	actorInformation->actor->GetMapper()->Update();
 }
 
 void SliceVisualization::SetSelectionVolume(const vtkSmartPointer<vtkImageData> selectionBuffer, bool useActorBounds)
@@ -712,20 +745,20 @@ void SliceVisualization::SetSelectionVolume(const vtkSmartPointer<vtkImageData> 
 	vtkSmartPointer<vtkImageReslice> reslice = vtkSmartPointer<vtkImageReslice> ::New();
 	reslice->SetOptimization(true);
 	reslice->BorderOn();
-	reslice->SetInput(selectionBuffer);
+	reslice->SetInputData(selectionBuffer);
 	reslice->SetOutputDimensionality(2);
 	reslice->SetResliceAxes(this->_axesMatrix);
 	reslice->Update();
 
 	// we need integer indexes, must cast first
 	vtkSmartPointer<vtkImageCast> caster = vtkSmartPointer<vtkImageCast>::New();
-	caster->SetInput(reslice->GetOutput());
+	caster->SetInputData(reslice->GetOutput());
 	caster->SetOutputScalarTypeToInt();
 	caster->Update();
 
 	// transform the vtkImageData to vtkPolyData
 	vtkSmartPointer<vtkImageDataGeometryFilter> imageDataGeometryFilter = vtkSmartPointer<vtkImageDataGeometryFilter>::New();
-	imageDataGeometryFilter->SetInput(caster->GetOutput());
+	imageDataGeometryFilter->SetInputData(caster->GetOutput());
 	imageDataGeometryFilter->SetGlobalWarningDisplay(false);
 	imageDataGeometryFilter->SetThresholdCells(true);
 	imageDataGeometryFilter->SetThresholdValue(Selection::SELECTION_UNUSED_VALUE);
@@ -733,7 +766,7 @@ void SliceVisualization::SetSelectionVolume(const vtkSmartPointer<vtkImageData> 
 
     // create filter to apply the same texture to every point in the set
     vtkSmartPointer<vtkIconGlyphFilter> iconFilter = vtkSmartPointer<vtkIconGlyphFilter>::New();
-    iconFilter->SetInput(imageDataGeometryFilter->GetOutput());
+    iconFilter->SetInputData(imageDataGeometryFilter->GetOutput());
     iconFilter->SetIconSize(8,8);
     iconFilter->SetUseIconSize(false);
     // if spacing < 1, we're fucked, literally

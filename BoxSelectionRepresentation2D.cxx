@@ -69,7 +69,7 @@ BoxSelectionRepresentation2D::BoxSelectionRepresentation2D()
 	this->_widgetPolyData->SetLines(lines);
 
 	this->_widgetMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-	this->_widgetMapper->SetInput(this->_widgetPolyData);
+	this->_widgetMapper->SetInputData(this->_widgetPolyData);
 	this->_widgetActor = vtkSmartPointer<vtkActor>::New();
 	this->_widgetActor->SetMapper(this->_widgetMapper);
 
@@ -357,8 +357,8 @@ void BoxSelectionRepresentation2D::BuildRepresentation()
 		this->_widgetPolyData->Reset();
 		this->_widgetPolyData->SetPoints(points);
 		this->_widgetPolyData->SetLines(lines);
-		this->_widgetPolyData->Update();
-	    this->BuildTime.Modified();
+		this->_widgetPolyData->Modified();
+	  this->BuildTime.Modified();
 	}
 }
 

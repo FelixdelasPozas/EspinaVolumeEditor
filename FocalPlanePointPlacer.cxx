@@ -18,7 +18,6 @@
 #include <vtkPlanes.h>
 #include <vtkPlaneCollection.h>
 #include <vtkRenderer.h>
-#include <vtkFastNumericConversion.h>
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // FocalPlanePointPlacer class

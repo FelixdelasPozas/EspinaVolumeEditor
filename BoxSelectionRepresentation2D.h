@@ -24,7 +24,8 @@ class vtkProperty;
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // BoxSelectionRepresentation2D class
 //
-class VTK_WIDGETS_EXPORT BoxSelectionRepresentation2D: public vtkWidgetRepresentation
+class BoxSelectionRepresentation2D
+: public vtkWidgetRepresentation
 {
 	public:
 		// Description:

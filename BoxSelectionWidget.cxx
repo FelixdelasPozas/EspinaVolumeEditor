@@ -18,7 +18,6 @@
 #include <vtkWidgetCallbackMapper.h>
 #include <vtkEvent.h>
 #include <vtkWidgetEvent.h>
-#include <vtkFastNumericConversion.h>
 
 // project includes
 #include "BoxSelectionWidget.h"

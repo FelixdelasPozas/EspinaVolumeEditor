@@ -19,7 +19,8 @@ class BoxSelectionRepresentation2D;
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // BoxSelectionWidget class
 //
-class VTK_WIDGETS_EXPORT BoxSelectionWidget: public vtkAbstractWidget
+class BoxSelectionWidget
+: public vtkAbstractWidget
 {
 	public:
 		// Description:

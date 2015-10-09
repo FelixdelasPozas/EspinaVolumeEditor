@@ -34,6 +34,7 @@
 
 // forward declarations
 class BoxSelectionWidget;
+class vtkImageReslice;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // SliceVisualization class
@@ -155,6 +156,8 @@ class SliceVisualization
         //
         // source for imageactors
         vtkSmartPointer<vtkImageMapToColors> 	_segmentationcolors;
+        vtkSmartPointer<vtkImageMapToColors>  _referenceColors;
+        vtkSmartPointer < vtkImageReslice >   _reslice;
         //
         // for thumbnail rendering
         vtkSmartPointer<vtkRenderer>    		_thumbRenderer;

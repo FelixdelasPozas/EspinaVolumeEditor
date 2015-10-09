@@ -359,7 +359,7 @@ void VoxelVolumeRender::ComputeCPURender()
 
     // model mapper
     this->_CPUmapper = vtkSmartPointer<vtkVolumeRayCastMapper>::New();
-    this->_CPUmapper->SetInput(this->_dataManager->GetStructuredPoints());
+    this->_CPUmapper->SetInputData(this->_dataManager->GetStructuredPoints());
     this->_CPUmapper->IntermixIntersectingGeometryOn();
 
     // standard composite function
@@ -407,16 +407,16 @@ void VoxelVolumeRender::ComputeGPURender()
 {
 	double rgba[4];
 
-	vtkSmartPointer<vtkXGPUInfoList> info = vtkSmartPointer<vtkXGPUInfoList>::New();
-	info->Probe();
-
-	assert(0 != info->GetNumberOfGPUs());
-	vtkSmartPointer<vtkGPUInfo> gpuInfo = info->GetGPUInfo(0);
+//	vtkSmartPointer<vtkXGPUInfoList> info = vtkSmartPointer<vtkXGPUInfoList>::New();
+//	info->Probe();
+//
+//	assert(0 != info->GetNumberOfGPUs());
+//	vtkSmartPointer<vtkGPUInfo> gpuInfo = info->GetGPUInfo(0);
 
     vtkSmartPointer<vtkLookupTable> lookupTable = this->_dataManager->GetLookupTable();
 
     // GPU mapper created before, while instance init
-    this->_GPUmapper->SetInput(this->_dataManager->GetStructuredPoints());
+    this->_GPUmapper->SetInputData(this->_dataManager->GetStructuredPoints());
     this->_GPUmapper->SetScalarModeToUsePointData();
     this->_GPUmapper->SetAutoAdjustSampleDistances(false);
     this->_GPUmapper->SetMaximumImageSampleDistance(1.0); 		// this allows a much more defined volume when rotating, as it uses 1 ray per pixel
@@ -513,16 +513,16 @@ void VoxelVolumeRender::ComputeMesh(const unsigned short label)
 
 	// image clipping
 	vtkSmartPointer<vtkImageClip> imageClip = vtkSmartPointer<vtkImageClip>::New();
-	imageClip->SetInput(this->_dataManager->GetStructuredPoints());
+	imageClip->SetInputData(this->_dataManager->GetStructuredPoints());
 	imageClip->SetOutputWholeExtent(objectMin[0], objectMax[0], objectMin[1], objectMax[1], objectMin[2], objectMax[2]);
 	imageClip->ClipDataOn();
 	this->_progress->Observe(imageClip, "Clip", weight);
 	imageClip->Update();
 	this->_progress->Ignore(imageClip);
 
-    // generate iso surface
-    vtkSmartPointer<vtkDiscreteMarchingCubes> marcher = vtkSmartPointer<vtkDiscreteMarchingCubes>::New();
-	marcher->SetInput(imageClip->GetOutput());
+  // generate iso surface
+  vtkSmartPointer<vtkDiscreteMarchingCubes> marcher = vtkSmartPointer<vtkDiscreteMarchingCubes>::New();
+	marcher->SetInputData(imageClip->GetOutput());
 	marcher->ReleaseDataFlagOn();
 	marcher->SetNumberOfContours(1);
 	marcher->GenerateValues(1, label, label);
@@ -534,7 +534,7 @@ void VoxelVolumeRender::ComputeMesh(const unsigned short label)
 	this->_progress->Ignore(marcher);
 
 	// decimate surface
-    vtkSmartPointer<vtkDecimatePro> decimator = vtkSmartPointer<vtkDecimatePro>::New();
+  vtkSmartPointer<vtkDecimatePro> decimator = vtkSmartPointer<vtkDecimatePro>::New();
 	decimator->SetInputConnection(marcher->GetOutputPort());
 	decimator->ReleaseDataFlagOn();
 	decimator->SetGlobalWarningDisplay(false);
@@ -547,7 +547,7 @@ void VoxelVolumeRender::ComputeMesh(const unsigned short label)
 	this->_progress->Ignore(decimator);
 
 	// surface smoothing
-    vtkSmartPointer<vtkWindowedSincPolyDataFilter> smoother = vtkSmartPointer<vtkWindowedSincPolyDataFilter>::New();
+  vtkSmartPointer<vtkWindowedSincPolyDataFilter> smoother = vtkSmartPointer<vtkWindowedSincPolyDataFilter>::New();
 	smoother->SetInputConnection(decimator->GetOutputPort());
 	smoother->ReleaseDataFlagOn();
 	smoother->SetGlobalWarningDisplay(false);
@@ -558,14 +558,14 @@ void VoxelVolumeRender::ComputeMesh(const unsigned short label)
 	smoother->SetEdgeAngle(90);
 
 	// compute normals for a better looking render
-    vtkSmartPointer<vtkPolyDataNormals> normals = vtkSmartPointer<vtkPolyDataNormals>::New();
+  vtkSmartPointer<vtkPolyDataNormals> normals = vtkSmartPointer<vtkPolyDataNormals>::New();
 	normals->SetInputConnection(smoother->GetOutputPort());
 	normals->ReleaseDataFlagOn();
 	normals->SetFeatureAngle(120);
 
 	// model mapper
-    vtkSmartPointer<vtkPolyDataMapper> isoMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-    this->_progress->Observe(isoMapper, "Map", weight);
+  vtkSmartPointer<vtkPolyDataMapper> isoMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+  this->_progress->Observe(isoMapper, "Map", weight);
 	isoMapper->SetInputConnection(normals->GetOutputPort());
 	isoMapper->ReleaseDataFlagOn();
 	isoMapper->ImmediateModeRenderingOn();
@@ -896,17 +896,14 @@ void VoxelVolumeRender::ColorHighlight(const unsigned short label)
 
 	if (this->_highlightedLabels.find(label) == this->_highlightedLabels.end())
 	{
-		switch(this->_renderingIsVolume)
+		if(this->_renderingIsVolume)
 		{
-			case true:
 				this->_opacityfunction->AddPoint(label, 1.0);
-				break;
-			case false:
+		}
+		else
+		{
 				ComputeMesh(label);
 				this->_progress->Reset();
-				break;
-			default:
-				break;
 		}
 		this->_highlightedLabels.insert(label);
 	}
@@ -922,19 +919,16 @@ void VoxelVolumeRender::ColorDim(const unsigned short label, double alpha)
 
 	if (this->_highlightedLabels.find(label) != this->_highlightedLabels.end())
 	{
-		switch(this->_renderingIsVolume)
+		if(this->_renderingIsVolume)
 		{
-			case true:
 				this->_opacityfunction->AddPoint(label, alpha);
-				break;
-			case false:
+		}
+		else
+		{
 				// actor MUST exist
 				this->_renderer->RemoveActor(this->_actorList[label]->meshActor);
 				delete this->_actorList[label];
 				this->_actorList.erase(label);
-				break;
-			default: // can't happen
-				break;
 		}
 		this->_highlightedLabels.erase(label);
 	}

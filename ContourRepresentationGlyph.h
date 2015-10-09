@@ -24,7 +24,8 @@ class vtkPoints;
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // ContourRepresentation class
 //
-class VTK_WIDGETS_EXPORT ContourRepresentationGlyph: public ContourRepresentation
+class ContourRepresentationGlyph
+: public ContourRepresentation
 {
 	public:
 		// Description:

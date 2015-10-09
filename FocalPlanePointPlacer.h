@@ -18,7 +18,8 @@
 //
 class vtkRenderer;
 
-class VTK_WIDGETS_EXPORT FocalPlanePointPlacer: public vtkPointPlacer
+class FocalPlanePointPlacer
+: public vtkPointPlacer
 {
 	public:
 		// Description:

@@ -558,15 +558,14 @@ std::set<unsigned short> EditorOperations::Watershed(const unsigned short label)
     outputLabelMap->Optimize();
     
     // enter the label points into vtk structured points
-    LabelMapType::LabelObjectContainerType::const_iterator iter;
-    const LabelMapType::LabelObjectContainerType & labelObjectContainer = outputLabelMap->GetLabelObjectContainer();
 
-    // for the randomized label colors
     std::srand(static_cast<unsigned int>(std::time(NULL)));
-    for(iter = labelObjectContainer.begin(); iter != labelObjectContainer.end(); iter++)
+    for(int i = 0; i < outputLabelMap->GetNumberOfLabelObjects(); ++i)
     {
-        unsigned short newlabel = 0;
-        bool found = false;
+      LabelObjectType * labelObject = outputLabelMap->GetNthLabelObject(i);
+
+      unsigned short newlabel = 0;
+      bool found = false;
 
         // create a random color and make sure it's a new one (very small probability but we have to check anyways...)
         while (found == false)
@@ -584,19 +583,17 @@ std::set<unsigned short> EditorOperations::Watershed(const unsigned short label)
             }
         }
         
-        LabelObjectType * labelObject = iter->second;
-        LabelObjectType::LineContainerType::const_iterator liter;
-        LabelObjectType::LineContainerType lineContainer = labelObject->GetLineContainer();
-        for(liter = lineContainer.begin(); liter != lineContainer.end(); liter++ )
+        for(int j = 0; j < labelObject->GetNumberOfLines(); ++i)
         {
-            const LabelMapType::IndexType & firstIdx = liter->GetIndex();
-            const unsigned long & length = liter->GetLength();
-            long endIdx0 = firstIdx[0] + length;
-            for(LabelMapType::IndexType idx = firstIdx; idx[0] < endIdx0; idx[0]++)
-            {
-                assert((idx[0] >= 0) && (idx[1] >= 0) && (idx[2] >= 0));
-                _dataManager->SetVoxelScalar(idx[0], idx[1], idx[2], newlabel);
-            }
+          LabelObjectType::LineType &line = labelObject->GetLine(i);
+          const LabelMapType::IndexType & firstIdx = line.GetIndex();
+          const unsigned long & length = line.GetLength();
+          long endIdx0 = firstIdx[0] + length;
+          for(LabelMapType::IndexType idx = firstIdx; idx[0] < endIdx0; idx[0]++)
+          {
+              assert((idx[0] >= 0) && (idx[1] >= 0) && (idx[2] >= 0));
+              _dataManager->SetVoxelScalar(idx[0], idx[1], idx[2], newlabel);
+          }
         }
     }
     this->_dataManager->SignalDataAsModified();

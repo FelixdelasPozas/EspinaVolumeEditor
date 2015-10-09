@@ -33,7 +33,7 @@ BoxSelectionRepresentation3D::BoxSelectionRepresentation3D()
 	this->OutlinePolyData->SetPoints(this->Points);
 
 	this->OutlineMapper = vtkPolyDataMapper::New();
-	this->OutlineMapper->SetInput(this->OutlinePolyData);
+	this->OutlineMapper->SetInputData(this->OutlinePolyData);
 
 	this->OutlineProperty = vtkProperty::New();
 	this->OutlineProperty->SetAmbient(1.0);

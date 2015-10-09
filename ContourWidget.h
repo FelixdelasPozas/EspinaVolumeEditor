@@ -24,7 +24,8 @@ class Selection;
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // ContourWidget class
 //
-class VTK_WIDGETS_EXPORT ContourWidget: public vtkAbstractWidget
+class ContourWidget
+: public vtkAbstractWidget
 {
 	public:
 		// Description:
@@ -37,7 +38,7 @@ class VTK_WIDGETS_EXPORT ContourWidget: public vtkAbstractWidget
 		void PrintSelf(ostream& os, vtkIndent indent);
 
 		// Description:
-		// The method for activiating and deactiviating this widget. This method
+		// The method for activating and de-activating this widget. This method
 		// must be overridden because it is a composite widget and does more than
 		// its superclasses' vtkAbstractWidget::SetEnabled() method.
 		virtual void SetEnabled(int);

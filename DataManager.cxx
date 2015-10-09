@@ -12,10 +12,13 @@
 #include <cassert>
 
 // itk includes
-#include <itkExceptionObject.h>
+#include <itkMacro.h>
 #include <itkChangeLabelLabelMapFilter.h>
 #include <itkShapeLabelMapFilter.h>
 #include <itkImageRegion.h>
+
+// vtk includes
+#include <vtkStructuredPoints.h>
 
 // project includes
 #include "DataManager.h"
@@ -45,7 +48,7 @@ void DataManager::Initialize(itk::SmartPointer<LabelMapType> labelMap, Coordinat
    	Vector3d imageorigin = _orientationData->GetImageOrigin();
    	Vector3ui imagesize = _orientationData->GetImageSize();
 
-   	// insert background label info, initially all voxels are background, we'll substract later
+   	// insert background label info, initially all voxels are background, we'll subtract later
    	struct ObjectInformation *object = new struct ObjectInformation;
    	object->scalar = 0;
    	object->centroid = Vector3d((imagesize[0]/2.0)*spacing[0], (imagesize[1]/2.0)*spacing[1], (imagesize[2]/2.0)/spacing[2]);
@@ -64,9 +67,6 @@ void DataManager::Initialize(itk::SmartPointer<LabelMapType> labelMap, Coordinat
     evaluator->Update();
 
     // get voxel count for each label for statistics and "flatten" the labelmap (make all labels consecutive starting from 1)
-    LabelMapType::LabelObjectContainerType::const_iterator iter;
-    const LabelMapType::LabelObjectContainerType & labelObjectContainer = evaluator->GetOutput()->GetLabelObjectContainer();
-
     typedef itk::ChangeLabelLabelMapFilter<LabelMapType> ChangeType;
     itk::SmartPointer<ChangeType> labelChanger = ChangeType::New();
     labelChanger->SetInput(evaluator->GetOutput());
@@ -77,12 +77,12 @@ void DataManager::Initialize(itk::SmartPointer<LabelMapType> labelMap, Coordinat
     unsigned short i = 1;
     itk::Point<double, 3> centroid;
 
-    for(iter = labelObjectContainer.begin(); iter != labelObjectContainer.end(); iter++, i++)
+    for(int i = 0; i < evaluator->GetOutput()->GetNumberOfLabelObjects(); ++i)
     {
-        const unsigned short scalar = iter->first;
-        LabelObjectType * labelObject = iter->second;
+        LabelObjectType * labelObject = evaluator->GetOutput()->GetNthLabelObject(i);
+        LabelObjectType::LabelType scalar = labelObject->GetLabel();
         centroid = labelObject->GetCentroid();
-        region = labelObject->GetRegion();
+        region = labelObject->GetBoundingBox();
         itk::Index<3> regionOrigin = region.GetIndex();
         itk::Size<3> regionSize = region.GetSize();
 
@@ -144,12 +144,10 @@ DataManager::~DataManager()
 void DataManager::SetStructuredPoints(vtkSmartPointer<vtkStructuredPoints> points)
 {
     _structuredPoints = vtkSmartPointer<vtkStructuredPoints>::New();
-    _structuredPoints->SetNumberOfScalarComponents(1);
-    _structuredPoints->SetScalarTypeToUnsignedShort();
-    _structuredPoints->CopyInformation(points);
-    _structuredPoints->AllocateScalars();
+    _structuredPoints->AllocateScalars(VTK_UNSIGNED_CHAR, 1);
+    _structuredPoints->CopyInformationFromPipeline(points->GetInformation());
     _structuredPoints->DeepCopy(points);
-    _structuredPoints->Update();
+    _structuredPoints->Modified();
 }
 
 vtkSmartPointer<vtkStructuredPoints> DataManager::GetStructuredPoints()

@@ -31,24 +31,42 @@ ADD_DEFINITIONS(-DQT_GUI_LIBS -DQT_CORE_LIB -DQT3_SUPPORT)
 SET_SOURCE_FILES_PROPERTIES(${QtSrcs} PROPERTIES OBJECT_DEPENDS "${UIHeaders}")
 
 #Declare any external dependencies that your project may have here.
-FIND_PACKAGE(ITK REQUIRED)
-INCLUDE(${ITK_USE_FILE})
+SET(VTK_DIR "D:/Desarrollo/Bibliotecas/vtk-build")
 FIND_PACKAGE(VTK REQUIRED)
 INCLUDE(${VTK_USE_FILE})
 
+FIND_PACKAGE(ITK REQUIRED)
+INCLUDE(${ITK_USE_FILE})
+
 #Set any libraries that your project depends on.
 SET(Libraries
-  ITKCommon
-  ITKBasicFilters
-  ITKIO
-  ITKStatistics
-  vtkRendering
-  vtkVolumeRendering
-  QVTK
+  ${ITK_LIBRARIES}
+  ${VTK_LIBRARIES}
   ${QT_LIBRARIES}
 )
 
-SET(CurrentFiles "Editor" "SliceVisualization" "UndoRedoSystem" "EditorOperations" "ProgressAccumulator" "Coordinates" "VoxelVolumeRender" "DataManager" "AxesRender" "Metadata" "SaveSession" "Selection" "BoxSelectionRepresentation2D" "BoxSelectionWidget" "BoxSelectionRepresentation3D" "FocalPlanePointPlacer" "ContourWidget" "ContourRepresentation" "ContourRepresentationGlyph")
+SET(CurrentFiles 
+	"Editor"
+	"SliceVisualization"
+	"UndoRedoSystem"
+	"EditorOperations"
+	"ProgressAccumulator"
+	"Coordinates"
+	"VoxelVolumeRender"
+	"DataManager"
+	"AxesRender"
+	"Metadata"
+	"SaveSession"
+	"Selection"
+	"BoxSelectionRepresentation2D"
+	"BoxSelectionWidget"
+	"BoxSelectionRepresentation3D"
+	"FocalPlanePointPlacer"
+	"ContourWidget"
+	"ContourRepresentation"
+	"ContourRepresentationGlyph"
+)
+
 ADD_EXECUTABLE(Editor ${CurrentFiles}.cxx ${QtSrcs} ${MOCSrcs} ${QtResources_CXX})
 TARGET_LINK_LIBRARIES(Editor ${Libraries})
 SET_TARGET_PROPERTIES(Editor PROPERTIES OUTPUT_NAME EspinaEditor)

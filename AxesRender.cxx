@@ -57,7 +57,7 @@ void AxesRender::GenerateVoxelCrosshair(vtkSmartPointer<vtkRenderer> renderer)
         line->Update();
         
         vtkSmartPointer<vtkPolyDataMapper> linemapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-        linemapper->SetInput(line->GetOutput());
+        linemapper->SetInputData(line->GetOutput());
         linemapper->SetResolveCoincidentTopologyToPolygonOffset();
             
         vtkSmartPointer<vtkActor> lineactor = vtkSmartPointer<vtkActor>::New();
@@ -178,23 +178,20 @@ void AxesRender::setVisible(bool value)
     
     std::vector< vtkSmartPointer<vtkActor> >::iterator it;
     
-    switch (value)
+    if(value)
     {
-        case true:
             _visible = true;
             for (it = _planesActors.begin(); it != _planesActors.end(); it++)
                 (*it)->SetVisibility(true);
             for (it = _crossActors.begin(); it != _crossActors.end(); it++)
                 (*it)->SetVisibility(true);
-            break;
-        case false:
+    }
+    else
+    {
             _visible = false;
             for (it = _planesActors.begin(); it != _planesActors.end(); it++)
                 (*it)->SetVisibility(false);
             for (it = _crossActors.begin(); it != _crossActors.end(); it++)
                 (*it)->SetVisibility(false);
-            break;
-        default: 
-            break;
     }
 }
