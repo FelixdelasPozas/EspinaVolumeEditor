@@ -13,7 +13,6 @@
 // vtk includes
 #include <vtkSmartPointer.h>
 
-// vtk classes forward declarations
 class vtkActor;
 class vtkPolyDataMapper;
 class vtkProperty;
@@ -26,31 +25,45 @@ class vtkRenderer;
 //
 class BoxSelectionRepresentation3D
 {
-	public:
-		BoxSelectionRepresentation3D();
-		~BoxSelectionRepresentation3D();
+  public:
+    /** \brief BoxSelectionRepresentation3D class constructor.
+     *
+     */
+    BoxSelectionRepresentation3D();
 
-		// Description:
-		void PlaceBox(double bounds[6]);
-		double *GetBounds();
-		void SetRenderer(vtkRenderer *);
-	private:
-		// generate the box
-		void GenerateOutline();
+    /** \brief BoxSelectionRepresentation3D class destructor.
+     *
+     */
+    ~BoxSelectionRepresentation3D();
 
-		// attributes
-		//
-		// wireframe outline
-		vtkSmartPointer<vtkPoints> 				Points;
-		vtkSmartPointer<vtkActor> 				HexOutline;
-		vtkSmartPointer<vtkPolyDataMapper> 		OutlineMapper;
-		vtkSmartPointer<vtkPolyData> 			OutlinePolyData;
-		//
-		// outline properties
-		vtkSmartPointer<vtkProperty> 			OutlineProperty;
-		//
-		// current renderer
-		vtkSmartPointer<vtkRenderer> 			Renderer;
+    /** \brief Places the box on the 3D view.
+     * \param[in] bounds box bounds.
+     *
+     */
+    void PlaceBox(const double *bounds);
+
+    /** \brief Returns the bounds of the box.
+     *
+     */
+    double *GetBounds() const;
+
+    /** \brief Sets the renderer the box will be rendered on.
+     *
+     */
+    void SetRenderer(vtkRenderer *renderer);
+
+  private:
+    /** \brief Helper method to generate the box.
+     *
+     */
+    void GenerateOutline();
+
+    vtkSmartPointer<vtkPoints>         m_points;   /** corner points. */
+    vtkSmartPointer<vtkPolyData>       m_polyData; /** polydata. */
+    vtkSmartPointer<vtkPolyDataMapper> m_mapper;   /** mapper. */
+    vtkSmartPointer<vtkActor>          m_actor;    /** actor. */
+    vtkSmartPointer<vtkProperty>       m_property; /** actor property. */
+    vtkSmartPointer<vtkRenderer>       m_renderer; /** renderer of the box. */
 };
 
 #endif // _BOXSELECTIONREPRESENTATION3D_H_

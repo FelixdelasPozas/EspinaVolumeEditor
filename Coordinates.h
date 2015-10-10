@@ -22,62 +22,79 @@
 #include "VectorSpaceAlgebra.h"
 
 // types for labels and label maps
-typedef itk::Image<unsigned short, 3> ImageType;
+using ImageType = itk::Image<unsigned short, 3>;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // CoordinatesTransform Class
 //
 class CoordinatesTransform
 {
-    public:
-        // Default constructor creates an identity transform
-        CoordinatesTransform();
-        ~CoordinatesTransform();
+  public:
+    /** \brief CoordinatesTransform class constructor.
+     *
+     */
+    CoordinatesTransform();
 
-        // Initialize the transform with new singed coordinate mappings 
-        // (1-based signed indices)
-        void SetTransform(const Vector3i &, const Vector3ui &);
+    /** \brief Initialize the transform with new singed coordinate mappings
+     * (1-based signed indices).
+     * \param[in] map
+     * \param[in] size
+     *
+     */
+    void SetTransform(const Vector3i &map, const Vector3ui &size);
 
-        // Compute the inverse of this transform
-        CoordinatesTransform Inverse() const;
+    /** \brief Computes the inverse of this transform
+     *
+     */
+    CoordinatesTransform Inverse() const;
 
-        // Multiply by another transform 
-        CoordinatesTransform Product(const CoordinatesTransform &) const;
+    /** \brief Multiply by another transform
+     * \param[in] transform transform to multiply by.
+     *
+     */
+    CoordinatesTransform Product(const CoordinatesTransform &transform) const;
 
-        // Apply transform to a vector 
-        Vector3i TransformVector(const Vector3i &) const;
+    /** \brief Apply transform to a vector
+     * \param[in] vector vector to transform.
+     *
+     */
+    Vector3i TransformVector(const Vector3i &vector) const;
 
-        // Apply transform to a point
-        Vector3i TransformPoint(const Vector3i &) const;
+    /** \brief Apply transform to a point
+     * \param[in] point point to transform.
+     *
+     */
+    Vector3i TransformPoint(const Vector3i &point) const;
 
-        // Apply to a size vector 
-        Vector3ui TransformSize(const Vector3ui &) const;
+    /** \brief Apply to a size vector
+     * \param[in] vector vector to transform.
+     *
+     */
+    Vector3ui TransformSize(const Vector3ui &vector) const;
 
-        // return the orientation or the coordinates (-1 or 1)
-        int GetCoordinateOrientation(unsigned int) const;
+    /** \brief Returns the orientation or the coordinates (-1 or 1)
+     * \param[in] index
+     *
+     */
+    int GetCoordinateOrientation(const unsigned int index) const;
 
-        // return the mapping index of the coordinate (0, 1 or 2)
-        unsigned int GetCoordinateMapping(unsigned int) const;
-        
-        // Print class contents
-        void Print(std::ostream &);
-    private:
-        // Compute the internal vectors once the matrix and offset have been computed
-        void ComputeAxesVectors();
+    // return the mapping index of the coordinate (0, 1 or 2)
+    unsigned int GetCoordinateMapping(const unsigned int index) const;
 
-        // Attributes
-        //
-        // A transform matrix
-        Matrix3i _transform;
+    /** \brief Print class properties.
+     * \param[in] stream stream where the properties will be printed.
+     */
+    void Print(std::ostream &stream) const;
+  private:
+    /** \brief Helper method to compute the internal vectors once the matrix and offset have been computed.
+     *
+     */
+    void ComputeAxesVectors();
 
-        // An offset vector
-        Vector3i _offset;
-
-        // The operation abs(i) - 1 applied to m_Mapping
-        Vector3ui _axesIndex;
-
-        // The operation sign(i) applied to m_Mapping
-        Vector3i _axesDirection;
+    Matrix3i  m_transform;     /** transform matrix */
+    Vector3i  m_offset;        /** An offset vector */
+    Vector3ui m_axesIndex;     /** The operation abs(i) - 1 applied to m_Mapping. */
+    Vector3i  m_axesDirection; /** The operation sign(i) applied to m_Mapping. */
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -85,82 +102,111 @@ class CoordinatesTransform
 //
 class Coordinates
 {
-    public:
-        // constructor & destructor. initializes the class with labelmap orientation data
-        Coordinates(itk::SmartPointer<ImageType> );
-        ~Coordinates();
-        
-        // get the normal transform 
-        const CoordinatesTransform & GetNormalTransform();
+  public:
+    /** \brief Coordinates class constructor.
+     * \param[in] image image to get the coordinate properties from.
+     *
+     */
+    explicit Coordinates(itk::SmartPointer<ImageType> image);
 
-        // get the normal transform 
-        const CoordinatesTransform & GetInverseTransform();
+    /** \brief Returns the normal transform.
+     *
+     */
+    const CoordinatesTransform & GetNormalTransform() const;
 
-        // get the direction cosine matrix that defines trasforms
-        Matrix3d GetImageDirectionCosineMatrix();
+    /** \brief Returns the inverse transform.
+     *
+     */
+    const CoordinatesTransform & GetInverseTransform() const;
 
-        // get the transformed image size
-        const Vector3ui GetTransformedSize();
-        
-        // get the image size
-        const Vector3ui GetImageSize();
-        
-        // get the index mapping vector 
-        const Vector3ui GetCoordinatesMappingVector();
-        
-        // get the coordinates direction vector (-1 or 1)
-        const Vector3i GetCoordinatesOrientation();
-        
-        // get mapping vector
-        const Vector3i GetMappingVector();
-        
-        // get image origin
-        const Vector3d GetImageOrigin();
-        
-        // get image spacing
-        const Vector3d GetImageSpacing();
+    /** \brief Returns the direction cosine matrix that defines trasforms.
+     *
+     */
+    Matrix3d GetImageDirectionCosineMatrix() const;
 
-        // index to index
-        const Vector3i TransformIndexToIndex(Vector3i);
-        
-        // index to point transform
-        const Vector3d TransformIndexToPoint(Vector3i);
-        
-        // point to index transform
-        const Vector3i TransformPointToIndex(Vector3d);
-        
-        // index to index inverse
-        const Vector3i TransformIndexToIndexInverse(Vector3i index);
-        
-        // Print class contents
-        void Print(std::ostream &);
-    private:
-        // Map direction cosines matrix to the closest mapping vector
-        static Vector3i ConvertDirectionMatrixToClosestMappingVector(const Matrix3d);
+    /** \brief Returns the transformed image size
+     *
+     */
+    const Vector3ui GetTransformedSize() const;
 
-        // Invert a mapping vector
-        static Vector3i InvertMappingVector(const Vector3i &);
+    /** \brief Returns the image size
+     *
+     */
+    const Vector3ui GetImageSize() const;
 
-        // Transforms
-        CoordinatesTransform _normal;
-        CoordinatesTransform _inverse;
+    /** \brief Returns the index mapping vector
+     *
+     */
+    const Vector3ui GetCoordinatesMappingVector() const;
 
-        // Attributes
-        //
-        // Image to anatomy direction matrix
-        Matrix3d _directionCosineMatrix;
-        
-        // mapping vector
-        Vector3i _mappingVector;
-        
-        // original image size, not transformed
-        Vector3ui _imageSize;
-        
-        // original image origin, not transformed
-        Vector3d _imageOrigin;
+    /** \brief Returns the coordinates direction vector (-1 or 1).
+     *
+     */
+    const Vector3i GetCoordinatesOrientation() const;
 
-        // image spacing transformed to the coordinate mapping
-        Vector3d _imageSpacing;
+    /** \brief Returns the mapping vector.
+     *
+     */
+    const Vector3i GetMappingVector() const;
+
+    /** \brief Returns the origin of the image.
+     *
+     */
+    const Vector3d GetImageOrigin() const;
+
+    /** \brief Returns the spacing of the image.
+     *
+     */
+    const Vector3d GetImageSpacing() const;
+
+    /** \brief Index to index transformation.
+     * \param[in] index index to transform.
+     *
+     */
+    const Vector3i TransformIndexToIndex(const Vector3i &index) const;
+
+    /** \brief Index to point transformation.
+     * \param[in] index index to transform.
+     *
+     */
+    const Vector3d TransformIndexToPoint(const Vector3i &index) const;
+
+    /** \brief Point to index transformation.
+     * \param[in] point point to transform.
+     *
+     */
+    const Vector3i TransformPointToIndex(const Vector3d &point) const;
+
+    /** \brief Index to index inverse transform.
+     * \param[in] index index to transform.
+     *
+     */
+    const Vector3i TransformIndexToIndexInverse(const Vector3i &index) const;
+
+    /** \brief Prints the class contents.
+     * \param[in] stream stream where the properties will be printed.
+     *
+     */
+    void Print(std::ostream &stream) const;
+  private:
+    /** \brief Helper method to map direction cosines matrix to the closest mapping vector.
+     * \param[in] matrix matrix to map.
+     *
+     */
+    static Vector3i ConvertDirectionMatrixToClosestMappingVector(const Matrix3d &matrix);
+
+    /** \brief Helper method to invert a mapping vector
+     *
+     */
+    static Vector3i InvertMappingVector(const Vector3i &vector);
+
+    CoordinatesTransform m_normal;                /** normal transformation. */
+    CoordinatesTransform m_inverse;               /** inverse transformation. */
+    Matrix3d             m_directionCosineMatrix; /** Image to anatomy direction matrix. */
+    Vector3i             m_mappingVector;         /** mapping vector. */
+    Vector3ui            m_imageSize;             /** original image size, not transformed. */
+    Vector3d             m_imageOrigin;           /** original image origin, not transformed. */
+    Vector3d             m_imageSpacing;          /** image spacing transformed to the coordinate mapping. */
 };
 
 #endif // _COORDINATES_H_

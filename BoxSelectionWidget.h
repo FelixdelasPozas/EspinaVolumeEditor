@@ -13,7 +13,6 @@
 // vtk includes
 #include <vtkAbstractWidget.h>
 
-// forward declarations
 class BoxSelectionRepresentation2D;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -22,62 +21,65 @@ class BoxSelectionRepresentation2D;
 class BoxSelectionWidget
 : public vtkAbstractWidget
 {
-	public:
-		// Description:
-		// Method to instantiate class.
-		static BoxSelectionWidget *New();
+  public:
+    static BoxSelectionWidget *New();
 
-		// Description;
-		// Standard methods for class.
-		vtkTypeMacro(BoxSelectionWidget,vtkAbstractWidget);
-		void PrintSelf(ostream& os, vtkIndent indent);
+    vtkTypeMacro(BoxSelectionWidget,vtkAbstractWidget);
 
-		// Description:
-		// Specify an instance of vtkWidgetRepresentation used to represent this
-		// widget in the scene. Note that the representation is a subclass of vtkProp
-		// so it can be added to the renderer independent of the widget.
-		void SetRepresentation(BoxSelectionRepresentation2D *r)
-		{
-			this->Superclass::SetWidgetRepresentation(reinterpret_cast<vtkWidgetRepresentation*>(r));
-		}
+    void PrintSelf(ostream& os, vtkIndent indent);
 
-		// Description:
-		// Return the representation as a vtkBorderRepresentation.
-		BoxSelectionRepresentation2D *GetBorderRepresentation()
-		{
-			return reinterpret_cast<BoxSelectionRepresentation2D*>(this->WidgetRep);
-		}
+    /** \brief Specify an instance of vtkWidgetRepresentation used to represent this
+     * widget in the scene. Note that the representation is a subclass of vtkProp
+     * so it can be added to the renderer independent of the widget.
+     * \param[in] representation box representation to set.
+     *
+     */
+    void SetRepresentation(BoxSelectionRepresentation2D *representation)
+    {
+      this->Superclass::SetWidgetRepresentation(reinterpret_cast<vtkWidgetRepresentation*>(representation));
+    }
 
-		// Description:
-		// Create the default widget representation if one is not set.
-		virtual void CreateDefaultRepresentation();
+    /** \brief Returns the representation as a vtkBorderRepresentation.
+     *
+     */
+    BoxSelectionRepresentation2D *GetBorderRepresentation() const
+    {
+      return reinterpret_cast<BoxSelectionRepresentation2D*>(this->WidgetRep);
+    }
 
-		// Description:
-		// Enables/Disables widget interaction
-		virtual void SetEnabled(int);
-	protected:
-		BoxSelectionWidget();
-		~BoxSelectionWidget();
+    virtual void CreateDefaultRepresentation();
 
-		// processes the registered events
-		static void SelectAction(vtkAbstractWidget*);
-		static void TranslateAction(vtkAbstractWidget*);
-		static void EndSelectAction(vtkAbstractWidget*);
-		static void MoveAction(vtkAbstractWidget*);
+    virtual void SetEnabled(int value);
 
-		// helper methods for cursor management
-		virtual void SetCursor(int State);
+  protected:
+    /** \brief BoxSelectionWidget class constructor.
+     *
+     */
+    BoxSelectionWidget();
 
-		//widget state
-		int WidgetState;
-		enum _WidgetState
-		{
-			Start = 0, Define, Manipulate, Selected
-		};
+    /** \brief BoxSelectionWidget class virtual destructor.
+     *
+     */
+    ~BoxSelectionWidget();
 
-	private:
-		BoxSelectionWidget(const BoxSelectionWidget&);   //Not implemented
-		void operator=(const BoxSelectionWidget&);   //Not implemented
+    // processes the registered events
+    static void SelectAction(vtkAbstractWidget *widget);
+    static void TranslateAction(vtkAbstractWidget *widget);
+    static void EndSelectAction(vtkAbstractWidget *widget);
+    static void MoveAction(vtkAbstractWidget *widget);
+
+    /** \brief Helper methods for cursor management.
+     * \param[in] state widget state.
+     *
+     */
+    virtual void SetCursor(int State);
+
+    enum class WidgetState: char { Start = 0, Define, Manipulate, Selected };
+    WidgetState m_state; /** widget state. */
+
+  private:
+    BoxSelectionWidget(const BoxSelectionWidget&) = delete;
+    void operator=(const BoxSelectionWidget&) = delete;
 };
 
 #endif

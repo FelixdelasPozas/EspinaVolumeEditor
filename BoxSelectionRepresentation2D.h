@@ -28,125 +28,139 @@ class BoxSelectionRepresentation2D
 : public vtkWidgetRepresentation
 {
 	public:
-		// Description:
-		// Instantiate this class.
 		static BoxSelectionRepresentation2D *New();
 
-		// Description:
-		// Define standard methods.
 		vtkTypeMacro(BoxSelectionRepresentation2D,vtkWidgetRepresentation);
+
 		void PrintSelf(ostream& os, vtkIndent indent);
 
-		// Description:
-		// Specify opposite corners of the box defining the boundary of the
-		// widget. Position is the lower left of the outline, and Position2 is
-		// the upper right, and is not relative to Position.
-		// The rectangle (Position,Position2) is a bounding rectangle.
+		/** \brief Specify opposite corners of the box defining the boundary of the
+		 * widget. Position is the lower left of the outline, and Position2 is
+		 * the upper right, and is not relative to Position.
+		 * The rectangle (Position,Position2) is a bounding rectangle.
+		 *
+		 */
 		vtkViewportCoordinateMacro(Position);
 		vtkViewportCoordinateMacro(Position2);
 
-		enum
-		{
-			BORDER_OFF = 0, BORDER_ON, BORDER_ACTIVE
-		};
+		enum class BorderType: char	{ BORDER_OFF = 0, BORDER_ON, BORDER_ACTIVE };
 
-		// Description:
-		// Specify the properties of the border.
-		vtkGetObjectMacro(_widgetActorProperty,vtkProperty);
+		/** \brief Specify the properties of the border.
+		 *
+		 */
+		vtkGetObjectMacro(m_widgetActorProperty,vtkProperty);
 
-		// Description:
-		// Specify a minimum and/or maximum size (in world coordinates) that this representation
-		// can take. These methods require two values: size values in the x and y directions, respectively.
-		vtkSetVector2Macro(MinimumSize,double);
-		vtkGetVector2Macro(MinimumSize,double);
-		vtkSetVector2Macro(MaximumSize,double);
-		vtkGetVector2Macro(MaximumSize,double);
+		/** \brief Specify a minimum and/or maximum size (in world coordinates) that this representation
+		 * can take. These methods require two values: size values in the x and y directions, respectively.
+		 *
+		 */
+		vtkSetVector2Macro(m_minimumSize,double);
+		vtkGetVector2Macro(m_minimumSize,double);
+		vtkSetVector2Macro(m_maximumSize,double);
+		vtkGetVector2Macro(m_maximumSize,double);
 
-		// Description:
-		// This is a modifier of the interaction state. When set, widget interaction
-		// allows the border (and stuff inside of it) to be translated with mouse
-		// motion.
-		vtkSetMacro(Moving,int);
-		vtkGetMacro(Moving,int);
-		vtkBooleanMacro(Moving,int);
+		/** \brief This is a modifier of the interaction state. When set, widget interaction
+		 * allows the border (and stuff inside of it) to be translated with mouse motion.
+		 *
+		 */
+		vtkSetMacro(m_moving,int);
+		vtkGetMacro(m_moving,int);
+		vtkBooleanMacro(m_moving,int);
 
-		// minimum and maximum selection limits (the slice size with the spacing border)
-		vtkSetVector2Macro(MinimumSelectionSize,double);
-		vtkGetVector2Macro(MinimumSelectionSize,double);
-		vtkSetVector2Macro(MaximumSelectionSize,double);
-		vtkGetVector2Macro(MaximumSelectionSize,double);
+		/** \brief Minimum and maximum selection limits (the slice size with the spacing border).
+		 *
+		 */
+		vtkSetVector2Macro(m_minimumSelectionSize,double);
+		vtkGetVector2Macro(m_minimumSelectionSize,double);
+		vtkSetVector2Macro(m_maximumSelectionSize,double);
+		vtkGetVector2Macro(m_maximumSelectionSize,double);
 
-		// image spacing
-		vtkSetVector2Macro(Spacing,double);
-		vtkGetVector2Macro(Spacing,double);
+		/** \brief Image spacing.
+		 *
+		 */
+		vtkSetVector2Macro(m_spacing,double);
+		vtkGetVector2Macro(m_spacing,double);
 
 		// Description:
 		// Define the various states that the representation can be in.
-		enum _InteractionState
-		{
-			Outside = 0, Inside, AdjustingP0, AdjustingP1, AdjustingP2, AdjustingP3, AdjustingE0, AdjustingE1, AdjustingE2, AdjustingE3
-		};
+		enum WidgetState { Outside = 0, Inside, AdjustingP0, AdjustingP1, AdjustingP2, AdjustingP3, AdjustingE0, AdjustingE1, AdjustingE2, AdjustingE3 };
 
-
-		// Description:
-		// Subclasses should implement these methods. See the superclasses'
-		// documentation for more information.
+		/** \brief Subclasses should implement these methods. See the superclasses'
+		 * Subclasses should implement these methods. See the superclasses'
+		 * documentation for more information.
+		 *
+		 */
 		virtual void BuildRepresentation();
 		virtual void StartWidgetInteraction(double eventPos[2]);
 		virtual void WidgetInteraction(double eventPos[2]);
 		virtual int ComputeInteractionState(int X, int Y, int modify = 0);
 
-		// Description:
-		// These methods are necessary to make this representation behave as
-		// a vtkProp.
+		/** \brief These methods are necessary to make this representation behave as
+		 * a vtkProp.
+		 *
+		 */
 		virtual void GetActors2D(vtkPropCollection*);
 		virtual void ReleaseGraphicsResources(vtkWindow*);
 		virtual int RenderOverlay(vtkViewport*);
 		virtual int RenderOpaqueGeometry(vtkViewport*);
 		virtual int RenderTranslucentPolygonalGeometry(vtkViewport*);
 		virtual int HasTranslucentPolygonalGeometry();
-		void TransformToWorldCoordinates(double *, double *);
-		void SetBoxCoordinates(int, int, int, int);
+
+		/** \brief Transforms display coords to world coordinates.
+		 * \param[inout] x display coordinate x.
+		 * \param[inout] y display coordinate y.
+		 *
+		 */
+		void TransformToWorldCoordinates(double *x, double *y);
+
+		/** \brief Sets the box size.
+		 * \param[in] x1 first point x coordinate.
+     * \param[in] y1 first point y coordinate.
+     * \param[in] x2 second point x coordinate.
+     * \param[in] y2 second point y coordinate.
+		 *
+		 */
+		void SetBoxCoordinates(const int x1, const int y1, const int x2, const int y2);
 	protected:
+		/** \brief BoxSelectionRepresentation2D class constructor.
+		 *
+		 */
 		BoxSelectionRepresentation2D();
-		~BoxSelectionRepresentation2D();
 
-		// auxiliary methods
-		double Distance(double, double); // in this method the former value is always smaller then the latter
+		/** \brief BoxSelectionRepresentation2D class destructor.
+		 *
+		 */
+		virtual ~BoxSelectionRepresentation2D();
 
-		// Ivars
-		vtkProperty							*_widgetActorProperty;
-		int 								Moving;
-		double 								_selectionPoint[2];
+		/** \brief Helper method to get the distance between two double numbers.
+		 * In this method the former value is always smaller then the latter.
+		 *
+		 */
+		double Distance(double, double);
 
-		// Layout (position of lower left and upper right corners of border)
-		vtkCoordinate						*PositionCoordinate;
-		vtkCoordinate 						*Position2Coordinate;
+		vtkProperty	*m_widgetActorProperty; /** properties of the box actor. */
+		int          m_moving;              /** state modifier when moving the widget. */
+		double       m_selectionPoint[2];   /** selection point when clicking on the widget. */
+		double       m_startPosition[2];    /** Keep track of start position when moving border. */
 
-		// Keep track of start position when moving border
-		double 								_startPosition[2];
+		vtkCoordinate *PositionCoordinate;  /** lower left. */
+		vtkCoordinate *Position2Coordinate; /** upper right. */
 
-		// Border representation.
-		vtkSmartPointer<vtkPolyData> 		_widgetPolyData;
-		vtkSmartPointer<vtkPolyDataMapper> 	_widgetMapper;
-		vtkSmartPointer<vtkActor>			_widgetActor;
+		vtkSmartPointer<vtkPolyData>       m_polyData; /** border polydata. */
+		vtkSmartPointer<vtkPolyDataMapper> m_mapper;   /** border actor mapper. */
+		vtkSmartPointer<vtkActor>          m_actor;    /** border actor. */
 
-		// Constraints on size
-		double 								MinimumSize[2];
-		double 								MaximumSize[2];
+		double m_minimumSize[2]; /** minimum box size. */
+		double m_maximumSize[2]; /** maximum box size. */
 
-		// Constraints on selection limits
-		double 								MinimumSelectionSize[2];
-		double 								MaximumSelectionSize[2];
+		double m_minimumSelectionSize[2]; /** minimum box selection size. */
+		double m_maximumSelectionSize[2]; /** maximum box selection size. */
 
-		// image spacing needed for correct widget placing
-		double 								Spacing[2];
-
-		// edge tolerance in world coordinates for the edges
-		double 								_tolerance;
+		double m_spacing[2]; /** image spacing needed for correct widget placing. */
+		double m_tolerance;  /** edge tolerance in world coordinates for the edges. */
 	private:
-		BoxSelectionRepresentation2D(const BoxSelectionRepresentation2D&);   //Not implemented
-		void operator=(const BoxSelectionRepresentation2D&);   //Not implemented
+		BoxSelectionRepresentation2D(const BoxSelectionRepresentation2D&) = delete;
+		void operator=(const BoxSelectionRepresentation2D&) = delete;
 };
 
 #endif // _BOXSELECTIONREPRESENTATION2D_H_

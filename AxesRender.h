@@ -29,68 +29,83 @@
 //
 class AxesRender
 {
-    public:
-        // type for orientation
-        typedef enum
-        {
-            Sagittal, Coronal, Axial
-        } OrientationType;
+  public:
+    /** \brief Orientation enum class.
+     *
+     */
+    enum class Orientation: unsigned char { Sagittal = 0, Coronal = 1, Axial = 2};
 
-        // constructor & destructor
-        AxesRender(vtkSmartPointer<vtkRenderer>, Coordinates *);
-        ~AxesRender();
-        
-        // update slice planes in 3d render view to the new point
-        void Update(Vector3ui);
-        
-        // are the axes and the crosshair visible in the render viewport?
-        bool isVisible();
-        
-        // set axes and crosshair visibility
-        void setVisible(bool);
-    private:
-        // generate plane actors pointing to the center of the volume
-        void GenerateSlicePlanes(vtkSmartPointer<vtkRenderer> renderer);
-        
-        // generate voxel crosshair pointing to the center of the volume
-        void GenerateVoxelCrosshair(vtkSmartPointer<vtkRenderer> renderer);
-        
-        // update slice planes in 3d render view to the new point
-        void UpdateSlicePlanes(Vector3ui);
-        
-        // update voxel crosshair in 3d render view to the new point
-        void UpdateVoxelCrosshair(Vector3ui);
-        
-        // creates and maintains a pointer to the orientation marker
-        // widget (axes orientation) 
-        void CreateOrientationWidget(vtkSmartPointer<vtkRenderer> renderer);
+    /** \brief AxesRender class constructor.
+     * \param[in] renderer renderer to insert the actors.
+     * \param[in] coords   axes coordinates.
+     *
+     */
+    explicit AxesRender(vtkSmartPointer<vtkRenderer> renderer, const Coordinates &coords);
 
-        // Attributes
-        //
-        // renderer
-        vtkSmartPointer<vtkRenderer> _renderer;
-        //
-        // 3d crosshair lines
-        std::vector<vtkSmartPointer<vtkLineSource> > _POILines;
-        //
-        // 3d slice planes
-        std::vector<vtkSmartPointer<vtkPlaneSource> > _planes;
-        //
-        // construction vars
-        Vector3d _spacing;
-        Vector3d _max;
-        //
-        // actor pointers, because i don't want to destroy the actors, just make it
-        // invisible
-        std::vector< vtkSmartPointer<vtkActor> > _planesActors;
-        std::vector< vtkSmartPointer<vtkActor> > _crossActors;
-        bool _visible;
-        
-        // this pointer is needed just to mantain the reference counter for the
-        // orientation marker widget, or it will crash the application when it
-        // goes out of scope
-        vtkSmartPointer < vtkOrientationMarkerWidget > _axesWidget;
-        
+    /** \brief AxesRender class virtual destructor.
+     *
+     */
+    ~AxesRender();
+
+    /** \brief Update slice planes in 3d render view to the new point
+     * \param[in] crosshair crosshair point.
+     *
+     */
+    void Update(const Vector3ui &crosshair);
+
+    /** \brief Returs true if the axes are visible in the renderer.
+     *
+     */
+    bool isVisible() const;
+
+    /** \brief Set axes and crosshair visibility
+     * \param[in] value true to enable and false otherwise.
+     *
+     */
+    void setVisible(bool value);
+  private:
+    /** \brief Helper method to generate plane actors pointing to the center of the volume.
+     * \param[in] renderer renderer to insert the actors.
+     *
+     */
+    void GenerateSlicePlanes(vtkSmartPointer<vtkRenderer> renderer);
+
+    /** \brief Helper method to generate voxel crosshair pointing to the center of the volume.
+     * \param[in] renderer renderer to insert the actors.
+     *
+     */
+    void GenerateVoxelCrosshair(vtkSmartPointer<vtkRenderer> renderer);
+
+    /** \brief Update slice planes in 3d render view to the new point
+     * \param[in] crosshair crosshair point.
+     *
+     */
+    void UpdateSlicePlanes(const Vector3ui &crosshair);
+
+    /** \brief Update voxel crosshair in 3d render view to the new point
+     * \param[in] crosshair crosshair point.
+     */
+    void UpdateVoxelCrosshair(const Vector3ui &crosshair);
+
+    /** \brief Helper method that creates and maintains a pointer to the orientation marker
+     * widget (axes orientation).
+     * \param[in] renderer renderer to insert the widget.
+     *
+     */
+    void CreateOrientationWidget(vtkSmartPointer<vtkRenderer> renderer);
+
+    vtkSmartPointer<vtkRenderer>                 m_renderer;     /** renderer to show the actors. */
+    std::vector<vtkSmartPointer<vtkLineSource>>  m_POILines;     /** 3d crosshair lines. */
+    std::vector<vtkSmartPointer<vtkPlaneSource>> m_planes;       /** 3d slice planes. */
+    std::vector<vtkSmartPointer<vtkActor>>       m_planesActors; /** plane actors. */
+    std::vector<vtkSmartPointer<vtkActor>>       m_crossActors;  /** crosshairs actors. */
+
+    Vector3d m_spacing; /** spacing of the scene. */
+    Vector3d m_max;     /** maximum size of the scene. */
+
+    bool m_visible; /** visibility value. */
+
+    vtkSmartPointer<vtkOrientationMarkerWidget> m_axesWidget; /** orientation marker widget. */
 };
 
 #endif
