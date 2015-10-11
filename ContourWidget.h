@@ -27,146 +27,163 @@ class Selection;
 class ContourWidget
 : public vtkAbstractWidget
 {
-	public:
-		// Description:
-		// Instantiate this class.
-		static ContourWidget *New();
+  public:
+    static ContourWidget *New();
 
-		// Description:
-		// Standard methods for a VTK class.
-		vtkTypeMacro(ContourWidget,vtkAbstractWidget);
-		void PrintSelf(ostream& os, vtkIndent indent);
+    vtkTypeMacro(ContourWidget,vtkAbstractWidget);
 
-		// Description:
-		// The method for activating and de-activating this widget. This method
-		// must be overridden because it is a composite widget and does more than
-		// its superclasses' vtkAbstractWidget::SetEnabled() method.
-		virtual void SetEnabled(int);
+    void PrintSelf(ostream& os, vtkIndent indent);
 
-		// Description:
-		// Specify an instance of vtkWidgetRepresentation used to represent this
-		// widget in the scene. Note that the representation is a subclass of vtkProp
-		// so it can be added to the renderer independent of the widget.
-		void SetRepresentation(ContourRepresentation *r)
-		{
-			this->Superclass::SetWidgetRepresentation(reinterpret_cast<vtkWidgetRepresentation*>(r));
-		}
+    virtual void SetEnabled(int enabling);
 
-		// Description:
-		// Return the representation as a ContourRepresentation.
-		ContourRepresentation *GetContourRepresentation()
-		{
-			return reinterpret_cast<ContourRepresentation*>(this->WidgetRep);
-		}
+    /** \brief Specify an instance of vtkWidgetRepresentation used to represent this
+     * widget in the scene. Note that the representation is a subclass of vtkProp
+     * so it can be added to the renderer independent of the widget.
+     * \param[in] representation instance of contour representation.
+     *
+     */
+    void SetRepresentation(ContourRepresentation *representation)
+    {
+      this->Superclass::SetWidgetRepresentation(reinterpret_cast<vtkWidgetRepresentation*>(representation));
+    }
 
-		// Description:
-		// Create the default widget representation if one is not set.
-		void CreateDefaultRepresentation();
+    /** \brief Return the representation as a ContourRepresentation.
+     *
+     */
+    ContourRepresentation *GetContourRepresentation() const
+    {
+      return reinterpret_cast<ContourRepresentation*>(this->WidgetRep);
+    }
 
-		// Description:
-		// Convenient method to close the contour loop.
-		void CloseLoop();
+    void CreateDefaultRepresentation();
 
-		// Description:
-		// Convenient method to change what state the widget is in.
-		vtkSetMacro(WidgetState,int);
+    /** \brief Convenient method to close the contour loop.
+     *
+     */
+    void CloseLoop();
 
-		// Description:
-		// Convenient method to determine the state of the method
-		vtkGetMacro(WidgetState,int);
+    /** \brief The state of the widget
+     *
+     */
+    enum class ContourWidgetState: char { Start = 0, Define, Manipulate };
 
-		// Description:
-		// Set / Get the AllowNodePicking value. This ivar indicates whether the nodes
-		// and points between nodes can be picked/un-picked by Ctrl+Click on the node.
-		void SetAllowNodePicking(int);
-		vtkGetMacro( AllowNodePicking, int );
-		vtkBooleanMacro( AllowNodePicking, int );
+    /** \brief Convenient methods to change/get what state the widget is in.
+     *
+     */
+    vtkSetMacro(WidgetState,ContourWidgetState);
+    vtkGetMacro(WidgetState,ContourWidgetState);
 
-		// Description:
-		// Follow the cursor ? If this is ON, during definition, the last node of the
-		// contour will automatically follow the cursor, without waiting for the the
-		// point to be dropped. This may be useful for some interpolators, such as the
-		// live-wire interpolator to see the shape of the contour that will be placed
-		// as you move the mouse cursor.
-		vtkSetMacro( FollowCursor, int );
-		vtkGetMacro( FollowCursor, int );
-		vtkBooleanMacro( FollowCursor, int );
+    /** \brief Set / Get the AllowNodePicking value. This ivar indicates whether the nodes
+     * and points between nodes can be picked/un-picked by Ctrl+Click on the node.
+     * \param[in] value 0 to enable and other value otherwise.
+     *
+     */
+    void SetAllowNodePicking(int value);
 
-		// Description:
-		// Define a contour by continuously drawing with the mouse cursor.
-		// Press and hold the left mouse button down to continuously draw.
-		// Releasing the left mouse button switches into a snap drawing mode.
-		// Terminate the contour by pressing the right mouse button.  If you
-		// do not want to see the nodes as they are added to the contour, set the
-		// opacity to 0 of the representation's property.  If you do not want to
-		// see the last active node as it is being added, set the opacity to 0
-		// of the representation's active property.
-		vtkSetMacro( ContinuousDraw, int );
-		vtkGetMacro( ContinuousDraw, int );
-		vtkBooleanMacro( ContinuousDraw, int );
+    vtkGetMacro(AllowNodePicking, int);
+    vtkBooleanMacro(AllowNodePicking, int);
 
-		// Description:
-		// Initialize the contour widget from a user supplied set of points. The
-		// state of the widget decides if you are still defining the widget, or
-		// if you've finished defining (added the last point) are manipulating
-		// it. Note that if the polydata supplied is closed, the state will be
-		// set to manipulate.
-		//  State: Define = 0, Manipulate = 1.
-		virtual void Initialize(vtkPolyData * poly, int state = 1);
-		virtual void Initialize()
-		{
-			this->Initialize(NULL);
-		}
+    /** \brief If this is ON, during definition, the last node of the
+     * contour will automatically follow the cursor, without waiting for the the
+     * point to be dropped. This may be useful for some interpolators, such as the
+     * live-wire interpolator to see the shape of the contour that will be placed
+     * as you move the mouse cursor.
+     *
+     */
+    vtkSetMacro(FollowCursor, int);
+    vtkGetMacro(FollowCursor, int);
+    vtkBooleanMacro( FollowCursor, int);
 
-		// orientation of the slice where the widget is (0 = axial, 1 = coronal, 2 = sagittal)
-		vtkGetMacro(Orientation,int);
-		vtkSetMacro(Orientation,int);
-	protected:
-		ContourWidget();
-		~ContourWidget();
+    /** \brief Define a contour by continuously drawing with the mouse cursor.
+     * Press and hold the left mouse button down to continuously draw.
+     * Releasing the left mouse button switches into a snap drawing mode.
+     * Terminate the contour by pressing the right mouse button.  If you
+     * do not want to see the nodes as they are added to the contour, set the
+     * opacity to 0 of the representation's property.  If you do not want to
+     * see the last active node as it is being added, set the opacity to 0
+     * of the representation's active property.
+     *
+     */
+    vtkSetMacro(ContinuousDraw, int);
+    vtkGetMacro(ContinuousDraw, int);
+    vtkBooleanMacro(ContinuousDraw, int);
 
-		// The state of the widget
-//BTX
-		enum
-		{
-			Start, Define, Manipulate
-		};
+    /** \brief Initialize the contour widget from a user supplied set of points. The
+     * state of the widget decides if you are still defining the widget, or
+     * if you've finished defining (added the last point) are manipulating
+     * it. Note that if the polydata supplied is closed, the state will be
+     * set to manipulate.
+     *  \param[in] polydata polydata object with the contour points.
+     *  \param[in] state Define = 0 or Manipulate = 1.
+     *
+     */
+    virtual void Initialize(vtkPolyData * poly, int state = 1);
+    virtual void Initialize()
+    {
+      this->Initialize(nullptr);
+    }
 
-//ETX
+    /** \brief Orientation of the slice where the widget is (0 = axial, 1 = coronal, 2 = sagittal)
+     *
+     */
+    vtkGetMacro(Orientation,int);
+    vtkSetMacro(Orientation,int);
 
-		int WidgetState;
-		int CurrentHandle;
-		int AllowNodePicking;
-		int FollowCursor;
-		int ContinuousDraw;
-		int ContinuousActive;
-		int Orientation;
+  protected:
+    /** \brief ContourWidget class constructor.
+     *
+     */
+    ContourWidget();
 
-		// Callback interface to capture events when
-		// placing the widget.
-		static void SelectAction(vtkAbstractWidget*);
-		static void AddFinalPointAction(vtkAbstractWidget*);
-		static void MoveAction(vtkAbstractWidget*);
-		static void EndSelectAction(vtkAbstractWidget*);
-		static void DeleteAction(vtkAbstractWidget*);
-		static void TranslateContourAction(vtkAbstractWidget*);
-		static void ScaleContourAction(vtkAbstractWidget*);
-		static void ResetAction(vtkAbstractWidget*);
-		static void KeyPressAction(vtkAbstractWidget *);
+    /** \brief ContourWidget class virtual destructor.
+     *
+     */
+    virtual ~ContourWidget();
 
-		// Internal helper methods
-		void SelectNode();
-		void AddNode();
+    ContourWidgetState WidgetState;      /** current widget state. */
 
-		// helper methods for cursor management
-		virtual void SetCursor(int State);
+    int CurrentHandle;    /** current node handle. */
+    int AllowNodePicking; /** node picking enabled state. */
+    int FollowCursor;     /** last node follows cursor state. */
+    int ContinuousDraw;   /** continuous contour drawn state. */
+    int ContinuousActive; /** continuous active state. */
+    int Orientation;      /** orientation of the contour. */
 
-		friend class Selection;
-	private:
-		ContourWidget(const ContourWidget&);  //Not implemented
-		void operator=(const ContourWidget&);  //Not implemented
+    /** \brief Widget's callbacks to events.
+     *
+     */
+    static void SelectAction(vtkAbstractWidget *widget);
+    static void AddFinalPointAction(vtkAbstractWidget *widget);
+    static void MoveAction(vtkAbstractWidget *widget);
+    static void EndSelectAction(vtkAbstractWidget *widget);
+    static void DeleteAction(vtkAbstractWidget *widget);
+    static void TranslateContourAction(vtkAbstractWidget *widget);
+    static void ScaleContourAction(vtkAbstractWidget *widget);
+    static void ResetAction(vtkAbstractWidget *widget);
+    static void KeyPressAction(vtkAbstractWidget *widget);
 
-		QCursor crossMinusCursor, crossPlusCursor;
+    /** \brief Internal method to select the closest node to the cursor.
+     *
+     */
+    void SelectNode();
+
+    /** \brief Internal method to add a node at the cursor position.
+     *
+     */
+    void AddNode();
+
+    /** \brief Helper method for cursor management.
+     * \param[in] state widget state.
+     *
+     */
+    virtual void SetCursor(int State);
+
+    friend class Selection;
+  private:
+    ContourWidget(const ContourWidget&) = delete;
+    void operator=(const ContourWidget&) = delete;
+
+    QCursor crossMinusCursor, crossPlusCursor; /** cursor bitmaps to delete/add a node. */
 };
 
 #endif // _CONTOURWIDGET_H_
