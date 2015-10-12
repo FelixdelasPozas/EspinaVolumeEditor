@@ -17,17 +17,18 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // QtAbout class
 //
-class QtKeyboardHelp: public QDialog, private Ui_KeyBoardHelp
+class QtKeyboardHelp
+: public QDialog
+, private Ui_KeyBoardHelp
 {
-        Q_OBJECT
-    public:
-        // constructor & destructor
-        QtKeyboardHelp(QWidget *parent = 0, Qt::WindowFlags f = Qt::Dialog);
-        ~QtKeyboardHelp();
-
-    public slots:
-
-    private:
+  Q_OBJECT
+  public:
+    /** \brief QtKeyboardHelp class constructor.
+     * \param[in] parent pointer to the QWidget parent of this one.
+     * \param[in] f window flags.
+     *
+     */
+    QtKeyboardHelp(QWidget *parent = nullptr, Qt::WindowFlags f = Qt::Dialog);
 };
 
 #endif // _QTKEYBOARDSHORTCUTSHELP_H_

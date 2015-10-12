@@ -20,80 +20,105 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // QtPreferences class
 //
-class QtPreferences: public QDialog, private Ui_Preferences
+class QtPreferences
+: public QDialog
+, private Ui_Preferences
 {
-    Q_OBJECT
+  Q_OBJECT
 
-    public:
-        // constructor & destructor
-        QtPreferences(QWidget *parent = 0, Qt::WindowFlags f = Qt::Dialog);
-        ~QtPreferences();
-        
-        // set initial options
-        void SetInitialOptions(unsigned long int, unsigned long int, unsigned int, double, int, unsigned int, bool, unsigned int);
+  public:
+    /** \brief QtPreferences class constructor.
+     * \param[in] parent pointer to the QWidget parent of this one.
+     * \param[in] f window flags.
+     *
+     */
+    QtPreferences(QWidget *parent = nullptr, Qt::WindowFlags f = Qt::Dialog);
 
-        // get the capacity
-        unsigned long int GetSize(void);
-        
-        // get the radius
-        unsigned int GetRadius(void);
-        
-        // get the flood level
-        double GetLevel(void);
-        
-        // get the segmentation opacity when a reference image is present
-        unsigned int GetSegmentationOpacity(void);
-        
-        // returns true if the user pushed the Ok button instead the Cancel or Close.
-        bool ModifiedData(void);
-        
-        // enable the visualization options box, that should be disabled if there isn't a reference image loaded
-        void EnableVisualizationBox(void);
+    /** \brief Sets the initial options.
+     * \param[in] size size of the undo/redo system in bytes.
+     * \param[in] capacity capacity of the undo/redo system.
+     * \param[in] radius radius of the morphological operations.
+     * \param[in] level level value for the watershed operation.
+     * \param[in] opacity opacity value for the segmentation representations.
+     * \param[in] saveTime auto-save time interval in minutes.
+     * \param[in] saveEnabled true to enable auto-save feature.
+     * \param[in] paintRadius paint disk radius value.
+     *
+     */
+    void SetInitialOptions(const unsigned long int size,
+                           const unsigned long int capacity,
+                           const unsigned int      radius,
+                           const double            level,
+                           const int               opacity,
+                           const unsigned int      saveTime,
+                           const bool              saveEnabled,
+                           const unsigned int      paintRadius);
 
-        // get the save session time
-        unsigned int GetSaveSessionTime(void);
+    /** \brief Returns the size of the undo/redo system.
+     *
+     */
+    const unsigned long int size() const;
 
-        // get if the save session data option is enabled
-        bool GetSaveSessionEnabled(void);
+    /** \brief Returns the radius value for the morphological operations.
+     *
+     */
+    const unsigned int radius() const;
 
-        // get the paint/erase operation radius
-        unsigned int GetPaintEraseRadius(void);
-    public slots:
-        // slots for signals
-        virtual void SelectSize(int);
-        virtual void SelectRadius(int);
-        virtual void SelectLevel(double);
-        virtual void SelectOpacity(int);
-        virtual void SelectSaveTime(int);
-        virtual void SelectPaintEraseRadius(int);
-        
-    private slots:
-        void AcceptedData();
-        
-    private:
-        // undo/redo buffer capacity in bytes
-        unsigned long int _undoSize;
-        
-        // undo/redo buffer system occupation
-        unsigned long int _undoCapacity;
-        
-        // open/close/dilate/erode filters' radius
-        unsigned int _filtersRadius;
-        
-        // paint/erase operations radius
-        unsigned int _paintEraseRadius;
+    /** \brief Returns the level value of the watershed operation.
+     *
+     */
+    const double level() const;
 
-        // watershed filter flood level
-        double _watershedLevel;
-        
-        // segmentation opacity when a reference image is present
-        unsigned int _segmentationOpacity;
-        
-        // save session time
-        unsigned int _saveTime;
+    /** \brief Returns the segmentation opacity when a reference image is present.
+     *
+     */
+    const unsigned int opacity() const;
 
-        // just to know that the data has been modified 
-        bool _modified;
+    /** \brief Returns true if the user pushed the Ok button instead the Cancel or Close.
+     *
+     */
+    bool isModified() const;
+
+    /** \brief Enables the visualization options box, that should be disabled if there isn't a reference image loaded.
+     *
+     */
+    void enableVisualizationBox();
+
+    /** \brief Returns the auto-save interval in minutes.
+     *
+     */
+    const unsigned int autoSaveInterval() const;
+
+    /** \brief Returns true if the auto-save feature is enabled and false otherwise.
+     *
+     */
+    bool isAutoSaveEnabled() const;
+
+    /** \brief Returns the brush radius value
+     *
+     */
+    unsigned int brushRadius() const;
+  public slots:
+    // slots for signals
+    virtual void SelectSize(int);
+    virtual void SelectRadius(int);
+    virtual void SelectLevel(double);
+    virtual void SelectOpacity(int);
+    virtual void SelectSaveTime(int);
+    virtual void SelectPaintEraseRadius(int);
+
+  private slots:
+    void AcceptedData();
+
+  private:
+    unsigned long int m_undoSize;       /** undo/redo buffer capacity in bytes.                     */
+    unsigned long int m_undoCapacity;   /** undo/redo buffer system occupation.                     */
+    unsigned int      m_filtersRadius;  /** open/close/dilate/erode filters' radius.                */
+    unsigned int      m_brushRadius;    /** paint/erase operations radius.                          */
+    double            m_watershedLevel; /** watershed filter flood level.                           */
+    unsigned int      m_opacity;        /** segmentation opacity when a reference image is present. */
+    unsigned int      m_saveTime;       /** auto-save time interval.                                */
+    bool              m_modified;       /** just to know that the data has been modified.           */
 };
 
 #endif // _QTPREFERENCES_H_

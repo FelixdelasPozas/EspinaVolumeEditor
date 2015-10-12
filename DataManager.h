@@ -31,8 +31,8 @@
 #include "VectorSpaceAlgebra.h"
 
 // defines & typedefs
-typedef itk::ShapeLabelObject< unsigned short, 3 > LabelObjectType;
-typedef itk::LabelMap< LabelObjectType > LabelMapType;
+using LabelObjectType = itk::ShapeLabelObject<unsigned short, 3>;
+using LabelMapType = itk::LabelMap<LabelObjectType>;
 
 // UndoRedoSystem forward declaration
 class UndoRedoSystem;
@@ -42,182 +42,348 @@ class UndoRedoSystem;
 //
 class DataManager
 {
-    public:
-        // constructor & destructor
-        DataManager();
-        ~DataManager(void);
+  public:
+    /** \brief DataManager class constructor.
+     *
+     */
+    DataManager();
 
-        // class init
-        void Initialize(itk::SmartPointer<LabelMapType>, Coordinates *, Metadata *);
+    /** \brief DataManager class destructor.
+     *
+     */
+    ~DataManager(void);
 
-        // undo/redo system signaling
-        void OperationStart(std::string);
-        void OperationEnd();
-        void OperationCancel();
-        
-        // undo/redo system forwarding as i don't want other than DataManager touch the Undo/Redo system
-        // but need these actions for the GUI menu items
-        std::string GetUndoActionString();
-        std::string GetRedoActionString();
-        std::string GetActualActionString();
-        bool IsUndoBufferEmpty();
-        bool IsRedoBufferEmpty();
-        void DoUndoOperation();
-        void DoRedoOperation();
+    /** \brief Initializes the data manager.
+     * \param[in] labelMap label map image.
+     * \param[in] coordinates image coordinates.
+     * \param[in] metadata image metadata.
+     *
+     */
+    void Initialize(itk::SmartPointer<LabelMapType> labelMap,
+                    std::shared_ptr<Coordinates>    coordinates,
+                    std::shared_ptr<Metadata>       metadata);
 
-        // undo/redo configuration
-        void SetUndoRedoBufferSize(unsigned long int);
-        unsigned long int GetUndoRedoBufferSize();
-        unsigned long int GetUndoRedoBufferCapacity();
+    /** \brief Undo/Redo system start operation signaling.
+     * \param[in] operationName name of the starting operation.
+     *
+     */
+    void OperationStart(const std::string &operationName);
 
-        // lookuptable color modification and check
-        void ColorHighlight(const unsigned short);
-        void ColorDim(const unsigned short);
-        void ColorHighlightExclusive(unsigned short);
-        void ColorDimAll(void);
-        bool ColorIsInUse(double* color);
-        unsigned int GetNumberOfColors();
-        void GetColorComponents(unsigned short, double*);
-        void SetColorComponents(unsigned short, double*);
+    /** \brief Undo/Redo system end operation signaling.
+     *
+     */
+    void OperationEnd();
 
-        // SETS /////////////////////////
+    /** \brief Undo/Redo system cancel operation signaling.
+     *
+     */
+    void OperationCancel();
 
-        // changes voxel label
-        void SetVoxelScalar(unsigned int, unsigned int, unsigned int, unsigned short);
+    /** \brief Returns current undo action name.
+     *
+     */
+    const std::string & GetUndoActionString() const;
 
-        // changes voxel label but bypass undo/redo system, used to take back changes made to data while
-        // we are inside an exception treatment code.
-        void SetVoxelScalarRaw(unsigned int, unsigned int, unsigned int, unsigned short);
+    /** \brief Returns the current redo action name.
+     *
+     */
+    const std::string & GetRedoActionString() const;
 
-        // creates a new label and assigns a new scalar to that label, starting from an initial
-        // optional value (firstfreevalue). modifies color table and returns new label position
-        // (not scalar used for that label)
-        unsigned short SetLabel(Vector3d);
+    /** \brief Returns the current operation name.
+     *
+     */
+    const std::string & GetActualActionString() const;
 
-        // set image StructuredPoints
-    	void SetStructuredPoints(vtkSmartPointer<vtkStructuredPoints>);
+    /** \brief Returns true if the undo buffer is empty.
+     *
+     */
+    bool IsUndoBufferEmpty() const;
 
-        // set the first scalar value that is free to assign a label (it's NOT the label number)
-        void SetFirstFreeValue(unsigned short);
+    /** \brief Returns true if the redo buffer is empty.
+     *
+     */
+    bool IsRedoBufferEmpty() const;
 
-        // set the set of selected labels
-        void SetSelectedLabelsSet(std::set<unsigned short>);
+    /** \brief Undo the last undo operation.
+     *
+     */
+    void DoUndoOperation();
 
-        // GETS /////////////////////////
+    /** \brief Redo the last redo operation.
+     *
+     */
+    void DoRedoOperation();
 
-        // get the lookuptable (used only by slices because we need the same lookuptable pointer for all)
-        vtkSmartPointer<vtkLookupTable> GetLookupTable();
+    /** \brief Sets the undo/redo buffer size.
+     * \param[in] size size of the buffer in bytes.
+     *
+     */
+    void SetUndoRedoBufferSize(const unsigned long int size);
 
-        // get pointer to vtkStructuredPoints
-        vtkSmartPointer<vtkStructuredPoints> GetStructuredPoints();
-        
-        // get pointer to original labelmap, this labelmap is never modified
-        itk::SmartPointer<LabelMapType> GetLabelMap();
-        
-        // get orientation data
-        Coordinates * GetOrientationData();
-        
-        // get scalar/label from label/scalar
-        unsigned short GetScalarForLabel(unsigned short);
-        unsigned short GetLabelForScalar(unsigned short);
-        
-        // get centroid of object with specified label
-        Vector3d GetCentroidForObject(unsigned short int);
+    /** \brief Returns the undo/redo system buffer size.
+     *
+     */
+    const unsigned long int GetUndoRedoBufferSize() const;
 
-        // get scalar for voxel(x,y,z)
-        unsigned short GetVoxelScalar(unsigned int, unsigned int, unsigned int);
-        
-        // get the first scalar value that is free to assign to a label (NOT the label number)
-        unsigned short GetFirstFreeValue();
-        
-        // get the last used scalar in _labelValues
-        unsigned short GetLastUsedValue();
-        
-        // get a pointer to the rgba values of a scalar (it's NOT the label number)
-        double* GetRGBAColorForScalar(unsigned short);
-        
-        // voxel statistics per label
-        unsigned long long int GetNumberOfVoxelsForLabel(unsigned short);
+    /** \brief Returns the undo/redo buffer current capacity.
+     *
+     */
+    const unsigned long int GetUndoRedoBufferCapacity() const;
 
-        // get the bounding box index and size for the object
-        Vector3ui GetBoundingBoxMin(unsigned short);
-        Vector3ui GetBoundingBoxMax(unsigned short);
+    /** \brief Highlights the color of the given scalar value.
+     * \param[in] value value of the color to highlight.
+     *
+     */
+    void ColorHighlight(const unsigned short value);
 
-        // get the number of labels used (including the background label)
-        unsigned int GetNumberOfLabels(void);
+    /** \brief Dims the color of the given scalar.
+     * \param[in] value value of the color to dim.
+     *
+     */
+    void ColorDim(const unsigned short value);
 
-        // get the set of selected labels
-        const std::set<unsigned short> GetSelectedLabelsSet(void);
+    /** \brief Highlights the color of the given value exclusively.
+     *
+     */
+    void ColorHighlightExclusive(const unsigned short value);
 
-        // get the selected label set size
-        const int GetSelectedLabelSetSize(void);
+    /** \brief Dims all the colors.
+     *
+     */
+    void ColorDimAll(void);
 
-        // ask if a color is selected
-        const bool IsColorSelected(unsigned short);
+    /** \brief Returns true if the color is in use by another scalar value.
+     *
+     */
+    const bool ColorIsInUse(const QColor &color) const;
 
-        struct ObjectInformation
-        {
-        		unsigned short 			scalar;			// original scalar value in the image loaded
-        		Vector3d 				centroid;		// centroid of the object
-        		unsigned long long int 	sizeInVoxels;	// size of the object in voxels
-        		Vector3ui	 			min;			// Bounding Box: min values
-        		Vector3ui	 			max;			// Bounding Box: max values
+    /** \brief Returns the number of used colors.
+     *
+     *
+     */
+    const unsigned int GetNumberOfColors() const;
 
-        		ObjectInformation(): scalar(0), centroid(Vector3d(0,0,0)), sizeInVoxels(0), min(Vector3ui(0,0,0)), max(Vector3ui(0,0,0)) {};
-        };
+    /** \brief Returns the QColor struct of the color assigned to the given value.
+     * \param[in] value color scalar value.
+     *
+     */
+    const QColor GetColorComponents(const unsigned short value) const;
 
-        // get the table of objects
-        std::map<unsigned short, struct DataManager::ObjectInformation*>* GetObjectTablePointer();
+    /** \brief Changes the color assigned to the given scalar value.
+     *
+     */
+    void SetColorComponents(const unsigned short value, const QColor &color);
 
-        // MISC /////////////////////////
+    /** \brief Changes the scalar value of the given point.
+     * \param[in] point point coordinates.
+     * \param[in] value new scalar value.
+     *
+     */
+    void SetVoxelScalar(const Vector3ui &point, const unsigned short value);
 
-        // switch tables
-        void SwitchLookupTables(vtkSmartPointer<vtkLookupTable>);
+    /** \brief Changes the scalar value of the given point bypassing the undo/redo system.
+     * Used inside exception treatment code.
+     * \param[in] point point coordinates.
+     * \param[in] value new scalar value.
+     *
+     */
+    void SetVoxelScalarRaw(const Vector3ui &point, const unsigned short value);
 
-        // signals the structured points as modified
-        void SignalDataAsModified();
+    /** \brief Creates a new label and assigns a new scalar to that label, starting from an initial
+     * optional value. Modifies color table and returns new label position (not scalar used for that label).
+     * \param[in] color color of the new label value.
+     *
+     */
+    const unsigned short SetLabel(const QColor &color);
 
-        friend class SaveSessionThread;
-        friend class EspinaVolumeEditor;
-    private:
-        // resets lookuptable to initial state based on original labelmap, used during init too
-        void GenerateLookupTable();
+    /** \brief Sets the image to be managed.
+     * \param[in] image image data.
+     *
+     */
+    void SetStructuredPoints(vtkSmartPointer<vtkStructuredPoints> image);
 
-        // copy one lookuptable over another, does not change pointers (important)
-        void CopyLookupTable(vtkSmartPointer<vtkLookupTable>,vtkSmartPointer<vtkLookupTable>);
-        
-        // voxel statistics functions, trivial but implemented as functions because it appears frecuently
-        void StatisticsActionReset(void);
-        void StatisticsActionJoin(void);
-        void StatisticsActionClear(void);
-        
-        // needed data attributes
-        itk::SmartPointer<LabelMapType>         	_labelMap;
-        vtkSmartPointer<vtkStructuredPoints>    	_structuredPoints;
-        vtkSmartPointer<vtkLookupTable>         	_lookupTable;
-        Coordinates                            	   *_orientationData;
-        UndoRedoSystem                         	   *_actionsBuffer;
+    /** \brief Set the first scalar value that is free to assign a label (it's NOT the label number).
+     * \param[in] value scalar value.
+     *
+     */
+    void SetFirstFreeValue(const unsigned short value);
 
-        // first free value for new labels
-        unsigned short                          	_firstFreeValue;
+    /** \brief Sets the group of selected labels.
+     * \param[in] labels group of selected labels.
+     *
+     */
+    void SetSelectedLabelsSet(const std::set<unsigned short> &labels);
 
-        // set of selected labels
-        std::set<unsigned short> 					_selectedLabels;
+    /** \brief Returns the lookuptable used for coloring.
+     *
+     */
+    vtkSmartPointer<vtkLookupTable> GetLookupTable() const;
 
-        // object information vector
-        std::map<unsigned short, struct ObjectInformation*> ObjectVector;
+    /** \brief Returns a pointer to the image data object.
+     *
+     */
+    vtkSmartPointer<vtkStructuredPoints> GetStructuredPoints() const;
 
-        // action in progress data for voxel counting and centroid calculations.
-        struct ActionInformation
-        {
-        		long long int 	sizeInVoxels;			// size of the action in voxels
-        		Vector3ll 		temporalCentroid;		// sum of the x,y,z coords of the points added/substraced in the action
-        		Vector3ui	 	min;					// Bounding Box: min values
-        		Vector3ui	 	max;					// Bounding Box: max values
+    /** \brief Returns the original labelmap used to generate the image data.
+     *
+     */
+    itk::SmartPointer<LabelMapType> GetLabelMap() const;
 
-        		ActionInformation(): sizeInVoxels(0), temporalCentroid(Vector3ll(0,0,0)), min(Vector3ui(0,0,0)), max(Vector3ui(0,0,0)) {};
-        };
-        std::map<unsigned short, struct ActionInformation*> ActionInformationVector;
+    /** \brief Returns the orientation data.
+     *
+     */
+    std::shared_ptr<Coordinates> GetOrientationData() const;
+
+    /** \brief Returns the scalar used for the given label.
+     * \param[in] label label value.
+     *
+     */
+    unsigned short GetScalarForLabel(const unsigned short label) const;
+
+    /** \brief Returns the label used for the given scalar.
+     * \param[in] value scalar value.
+     *
+     */
+    unsigned short GetLabelForScalar(const unsigned short value) const;
+
+    /** \brief Returns the centroid of the object with the given label.
+     * \param[in] label label value.
+     */
+    Vector3d GetCentroidForObject(const unsigned short int label) const;
+
+    /** \brief Returns the scalar value of the given position.
+     * \param[in] point point coordinates.
+     *
+     */
+    const unsigned short GetVoxelScalar(const Vector3ui &point) const;
+
+    /** \brief Returns the first scalar value that is free to assign to a label (NOT the label number).
+     *
+     */
+    const unsigned short GetFirstFreeValue() const;
+
+    /** \brief Returns the last used scalar in _labelValues.
+     *
+     */
+    const unsigned short GetLastUsedValue() const;
+
+    /** \brief Returns the color of the given scalar value.
+     * \param[in] value scalar value.
+     *
+     */
+    const QColor GetRGBAColorForScalar(const unsigned short value) const;
+
+    /** \brief Returns the number of voxels assigned to a given label.
+     * \param[in] label label value.
+     *
+     */
+    unsigned long long int GetNumberOfVoxelsForLabel(unsigned short label) const;
+
+    /** \brief Returns the bounding box minimum values for the givel label.
+     * \param[in] label label value.
+     *
+     */
+    Vector3ui GetBoundingBoxMin(unsigned short label) const;
+
+    /** \brief Returns the bounding box maximum values for the givel label.
+     * \param[in] label label value.
+     *
+     */
+    Vector3ui GetBoundingBoxMax(unsigned short label) const;
+
+    /** \brief Returns the number of labels used including the background label.
+     *
+     */
+    const unsigned int GetNumberOfLabels(void) const;
+
+    /** \brief Returns the set of selected labels.
+     *
+     */
+    const std::set<unsigned short> GetSelectedLabelsSet(void) const;
+
+    /** \brief Returns the selected label set size.
+     *
+     */
+    const int GetSelectedLabelSetSize(void) const;
+
+    /** \brief Returns true if the givel label is selected.
+     *
+     */
+    const bool IsColorSelected(unsigned short label) const;
+
+    struct ObjectInformation
+    {
+        unsigned short         scalar;   /** original scalar value in the image loaded */
+        Vector3d               centroid; /** centroid of the object */
+        unsigned long long int size;     /** size of the object in voxels */
+        Vector3ui              min;      /** Bounding Box: min values */
+        Vector3ui              max;      /** Bounding Box: max values */
+
+        ObjectInformation()
+        : scalar{0}, centroid{Vector3d{0, 0, 0}}, size{0}, min{Vector3ui{0, 0, 0}}, max{Vector3ui{0, 0, 0}} {};
+    };
+
+    /** \brief Returns the table of objects.
+     *
+     */
+    std::map<unsigned short, struct DataManager::ObjectInformation*>* GetObjectTablePointer() const;
+
+    /** \brief Replaces the lookuptable with the given one.
+     * \param[inout] lookuptable color table to switch.
+     *
+     */
+    void SwitchLookupTables(vtkSmartPointer<vtkLookupTable> lookuptable);
+
+    /** \brief Signals the data as modified.
+     *
+     */
+    void SignalDataAsModified();
+
+    friend class SaveSessionThread;
+    friend class EspinaVolumeEditor;
+  private:
+    /** \brief Helper method to reset the lookuptable to initial state based on original labelmap, used during init too
+     *
+     */
+    void GenerateLookupTable();
+
+    /** \brief Helper method to copy the values of one lookuptable to another, does not change pointers (important).
+     *
+     */
+    void CopyLookupTable(vtkSmartPointer<vtkLookupTable> from, vtkSmartPointer<vtkLookupTable> to) const;
+
+    /** \brief Updates the values of the action information vector.
+     *
+     */
+    void StatisticsActionUpdate(void);
+
+    /** \brief Clears the action information vector.
+     *
+     */
+    void StatisticsActionClear(void);
+
+    itk::SmartPointer<LabelMapType>      m_labelMap;         /** original labelmap object.        */
+    vtkSmartPointer<vtkStructuredPoints> m_structuredPoints; /** image data object.               */
+    vtkSmartPointer<vtkLookupTable>      m_lookupTable;      /** color table.                     */
+    std::shared_ptr<Coordinates>         m_orientationData;  /** image orientation data.          */
+    std::shared_ptr<UndoRedoSystem>      m_actionsBuffer;    /** undo/redo system.                */
+    unsigned short                       m_firstFreeValue;   /** first free value for new labels. */
+    std::set<unsigned short>             m_selectedLabels;   /** set of selected labels.          */
+
+    std::map<unsigned short, struct ObjectInformation*> ObjectVector; /** object information vector. */
+
+    struct ActionInformation
+    {
+        long long int size;     /** size of the action in voxels.                                         */
+        Vector3ll     centroid; /** sum of the x,y,z coords of the points added/substraced in the action. */
+        Vector3ui     min;      /** Bounding Box: min values.                                             */
+        Vector3ui     max;      /** Bounding Box: max values.                                             */
+
+        ActionInformation()
+        : size{0}, centroid{Vector3ll{0, 0, 0}}, min{Vector3ui{0, 0, 0}}, max{Vector3ui{0, 0, 0}} {};
+    };
+
+    std::map<unsigned short, struct ActionInformation*> ActionInformationVector; /** action information vector. */
 };
 
 #endif // _DATAMANAGER_H_

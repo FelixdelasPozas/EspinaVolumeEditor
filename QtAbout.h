@@ -17,17 +17,18 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // QtAbout class
 //
-class QtAbout: public QDialog, private Ui_About
+class QtAbout
+: public QDialog
+, private Ui_About
 {
-        Q_OBJECT
-    public:
-        // constructor & destructor
-        QtAbout(QWidget *parent = 0, Qt::WindowFlags f = Qt::Dialog);
-        ~QtAbout();
-
-    public slots:
-
-    private:
+  Q_OBJECT
+  public:
+    /** \brief QtAbout class constructor.
+     * \param[in] parent pointer to the QWidget parent of this one.
+     * \param[in] f window flags.
+     *
+     */
+    QtAbout(QWidget *parent = nullptr, Qt::WindowFlags f = Qt::Dialog);
 };
 
 #endif // _QTABOUT_H_

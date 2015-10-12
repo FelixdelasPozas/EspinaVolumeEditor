@@ -2,7 +2,7 @@
 // Project: Espina Volume Editor
 // Author: Félix de las Pozas Alvarez
 //
-// File: QtAbout.cxx
+// File: QtAbout.cpp
 // Purpose: egocentrical banner
 // Notes:
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -13,16 +13,12 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // QtAbout class
 //
-QtAbout::QtAbout(QWidget *parent_Widget, Qt::WindowFlags f) : QDialog(parent_Widget,f)
+QtAbout::QtAbout(QWidget *parent_Widget, Qt::WindowFlags f)
+: QDialog(parent_Widget, f)
 {
-    setupUi(this); // this sets up GUI
+  setupUi(this);
 
-    // want to make the dialog appear centered
-    this->move(parent_Widget->geometry().center() - this->rect().center());
-    this->resize(this->minimumSizeHint());
-    this->layout()->setSizeConstraint( QLayout::SetFixedSize );
-}
-
-QtAbout::~QtAbout()
-{
+  this->move(parent_Widget->geometry().center() - this->rect().center());
+  this->resize(this->minimumSizeHint());
+  this->layout()->setSizeConstraint(QLayout::SetFixedSize);
 }

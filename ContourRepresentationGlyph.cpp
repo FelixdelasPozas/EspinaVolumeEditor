@@ -448,7 +448,7 @@ void ContourRepresentationGlyph::ScaleContour(double eventPos[2])
 
 	auto r2 = vtkMath::Distance2BetweenPoints(ref, centroid);
 
-	double displayPos[2]{ eventPos[0] + this->InteractionOffset[0], eventPos[1] + this->InteractionOffset[1]}
+	double displayPos[2]{ eventPos[0] + this->InteractionOffset[0], eventPos[1] + this->InteractionOffset[1]};
 	double worldPos[3];
 	double worldOrient[9] = { 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 };
 
@@ -542,7 +542,7 @@ void ContourRepresentationGlyph::BuildLines()
 	vtkIdType index = 0;
 
 	auto count = this->GetNumberOfNodes();
-	for (i = 0; i < this->GetNumberOfNodes(); i++)
+	for (int i = 0; i < this->GetNumberOfNodes(); i++)
 	{
 		count += this->GetNumberOfIntermediatePoints(i);
 	}

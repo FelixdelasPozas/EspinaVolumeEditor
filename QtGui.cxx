@@ -1438,7 +1438,7 @@ void EspinaVolumeEditor::Preferences()
     		_paintEraseRadius);
     
     if (true == _hasReferenceImage)
-    	configdialog.EnableVisualizationBox();
+    	configdialog.enableVisualizationBox();
     
     configdialog.exec();
     
@@ -1452,25 +1452,25 @@ void EspinaVolumeEditor::Preferences()
 	editorSettings.setValue("Filters Radius", configdialog.GetRadius());
 	editorSettings.setValue("Watershed Flood Level", configdialog.GetLevel());
 	editorSettings.setValue("Segmentation Opacity", configdialog.GetSegmentationOpacity());
-	editorSettings.setValue("Paint-Erase Radius", configdialog.GetPaintEraseRadius());
-	editorSettings.setValue("Autosave Session Data", configdialog.GetSaveSessionEnabled());
-	editorSettings.setValue("Autosave Session Time", configdialog.GetSaveSessionTime());
+	editorSettings.setValue("Paint-Erase Radius", configdialog.brushRadius());
+	editorSettings.setValue("Autosave Session Data", configdialog.isAutoSaveEnabled());
+	editorSettings.setValue("Autosave Session Time", configdialog.autoSaveInterval());
 	editorSettings.sync();
 
 	// configure editor
     this->_editorOperations->SetFiltersRadius(configdialog.GetRadius());
     this->_editorOperations->SetWatershedLevel(configdialog.GetLevel());
     this->_dataManager->SetUndoRedoBufferSize(configdialog.GetSize());
-    this->_paintEraseRadius = configdialog.GetPaintEraseRadius();
+    this->_paintEraseRadius = configdialog.brushRadius();
 
-    if (this->_saveSessionTime != (configdialog.GetSaveSessionTime() * 60 * 1000))
+    if (this->_saveSessionTime != (configdialog.autoSaveInterval() * 60 * 1000))
     {
     	// time for saving session data changed, just update the timer
-    	this->_saveSessionTime = configdialog.GetSaveSessionTime() * 60 * 1000;
+    	this->_saveSessionTime = configdialog.autoSaveInterval() * 60 * 1000;
     	this->_sessionTimer->changeInterval(_saveSessionTime);
     }
 
-    if (false == configdialog.GetSaveSessionEnabled())
+    if (false == configdialog.isAutoSaveEnabled())
     {
     	this->_saveSessionEnabled = false;
     	this->_sessionTimer->stop();

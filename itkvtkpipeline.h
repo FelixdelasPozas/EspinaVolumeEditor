@@ -18,7 +18,9 @@
 #include <vtkSmartPointer.h>
 
 // itk to vtk connexion
-template<typename ITK_Exporter, typename VTK_Importer> void ConnectPipelines(itk::SmartPointer<ITK_Exporter> exporter, vtkSmartPointer<VTK_Importer> importer)
+///////////////////////////////////////////////////////////////////////////////////////////////////
+template<typename ITK_Exporter, typename VTK_Importer>
+void ConnectPipelines(itk::SmartPointer<ITK_Exporter> exporter, vtkSmartPointer<VTK_Importer> importer)
 {
 	importer->SetUpdateInformationCallback(exporter->GetUpdateInformationCallback());
 
@@ -36,7 +38,9 @@ template<typename ITK_Exporter, typename VTK_Importer> void ConnectPipelines(itk
 }
 
 // vtk to itk connexion
-template<typename VTK_Exporter,typename ITK_Importer> void ConnectPipelines(vtkSmartPointer<VTK_Exporter> exporter, itk::SmartPointer<ITK_Importer> importer)
+///////////////////////////////////////////////////////////////////////////////////////////////////
+template<typename VTK_Exporter,typename ITK_Importer>
+void ConnectPipelines(vtkSmartPointer<VTK_Exporter> exporter, itk::SmartPointer<ITK_Importer> importer)
 {
 	importer->SetUpdateInformationCallback(exporter->GetUpdateInformationCallback());
 

@@ -8,8 +8,8 @@
 //        AllPurposeProgressAccumulator from itksnap. thanks.
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#ifndef _TOTAL_PROGRESS_H_
-#define _TOTAL_PROGRESS_H_
+#ifndef _PROGRESS_ACCUMULATOR_H_
+#define _PROGRESS_ACCUMULATOR_H_
 
 // itk includes
 #include <itkObject.h>
@@ -37,78 +37,138 @@
 //
 class ProgressAccumulator
 {
-    public:
-        enum callerType { VTK, ITK, None };
-        
-        struct observerTags
-        {
-            callerType type;    
-            unsigned long tagStart;
-            unsigned long tagEnd;
-            unsigned long tagProgress;
-            std::string text;
-            double weight;
-            observerTags() : type(None), tagStart(0), tagEnd(0), tagProgress(0), text(), weight(0) {}
-        };
-        
-        // command class invoked
-        typedef itk::MemberCommand<ProgressAccumulator> ITKCommandType;
-        typedef vtkCallbackCommand VTKCommandType;
+  public:
+    enum class callerType: char { VTK, ITK, None };
 
-        // constructor
-        ProgressAccumulator();
-        ~ProgressAccumulator();
+    struct observerTags
+    {
+        callerType type;
+        unsigned long tagStart;
+        unsigned long tagEnd;
+        unsigned long tagProgress;
+        std::string text;
+        double weight;
+        observerTags()
+        : type{callerType::None}, tagStart{0}, tagEnd{0}, tagProgress{0}, text{}, weight{0} {}
+    };
 
-        // sets the progress bar that this class will use
-        void SetProgressBar(QProgressBar*, QLabel*);
-        
-        // observe a ITK process (add as a observer of that process)
-        void Observe(itk::Object*, std::string, double);
-        
-        // observe a VTK process (add as a observer of that process)
-        void Observe(vtkObject*, std::string, double);
-        
-        // ignore a ITK process (remove from the list of observers of that object
-        void Ignore(itk::Object*);
-        
-        // ignore a VTK process (remove from the list of observers of that object
-        void Ignore(vtkObject*);
-        
-        // ignore all registered processes
-        void IgnoreAll();
-        
-        // set accumulated progress to 0
-        void Reset();
-        
-        // manual operations
-        void ManualSet(std::string, int = 0, bool = false);
-        void ManualUpdate(int, bool = false);
-        void ManualReset(bool = false);
-    private:
-        // manage a ITK process event
-        void ITKProcessEvent(itk::Object*, const itk::EventObject &);
-        
-        // manage a VTK process event
-        static void VTKProcessEvent(vtkObject*, unsigned long, void *, void *);
-        
-        // callbacks
-        void CallbackProgress(void*, double);
-        void CallbackStart(void*);
-        void CallbackEnd(void*);
+    // command class invoked
+    using ITKCommandType = itk::MemberCommand<ProgressAccumulator>;
+    using VTKCommandType = vtkCallbackCommand;
 
-        // itk command
-        itk::SmartPointer<ITKCommandType>   _itkCommand;
-        
-        // vtk command
-        vtkSmartPointer<VTKCommandType>     _vtkCommand;
-        
-        // manage observed processes
-        std::map<void *, observerTags* >    _observed;
-        double                              _accumulatedProgress; 
-        
-        // Qt elements to show progress
-        QProgressBar                       *_progressBar;
-        QLabel                             *_progressLabel;
+    /** \brief ProgressAccumulator class constructor.
+     *
+     */
+    ProgressAccumulator();
+
+    /** \brief Sets the progress bar that this class will use.
+     * \param[in] bar progress bar used by accumulator.
+     * \param[in] label label of the bar.
+     *
+     */
+    void SetProgressBar(QProgressBar *bar, QLabel *label);
+
+    /** \brief Observe a ITK process (add as a observer of that process).
+     * \param[in] filter filter to observe.
+     * \param[in] text text of the filter.
+     * \param[in] weight weight of the filter in the process.
+     *
+     */
+    void Observe(itk::Object *filter, const std::string &text, const double weight);
+
+    /** \brief Observe a VTK process (add as a observer of that process).
+     * \param[in] filter filter to observe.
+     * \param[in] text text of the filter.
+     * \param[in] weight weight of the filter in the process.
+     *
+     */
+    void Observe(vtkObject *filter, const std::string &text, const double weight);
+
+    /** \brief Ignore a ITK process (remove from the list of observers of that object.
+     * \param[in] filter filter to ignore progress.
+     *
+     */
+    void Ignore(itk::Object *filter);
+
+    /** \brief Ignore a VTK process (remove from the list of observers of that object.
+     * \param[in] filter filter to ignore progress.
+     *
+     */
+    void Ignore(vtkObject *filter);
+
+    // ignore all registered processes
+    void IgnoreAll();
+
+    /** \brief Set accumulated progress to 0.
+     *
+     *
+     */
+    void Reset();
+
+    /** \brief Set the name and progress value manually.
+     * \param[in] text text of the filter.
+     * \param[in] value progress value.
+     * \param[in] calledFromThread true if this is being called from a thread and false otherwise.
+     *
+     */
+    void ManualSet(const std::string &text, const int value = 0, bool calledFromThread = false);
+
+    /** \brief Manually update the progress value.
+     * \param[in] value progress value.
+     * \param[in] calledFromThread true if this is being called from a thread and false otherwise.
+     *
+     */
+    void ManualUpdate(const int value, bool calledFromThread = false);
+
+    /** \brief Manually reset progress value.
+     * \param[in] calledFromThread true if this is being called from a thread and false otherwise.
+     *
+     */
+    void ManualReset(bool calledFromThread = false);
+  private:
+    /** \brief Helper method to manage a ITK process event.
+     * \param[in] caller pointer to caller object.
+     * \param[in] event event object.
+     *
+     */
+    void ITKProcessEvent(itk::Object *caller, const itk::EventObject &event);
+
+    /** \brief Helper method to manage a VTK process event.
+     * \param[in] caller pointer to caller object.
+     * \param[in] eid event id.
+     * \param[in] clientdata caller additional data.
+     * \param[in] calldata event additional data.
+     *
+     */
+    static void VTKProcessEvent(vtkObject *caller, unsigned long eid, void *clientdata, void *calldata);
+
+    /** \brief Progress event callback.
+     * \param[in] caller pointer to caller object.
+     * \param[in] value progress value.
+     *
+     */
+    void CallbackProgress(void *caller, const double value);
+
+    /** \brief Progress start callback.
+     * \param[in] caller pointer to caller object.
+     *
+     */
+    void CallbackStart(void *caller);
+
+    /** \brief Progress end callback.
+     * \param[in] caller pointer to caller object.
+     *
+     */
+    void CallbackEnd(void *caller);
+
+    itk::SmartPointer<ITKCommandType> m_ITKCommand; /** itk command. */
+    vtkSmartPointer<VTKCommandType>   m_VTKCommand; /** vtk command. */
+
+    std::map<void *, observerTags*> m_observed; /** observed processes.   */
+    double                          m_progress; /** accumulated progress. */
+
+    QProgressBar *m_progressBar;   /** QProgress bar showing the progress. */
+    QLabel       *m_progressLabel; /** QLabel associated to the bar.       */
 };
 
-#endif // _TOTAL_PROGRESS_H_
+#endif // _PROGRESS_ACCUMULATOR_H_

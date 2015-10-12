@@ -10,10 +10,6 @@
 #ifndef _QTCOLORPICKER_H_
 #define _QTCOLORPICKER_H_
 
-// vtk includes
-#include <vtkLookupTable.h>
-#include <vtkSmartPointer.h>
-
 // Qt includes
 #include <QtGui>
 #include "ui_QtColorPicker.h"
@@ -25,43 +21,50 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // QtColorPicker class
 //
-class QtColorPicker: public QDialog, private Ui_ColorPicker
+class QtColorPicker
+: public QDialog
+, private Ui_ColorPicker
 {
-        Q_OBJECT
-    public:
-        // constructor & destructor
-        QtColorPicker(QWidget *parent = 0, Qt::WindowFlags f = Qt::Dialog);
-        ~QtColorPicker();
+  Q_OBJECT
+  public:
+    /** \brief QtColorPicker class constructor.
+     * \param[in] parent pointer to the QWidget parent of this one.
+     * \param[in] f window flags.
+     *
+     */
+    QtColorPicker(QWidget *parent = nullptr, Qt::WindowFlags f = Qt::Dialog);
 
-        // set initial options
-        void SetInitialOptions(DataManager *);
+    /** \brief Sets the initial options of the dialog.
+     * \param[in] data data manager.
+     */
+    void SetInitialOptions(std::shared_ptr<DataManager> data);
 
-        // returns true if the user clicked the Ok button instead the Cancel or Close.
-        bool ModifiedData();
-        
-        // return the selected color
-        Vector3d GetColor();
-    public slots:
-        // slots for signals
-        void AcceptedData();
+    /** \brief Returns true if the user clicked the Ok button instead the Cancel or Close.
+     *
+     */
+    bool ModifiedData() const;
 
-    private slots:
-        virtual void RValueChanged(int);
-        virtual void GValueChanged(int);
-        virtual void BValueChanged(int);
-        
-    private:
-        // computes color box and disables buttons if color is already in use
-        void MakeColor();
-        
-        // i prefer this way instead returning data
-        bool 			_modified;
-        
-        // pointer to the datamanager containing the color table
-        DataManager 	*_data;
-        
-        // rgb of selected color to be returned
-        Vector3d 		_rgb;
+    /** \brief Return the selected color.
+     *
+     */
+    const QColor GetColor() const;
+  public slots:
+    void AcceptedData();
+
+  private slots:
+    virtual void RValueChanged(int);
+    virtual void GValueChanged(int);
+    virtual void BValueChanged(int);
+
+  private:
+    /** \brief Computes color box and disables buttons if color is already in use.
+     *
+     */
+    void MakeColor();
+
+    bool                         m_modified; /** i prefer this way instead returning data. */
+    std::shared_ptr<DataManager> m_data;     /** pointer to the datamanager containing the color table. */
+    QColor                       m_color;    /** color to be returned. */
 };
 
 #endif // _QTLABELEDITOR_H_
