@@ -185,7 +185,7 @@ class EditorOperations
     /** \brief Returns the type of the selecion area.
      *
      */
-    Selection::SelectionType GetSelectionType(void) const;
+    Selection::Type GetSelectionType(void) const;
 
     /** \brief Returns true if the selection is empty.
      *

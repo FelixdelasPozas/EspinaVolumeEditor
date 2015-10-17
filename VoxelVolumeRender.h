@@ -36,96 +36,115 @@
 //
 class VoxelVolumeRender
 {
-    public:
-        // constructor & destructor
-		VoxelVolumeRender(DataManager*, vtkSmartPointer<vtkRenderer>, ProgressAccumulator*);
-		~VoxelVolumeRender();
+  public:
+    /** \brief VoxelVolumeRender class constructor.
+     * \param[in] dataManager application data manager.
+     * \param[in] renderer view's renderer.
+     * \param[in] pa application progress accmulator.
+     *
+     */
+    VoxelVolumeRender(std::shared_ptr<DataManager> dataManager, vtkSmartPointer<vtkRenderer>, std::shared_ptr<ProgressAccumulator> pa);
 
-        // update extent of focused object(s)
-        void UpdateFocusExtent(void);
+    /** \brief VoxelVolumeRenderer class destructor.
+     *
+     */
+    ~VoxelVolumeRender();
 
-        // volume rendering switchers and status
-        void ViewAsMesh();
-        void ViewAsVolume();
+    /** \brief Update extent of focused object(s).
+     *
+     */
+    void updateFocusExtent();
 
-        // color management
-        void ColorHighlight(const unsigned short);
-        void ColorDim(const unsigned short, double = 0.0);
-        void ColorHighlightExclusive(unsigned short);
-        void ColorDimAll(void);
-        void UpdateColorTable(void);
-    private:
-        // private methods
-        //
-        // compute volume using raycast and reconstruct highlighted labels set while doing it
-        void ComputeCPURender();
-        //
-        // compute volume using GPU assisted raycast
-        void ComputeGPURender();
-        //
-        void ComputeRayCast();
-//        // compute mesh representation for the volume
-//        void ComputeMeshes(void);
-        //
-        // compute mesh representation for a given segmentation
-        void ComputeMesh(const unsigned short);
+    /** \brief Switches the rendering method to mesh.
+     *
+     */
+    void viewAsMesh();
+
+    /** \brief Switches the rendering method to volumetric.
+     *
+     */
+    void viewAsVolume();
+
+    /** \brief Highlights the givel label color.
+     * \param[in] label object label.
+     *
+     */
+    void colorHighlight(const unsigned short label);
+
+    /** \brief Dims the given label color.
+     * \param[in] label object label.
+     * \param[in] opacity opacity value [0,1]
+     *
+     */
+    void colorDim(const unsigned short label, double opacity = 0.0);
+
+    /** \brief Hightlights the given label color exclusively.
+     *
+     */
+    void colorHighlightExclusive(const unsigned short label);
+
+    /** \brief Dims all colors.
+     *
+     */
+    void colorDimAll();
+
+    /** \brief Updates the color table.
+     *
+     */
+    void updateColorTable();
+  private:
+    /** \brief Computes volumes using raycast and reconstruct highlighted labels set while doing it.
+     *
+     */
+    void computeCPURender();
+
+    /** \brief Computes volumes using GPU assisted raycast.
+     *
+     */
+    void computeGPURender();
+
+    /** \brief Computes the volumetric representations of the objects using CPU or GPU.
+     *
+     */
+    void computeVolumes();
+
+    /** \brief Computes the mesh representation for a given segmentation label.
+     * \param[in] label object label.
+     *
+     */
+    void computeMesh(const unsigned short label);
 
 
-        // attributes
-        vtkSmartPointer<vtkRenderer>         				_renderer;
-        ProgressAccumulator          						*_progress;
-        DataManager                         	  			*_dataManager;
-        //
-        // to update color table
-        vtkSmartPointer<vtkPiecewiseFunction>      			_opacityfunction;
-        vtkSmartPointer<vtkColorTransferFunction>  			_colorfunction;
-        //
-        // actors for the volume
-        vtkSmartPointer<vtkVolume> 							_volume;
-        vtkSmartPointer<vtkActor>							_mesh;
-        //
-        // software raycast volume mapper
-        vtkSmartPointer<vtkVolumeRayCastMapper> 			_CPUmapper;
-        //
-        // GPU fast volume mapper
-        vtkSmartPointer<vtkGPUVolumeRayCastMapper> 			_GPUmapper;
-        //
-        // set of highlighted labels (selected labels)
-        std::set<unsigned short>							_highlightedLabels;
-        //
-        // view bounding box (focusing on a selected area)
-        Vector3ui											_min, _max;
-        //
-        // mesh actors list
-        struct ActorInformation
-        {
-        		vtkSmartPointer<vtkActor>	meshActor;
-        		Vector3ui 					actorMin;
-        		Vector3ui 					actorMax;
-        		ActorInformation(): actorMin(Vector3ui(0,0,0)), actorMax(Vector3ui(0,0,0)) { meshActor = NULL; };
-        };
-        std::map<const unsigned short, struct VoxelVolumeRender::ActorInformation* >	_actorList;
-        
-//	MultiBlockDataSet implementation disabled        
-//        struct ActorInformation
-//        {
-//        		Vector3ui 					actorMin;
-//        		Vector3ui 					actorMax;
-//        		ActorInformation(): actorMin(Vector3ui(0,0,0)), actorMax(Vector3ui(0,0,0)) { };
-//        };
-//        std::map<const unsigned short, struct VoxelVolumeRender::ActorInformation* >	_segmentationInfoList;
+    vtkSmartPointer<vtkRenderer> m_renderer;
+    std::shared_ptr<ProgressAccumulator> m_progress;
+    std::shared_ptr<DataManager> m_dataManager;
 
-        //
-        // mesh/volume rendering status
-        bool												_renderingIsVolume;
-        //
-//        // MultiBlockDataSet will avoid having one actor/mapper for each segmentation, with
-//        // this we will have just one actor and one mapper for all segmentations
-//        vtkSmartPointer<vtkMultiBlockDataSet> 				_blockData;
-//        //
-//        // lookuptable needed for mesh color modification
-//        vtkSmartPointer<vtkLookupTable>						_meshLUT;
+    vtkSmartPointer<vtkPiecewiseFunction> m_opacityfunction;
+    vtkSmartPointer<vtkColorTransferFunction> m_colorfunction;
 
+    vtkSmartPointer<vtkVolume> m_volume; /** volumetric actor. */
+    vtkSmartPointer<vtkActor> m_mesh; /** mesh actor. */
+
+    vtkSmartPointer<vtkVolumeRayCastMapper> m_CPUmapper; /** software raycast volume mapper. */
+    vtkSmartPointer<vtkGPUVolumeRayCastMapper> m_GPUmapper; /** GPU raycast volume mapper. */
+
+    std::set<unsigned short> m_highlightedLabels; /** set of highlighted labels (selected labels). */
+
+    Vector3ui m_min; /** bounding box minimum point. */
+    Vector3ui m_max; /** bounding box maximum point. */
+
+    struct Pipeline
+    {
+        vtkSmartPointer<vtkActor> mesh; /** actor */
+        Vector3ui min; /** bounding box minimum point. */
+        Vector3ui max; /** bounding box maximum point. */
+
+        Pipeline(): min{Vector3ui{0,0,0}}, max{Vector3ui{0,0,0}}, mesh{nullptr} {};
+    };
+
+    std::map<const unsigned short, std::shared_ptr<Pipeline>> m_actors;
+
+    bool m_renderingIsVolume;
 };
 
 #endif

@@ -87,6 +87,7 @@ class Metadata
         unsigned int segment;
         unsigned int selected;
         bool used;
+
         ObjectMetadata()
         : scalar{0}, segment{0}, selected{0}, used{false}
         {};
@@ -97,6 +98,7 @@ class Metadata
     {
         Vector3ui inclusive;
         Vector3ui exclusive;
+
         CountingBrickMetadata()
         : inclusive{Vector3ui{0, 0, 0}}, exclusive{Vector3ui{0, 0, 0}}
         {};
@@ -107,6 +109,7 @@ class Metadata
         std::string name;
         unsigned int value;
         QColor color;
+
         SegmentMetadata()
         : name{"Unassigned"}, value{0}, color{QColor()}
         {};

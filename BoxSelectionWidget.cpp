@@ -54,7 +54,7 @@ BoxSelectionWidget::~BoxSelectionWidget()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void BoxSelectionWidget::SetCursor(int cState)
 {
-  if (!this->ManagesCursor && cState != BoxSelectionRepresentation2D::Outside)
+  if (!this->ManagesCursor && cState != BoxSelectionRepresentation2D::WidgetState::Outside)
   {
     this->ManagesCursor = true;
     QApplication::setOverrideCursor(Qt::CrossCursor);
@@ -62,28 +62,28 @@ void BoxSelectionWidget::SetCursor(int cState)
 
   switch (cState)
   {
-    case BoxSelectionRepresentation2D::AdjustingP0:
+    case BoxSelectionRepresentation2D::WidgetState::AdjustingP0:
       this->RequestCursorShape(VTK_CURSOR_SIZESW);
       break;
-    case BoxSelectionRepresentation2D::AdjustingP1:
+    case BoxSelectionRepresentation2D::WidgetState::AdjustingP1:
       this->RequestCursorShape(VTK_CURSOR_SIZESE);
       break;
-    case BoxSelectionRepresentation2D::AdjustingP2:
+    case BoxSelectionRepresentation2D::WidgetState::AdjustingP2:
       this->RequestCursorShape(VTK_CURSOR_SIZENE);
       break;
-    case BoxSelectionRepresentation2D::AdjustingP3:
+    case BoxSelectionRepresentation2D::WidgetState::AdjustingP3:
       this->RequestCursorShape(VTK_CURSOR_SIZENW);
       break;
-    case BoxSelectionRepresentation2D::AdjustingE0:
-    case BoxSelectionRepresentation2D::AdjustingE2:
+    case BoxSelectionRepresentation2D::WidgetState::AdjustingE0:
+    case BoxSelectionRepresentation2D::WidgetState::AdjustingE2:
       this->RequestCursorShape(VTK_CURSOR_SIZENS);
       break;
-    case BoxSelectionRepresentation2D::AdjustingE1:
-    case BoxSelectionRepresentation2D::AdjustingE3:
+    case BoxSelectionRepresentation2D::WidgetState::AdjustingE1:
+    case BoxSelectionRepresentation2D::WidgetState::AdjustingE3:
       this->RequestCursorShape(VTK_CURSOR_SIZEWE);
       break;
-    case BoxSelectionRepresentation2D::Inside:
-      if (reinterpret_cast<BoxSelectionRepresentation2D*>(this->WidgetRep)->GetMoving())
+    case BoxSelectionRepresentation2D::WidgetState::Inside:
+      if (reinterpret_cast<BoxSelectionRepresentation2D*>(this->WidgetRep)->Getm_moving())
         this->RequestCursorShape(VTK_CURSOR_SIZEALL);
       else
         this->RequestCursorShape(VTK_CURSOR_HAND);
@@ -104,7 +104,7 @@ void BoxSelectionWidget::SelectAction(vtkAbstractWidget *widget)
   auto self = dynamic_cast<BoxSelectionWidget*>(widget);
   Q_ASSERT(self);
 
-  if (self->WidgetRep->GetInteractionState() == BoxSelectionRepresentation2D::Outside) return;
+  if (self->WidgetRep->GetInteractionState() == BoxSelectionRepresentation2D::WidgetState::Outside) return;
 
   // We are definitely selected
   self->GrabFocus(self->EventCallbackCommand);
@@ -138,14 +138,14 @@ void BoxSelectionWidget::TranslateAction(vtkAbstractWidget *widget)
   auto self = dynamic_cast<BoxSelectionWidget*>(widget);
   Q_ASSERT(self);
 
-  if (self->WidgetRep->GetInteractionState() == BoxSelectionRepresentation2D::Outside) return;
+  if (self->WidgetRep->GetInteractionState() == BoxSelectionRepresentation2D::WidgetState::Outside) return;
 
   // We are definitely selected
   self->GrabFocus(self->EventCallbackCommand);
   self->m_state = WidgetState::Selected;
   auto rep = dynamic_cast<BoxSelectionRepresentation2D*>(self->WidgetRep);
   Q_ASSERT(rep);
-  rep->MovingOn();
+  rep->m_movingOn();
 
   // Picked something inside the widget
   auto X = self->Interactor->GetEventPosition()[0];
@@ -186,14 +186,7 @@ void BoxSelectionWidget::MoveAction(vtkAbstractWidget *widget)
     int state = self->WidgetRep->GetInteractionState();
     self->SetCursor(state);
 
-    if (state != BoxSelectionRepresentation2D::Inside)
-    {
-      rep->MovingOff();
-    }
-    else
-    {
-      rep->MovingOn();
-    }
+    rep->Setm_moving(state == BoxSelectionRepresentation2D::WidgetState::Inside);
 
     return;
   }
@@ -214,14 +207,14 @@ void BoxSelectionWidget::EndSelectAction(vtkAbstractWidget *widget)
   auto self = dynamic_cast<BoxSelectionWidget*>(widget);
   Q_ASSERT(self);
 
-  if (self->WidgetRep->GetInteractionState() == BoxSelectionRepresentation2D::Outside || self->m_state != WidgetState::Selected) return;
+  if (self->WidgetRep->GetInteractionState() == BoxSelectionRepresentation2D::WidgetState::Outside || self->m_state != WidgetState::Selected) return;
 
   // Adjust to a grid specified by the image spacing by rounding the final coordinates of the border
   auto rep = dynamic_cast<BoxSelectionRepresentation2D*>(self->WidgetRep);
   Q_ASSERT(rep);
   double *pos1 = rep->GetPosition();
   double *pos2 = rep->GetPosition2();
-  double *spacing = rep->GetSpacing();
+  double *spacing = rep->Getm_spacing();
 
   // to better understand this you should look at BoxSelectionRepresentation2D::SetBoxCoordinates()
   pos1[0] = floor(pos1[0] / spacing[0]) + 1; // plus one because we use Xcoord-0.5 to select voxel Xcoord, thats fine only with the upper right corner.
@@ -233,7 +226,7 @@ void BoxSelectionWidget::EndSelectAction(vtkAbstractWidget *widget)
   // Return state to not selected
   self->ReleaseFocus();
   self->m_state = WidgetState::Start;
-  rep->MovingOff();
+  rep->m_movingOff();
 
   // stop adjusting
   self->EventCallbackCommand->SetAbortFlag(1);

@@ -795,11 +795,10 @@ void EspinaVolumeEditor::EditorReferenceOpen(void)
 	QString filename = QFileDialog::getOpenFileName(this, tr("Open Reference Image"), QDir::currentPath(), QObject::tr("image files (*.mhd *.mha);;All files (*.*)"));
 
 	if (!filename.isNull())
+	{
 		filename.toAscii();
-	else
-		return;
-
-	LoadReferenceFile(filename);
+		LoadReferenceFile(filename);
+	}
 }
 
 void EspinaVolumeEditor::LoadReferenceFile(QString filename)

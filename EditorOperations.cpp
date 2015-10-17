@@ -111,19 +111,19 @@ void EditorOperations::Initialize(vtkSmartPointer<vtkRenderer> renderer, std::sh
   m_progress = progress;
 
   m_selection = std::make_shared<Selection>();
-  m_selection->Initialize(orientation, renderer, m_dataManager);
+  m_selection->initialize(orientation, renderer, m_dataManager);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void EditorOperations::AddSelectionPoint(const Vector3ui &point)
 {
-  m_selection->AddSelectionPoint(point);
+  m_selection->addSelectionPoint(point);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void EditorOperations::AddContourPoint(const Vector3ui &point, std::shared_ptr<SliceVisualization> sliceView)
 {
-  m_selection->AddContourInitialPoint(point, sliceView);
+  m_selection->addContourInitialPoint(point, sliceView);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -157,10 +157,10 @@ void EditorOperations::Cut(std::set<unsigned short> labels)
   Vector3ui min;
   Vector3ui max;
 
-  switch (m_selection->GetSelectionType())
+  switch (m_selection->type())
   {
-    case Selection::DISC:
-    case Selection::EMPTY:
+    case Selection::Type::DISC:
+    case Selection::Type::EMPTY:
       for (auto it: labels)
       {
         min = m_dataManager->GetBoundingBoxMin(it);
@@ -174,44 +174,55 @@ void EditorOperations::Cut(std::set<unsigned short> labels)
             }
       }
       break;
-    case Selection::VOLUME:
-      min = m_selection->GetSelectedMinimumBouds();
-      max = m_selection->GetSelectedMaximumBouds();
+    case Selection::Type::VOLUME:
+      min = m_selection->minimumBouds();
+      max = m_selection->maximumBouds();
       for (unsigned int x = min[0]; x <= max[0]; x++)
         for (unsigned int y = min[1]; y <= max[1]; y++)
           for (unsigned int z = min[2]; z <= max[2]; z++)
           {
             Vector3ui point{x,y,z};
-            if (m_selection->VoxelIsInsideSelection(point)) m_dataManager->SetVoxelScalar(point, 0);
+            if (m_selection->isInsideSelection(point)) m_dataManager->SetVoxelScalar(point, 0);
           }
       break;
-    case Selection::CONTOUR:
+    case Selection::Type::CONTOUR:
       for (auto it: labels)
       {
-        min = m_selection->GetSelectedMinimumBouds();
-        max = m_selection->GetSelectedMaximumBouds();
+        min = m_selection->minimumBouds();
+        max = m_selection->maximumBouds();
         for (unsigned int x = min[0]; x <= max[0]; x++)
+        {
           for (unsigned int y = min[1]; y <= max[1]; y++)
+          {
             for (unsigned int z = min[2]; z <= max[2]; z++)
-              if (m_selection->VoxelIsInsideSelection(x, y, z))
+            {
+              Vector3ui point{x,y,z};
+              if (m_selection->isInsideSelection(point))
               {
                 Vector3ui point{x,y,z};
                 if (labels.find(m_dataManager->GetVoxelScalar(point)) != labels.end()) m_dataManager->SetVoxelScalar(point, 0);
               }
+            }
+          }
+        }
       }
       break;
-    case Selection::CUBE:
+    case Selection::Type::CUBE:
       for (auto it: labels)
       {
-        min = m_selection->GetSelectedMinimumBouds();
-        max = m_selection->GetSelectedMaximumBouds();
+        min = m_selection->minimumBouds();
+        max = m_selection->maximumBouds();
         for (unsigned int x = min[0]; x <= max[0]; x++)
+        {
           for (unsigned int y = min[1]; y <= max[1]; y++)
+          {
             for (unsigned int z = min[2]; z <= max[2]; z++)
             {
               Vector3ui point{x,y,z};
               if (labels.find(m_dataManager->GetVoxelScalar(point)) != labels.end()) m_dataManager->SetVoxelScalar(point, 0);
             }
+          }
+        }
       }
       break;
     default:
@@ -227,18 +238,18 @@ void EditorOperations::Cut(std::set<unsigned short> labels)
 bool EditorOperations::Relabel(QWidget *parent, std::shared_ptr<Metadata> data, std::set<unsigned short> *labels, bool *isANewColor)
 {
   QtRelabel configdialog(parent);
-  configdialog.SetInitialOptions(*labels, data, m_dataManager);
+  configdialog.setInitialOptions(*labels, data, m_dataManager);
   configdialog.exec();
 
-  if (!configdialog.ModifiedData()) return false;
+  if (!configdialog.isModified()) return false;
 
   m_dataManager->OperationStart("Relabel");
 
   unsigned short newlabel;
 
-  if (!configdialog.IsNewLabel())
+  if (!configdialog.isNewLabel())
   {
-    newlabel = configdialog.GetSelectedLabel();
+    newlabel = configdialog.selectedLabel();
   }
   else
   {
@@ -259,60 +270,74 @@ bool EditorOperations::Relabel(QWidget *parent, std::shared_ptr<Metadata> data, 
   Vector3ui min;
   Vector3ui max;
 
-  switch (m_selection->GetSelectionType())
+  switch (m_selection->type())
   {
-    case Selection::DISC:
-    case Selection::EMPTY:
+    case Selection::Type::DISC:
+    case Selection::Type::EMPTY:
       for (auto it: labels)
       {
         min = m_dataManager->GetBoundingBoxMin(*it);
         max = m_dataManager->GetBoundingBoxMax(*it);
         for (unsigned int x = min[0]; x <= max[0]; x++)
+        {
           for (unsigned int y = min[1]; y <= max[1]; y++)
+          {
             for (unsigned int z = min[2]; z <= max[2]; z++)
             {
               Vector3ui point{x,y,z};
               if (it == m_dataManager->GetVoxelScalar(point)) m_dataManager->SetVoxelScalar(point, newlabel);
             }
+          }
+        }
       }
       break;
-    case Selection::VOLUME:
-      min = m_selection->GetSelectedMinimumBouds();
-      max = m_selection->GetSelectedMaximumBouds();
+    case Selection::Type::VOLUME:
+      min = m_selection->minimumBouds();
+      max = m_selection->maximumBouds();
       for (unsigned int x = min[0]; x <= max[0]; x++)
         for (unsigned int y = min[1]; y <= max[1]; y++)
           for (unsigned int z = min[2]; z <= max[2]; z++)
           {
             Vector3ui point{x,y,z};
-            if (m_selection->VoxelIsInsideSelection(x, y, z)) m_dataManager->SetVoxelScalar(point, newlabel);
+            if (m_selection->isInsideSelection(point)) m_dataManager->SetVoxelScalar(point, newlabel);
           }
       break;
-    case Selection::CONTOUR:
+    case Selection::Type::CONTOUR:
       if (labels->empty()) labels->insert(0);
 
-      min = m_selection->GetSelectedMinimumBouds();
-      max = m_selection->GetSelectedMaximumBouds();
+      min = m_selection->minimumBouds();
+      max = m_selection->maximumBouds();
       for (unsigned int x = min[0]; x <= max[0]; x++)
+      {
         for (unsigned int y = min[1]; y <= max[1]; y++)
+        {
           for (unsigned int z = min[2]; z <= max[2]; z++)
-            if (m_selection->VoxelIsInsideSelection(x, y, z))
+          {
+            Vector3ui point{x,y,z};
+            if (m_selection->isInsideSelection(point))
             {
-              Vector3ui point{x,y,z};
               if (labels->find(m_dataManager->GetVoxelScalar(point)) != labels->end()) m_dataManager->SetVoxelScalar(point, newlabel);
             }
+          }
+        }
+      }
       break;
-    case Selection::CUBE:
+    case Selection::Type::CUBE:
       if (labels->empty()) labels->insert(0);
 
-      min = m_selection->GetSelectedMinimumBouds();
-      max = m_selection->GetSelectedMaximumBouds();
+      min = m_selection->minimumBouds();
+      max = m_selection->maximumBouds();
       for (unsigned int x = min[0]; x <= max[0]; x++)
+      {
         for (unsigned int y = min[1]; y <= max[1]; y++)
+        {
           for (unsigned int z = min[2]; z <= max[2]; z++)
           {
             Vector3ui point{x,y,z};
             if (labels->find(m_dataManager->GetVoxelScalar(point)) != labels->end()) m_dataManager->SetVoxelScalar(point, newlabel);
           }
+        }
+      }
       break;
     default:
       break;
@@ -338,7 +363,7 @@ void EditorOperations::Erode(const unsigned short label)
   m_progress->Observe(erodeFilter, "Erode", 1.0);
 
   auto image = ImageType::New();
-  image = m_selection->GetSelectionItkImage(label, m_radius);
+  image = m_selection->itkImage(label, m_radius);
 
   // BEWARE: radius on erode is _filtersRadius-1 because erode seems to be too strong. it seems to work fine with that value.
   //		   the less it can be is 0 as _filterRadius >= 1 always. It erodes the volume with a value of 0, although using 0
@@ -382,7 +407,7 @@ void EditorOperations::Dilate(const unsigned short label)
   m_progress->Observe(dilateFilter, "Dilate", 1.0);
 
   itk::SmartPointer<ImageType> image = ImageType::New();
-  image = m_selection->GetSelectionItkImage(label, m_radius);
+  image = m_selection->itkImage(label, m_radius);
 
   StructuringElementType structuringElement;
   structuringElement.SetRadius(m_radius);
@@ -423,7 +448,7 @@ void EditorOperations::Open(const unsigned short label)
   m_progress->Observe(openFilter, "Open", 1.0);
 
   itk::SmartPointer<ImageType> image = ImageType::New();
-  image = m_selection->GetSelectionItkImage(label, m_radius);
+  image = m_selection->itkImage(label, m_radius);
 
   StructuringElementType structuringElement;
   structuringElement.SetRadius(m_radius);
@@ -464,7 +489,7 @@ void EditorOperations::Close(const unsigned short label)
   m_progress->Observe(closeFilter, "Close", 1.0);
 
   itk::SmartPointer<ImageType> image = ImageType::New();
-  image = m_selection->GetSelectionItkImage(label, m_radius);
+  image = m_selection->itkImage(label, m_radius);
 
   StructuringElementType structuringElement;
   structuringElement.SetRadius(m_radius);
@@ -502,7 +527,7 @@ std::set<unsigned short> EditorOperations::Watershed(const unsigned short label)
   m_dataManager->OperationStart("Watershed");
 
   auto image = ImageType::New();
-  image = m_selection->GetSelectionItkImage(label, 0);
+  image = m_selection->itkImage(label, 0);
 
   auto danielssonFilter = DanielssonFilterType::New();
   m_progress->Observe(danielssonFilter, "Danielsson", (1.0 / 3.0));
@@ -661,7 +686,7 @@ void EditorOperations::SaveImage(const std::string &filename) const
   m_progress->ManualSet("Save Image");
 
   auto image = ImageType::New();
-  image = m_selection->GetItkImage();
+  image = m_selection->itkImage();
 
   // must restore the image origin before writing
   auto point = m_orientation->GetImageOrigin();
@@ -786,7 +811,7 @@ void EditorOperations::SaveImage(const std::string &filename) const
 itk::SmartPointer<LabelMapType> EditorOperations::GetImageLabelMap() const
 {
   auto image = ImageType::New();
-  image = m_selection->GetItkImage();
+  image = m_selection->itkImage();
 
   auto converter = ConverterType::New();
   m_progress->Observe(converter, "Convert", (1.0 / 1.0));
@@ -844,26 +869,26 @@ void EditorOperations::SetWatershedLevel(const double value)
 void EditorOperations::ContiguousAreaSelection(const Vector3ui &point)
 {
   m_progress->ManualSet("Threshold");
-  m_selection->AddArea(point);
+  m_selection->addArea(point);
   m_progress->ManualReset();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 const Vector3ui EditorOperations::GetSelectedMinimumBouds() const
 {
-  return m_selection->GetSelectedMinimumBouds();
+  return m_selection->minimumBouds();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 const Vector3ui EditorOperations::GetSelectedMaximumBouds() const
 {
-  return m_selection->GetSelectedMaximumBouds();
+  return m_selection->maximumBouds();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 const bool EditorOperations::IsSelectionEmpty() const
 {
-  return (Selection::EMPTY == m_selection->GetSelectionType());
+  return (Selection::Type::EMPTY == m_selection->type());
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -871,47 +896,51 @@ void EditorOperations::SetSliceViews(std::shared_ptr<SliceVisualization> axial,
                                      std::shared_ptr<SliceVisualization> coronal,
                                      std::shared_ptr<SliceVisualization> sagittal)
 {
-  m_selection->SetSliceViews(axial, coronal, sagittal);
+  m_selection->setSliceViews(axial, coronal, sagittal);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void EditorOperations::ClearSelection(void)
 {
-  m_selection->ClearSelection();
+  m_selection->clear();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-Selection::SelectionType EditorOperations::GetSelectionType(void) const
+Selection::Type EditorOperations::GetSelectionType(void) const
 {
-  return m_selection->GetSelectionType();
+  return m_selection->type();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void EditorOperations::UpdatePaintEraseActors(const Vector3i &point, int radius, std::shared_ptr<SliceVisualization> sliceView)
 {
-  m_selection->SetSelectionDisc(point, radius, sliceView);
+  m_selection->setSelectionDisc(point, radius, sliceView);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void EditorOperations::UpdateContourSlice(const Vector3ui &point)
 {
-  if (m_selection) m_selection->UpdateContourSlice(point);
+  if (m_selection) m_selection->updateContourSlice(point);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void EditorOperations::Paint(const unsigned short label)
 {
-  if (Selection::DISC == m_selection->GetSelectionType())
+  if (Selection::Type::DISC == m_selection->type())
   {
-    Vector3ui min = m_selection->GetSelectedMinimumBouds();
-    Vector3ui max = m_selection->GetSelectedMaximumBouds();
+    Vector3ui min = m_selection->minimumBouds();
+    Vector3ui max = m_selection->maximumBouds();
     for (unsigned int x = min[0]; x <= max[0]; x++)
+    {
       for (unsigned int y = min[1]; y <= max[1]; y++)
+      {
         for (unsigned int z = min[2]; z <= max[2]; z++)
         {
           Vector3ui point{x,y,z};
-          if (m_selection->VoxelIsInsideSelection(point)) m_dataManager->SetVoxelScalar(point, label);
+          if (m_selection->isInsideSelection(point)) m_dataManager->SetVoxelScalar(point, label);
         }
+      }
+    }
 
     m_dataManager->SignalDataAsModified();
   }
@@ -920,20 +949,24 @@ void EditorOperations::Paint(const unsigned short label)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void EditorOperations::Erase(const std::set<unsigned short> labels)
 {
-  if (Selection::DISC == m_selection->GetSelectionType())
+  if (Selection::Type::DISC == m_selection->type())
   {
-    Vector3ui min = m_selection->GetSelectedMinimumBouds();
-    Vector3ui max = m_selection->GetSelectedMaximumBouds();
+    Vector3ui min = m_selection->minimumBouds();
+    Vector3ui max = m_selection->maximumBouds();
     for (unsigned int x = min[0]; x <= max[0]; x++)
+    {
       for (unsigned int y = min[1]; y <= max[1]; y++)
+      {
         for (unsigned int z = min[2]; z <= max[2]; z++)
         {
           Vector3ui point{x,y,z};
-          if (m_selection->VoxelIsInsideSelection(point))
+          if (m_selection->isInsideSelection(point))
           {
             if (labels.find(m_dataManager->GetVoxelScalar(point)) != labels.end()) m_dataManager->SetVoxelScalar(point, 0);
           }
         }
+      }
+    }
 
     m_dataManager->SignalDataAsModified();
   }
