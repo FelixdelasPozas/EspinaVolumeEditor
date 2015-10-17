@@ -98,7 +98,7 @@ void DataManager::Initialize(itk::SmartPointer<LabelMapType> labelMap, std::shar
     ObjectVector[0]->size -= labelObject->Size();
 
     // need to mark object label as used to correct errors in the segmha metadata (defined labels but empty objects)
-    metadata->MarkObjectAsUsed(scalar);
+    metadata->markAsUsed(scalar);
 
     // flatten label
     labelChanger->SetChange(scalar, i);

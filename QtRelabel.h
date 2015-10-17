@@ -25,38 +25,48 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // QtRelabel class
 //
-class QtRelabel: public QDialog, private Ui_Relabel
+class QtRelabel
+: public QDialog
+, private Ui_Relabel
 {
-        Q_OBJECT
-    public:
-        // constructor & destructor
-        QtRelabel(QWidget *parent = 0, Qt::WindowFlags f = Qt::Dialog);
-        ~QtRelabel();
+  Q_OBJECT
+  public:
+    /** \brief QtRelabel class constructor.
+     * \param[in] parent pointer to the QWidget parent of this one.
+     * \param[in] f window flags.
+     *
+     */
+    QtRelabel(QWidget *parent = nullptr, Qt::WindowFlags f = Qt::Dialog);
 
-        // set initial options
-        void SetInitialOptions(std::set<unsigned short>, Metadata*, DataManager*);
+    /** \brief Sets initial options.
+     * \param[in] labels group of labels in the image.
+     * \param[in] data session data accessor.
+     * \param[in] dataManager session data manager.
+     *
+     */
+    void setInitialOptions(const std::set<unsigned short> labels, std::shared_ptr<Metadata> data, std::shared_ptr<DataManager> dataManager);
 
-        // get the label selected in combobox
-        unsigned short GetSelectedLabel();
-        
-        // returns true if it's a new label
-        bool IsNewLabel();
-        
-        // returns true if the user clicked the Ok button instead the Cancel or Close.
-        bool ModifiedData();
-    public slots:
-        // slots for signals
-        virtual void AcceptedData();
+    /** \brief Returns the selected label in the combobox.
+     *
+     */
+    const unsigned short selectedLabel() const;
 
-    private:
-        // i prefer this way instead returning data
-        bool _modified;
-        bool _newlabel;
-        bool _multipleLabels;
-        
-        // label selected in the combobox
-        unsigned short _selectedLabel;
-        unsigned int _maxcolors;
+    /** \brief Returns true if it's a new label.
+     *
+     */
+    bool isNewLabel() const;
+
+    /** \brief Returns true if the user clicked the Ok button instead the Cancel or Close.
+     *
+     */
+    bool isModified() const;
+  public slots:
+    virtual void AcceptedData();
+
+  private:
+    bool           m_modified;
+    bool           m_newlabel;
+    unsigned int   m_maxcolors;
 };
 
 #endif // _QTRELABEL_H_

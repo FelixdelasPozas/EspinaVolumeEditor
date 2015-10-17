@@ -25,7 +25,7 @@ Metadata::Metadata(void)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-bool Metadata::Read(const QString &filename)
+bool Metadata::read(const QString &filename)
 {
   QFile file(filename);
   if (!file.open(QIODevice::ReadOnly | QIODevice::Text) || !file.seek(0))
@@ -58,7 +58,7 @@ bool Metadata::Read(const QString &filename)
       auto selected = objects.cap(3).toUInt(&result, 10);
       if (result == false) return false;
 
-      AddObject(label, segment, selected);
+      addObject(label, segment, selected);
     }
 
     if ((brick.indexIn(line) >= 0) && (objects.indexIn(line) == -1))
@@ -83,7 +83,7 @@ bool Metadata::Read(const QString &filename)
 
       auto exclusive = Vector3ui{x, y, z};
 
-      AddBrick(inclusive, exclusive);
+      addBrick(inclusive, exclusive);
     }
 
     if ((labels.indexIn(line) >= 0) && (brick.indexIn(line) == -1) && (objects.indexIn(line) == -1))
@@ -94,7 +94,7 @@ bool Metadata::Read(const QString &filename)
 
       if (0 == name.compare("Unassigned"))
       {
-        SetUnassignedTagPosition(position);
+        setUnassignedTagPosition(position);
       }
 
       auto value = labels.cap(2).toUInt(&result, 10);
@@ -108,7 +108,7 @@ bool Metadata::Read(const QString &filename)
 
       auto color = QColor(r, g, b);
 
-      AddSegment(name, value, color);
+      addSegment(name, value, color);
       position++;
     }
   }
@@ -118,7 +118,7 @@ bool Metadata::Read(const QString &filename)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-bool Metadata::Write(const QString &filename, std::shared_ptr<DataManager> data) const
+bool Metadata::write(const QString &filename, std::shared_ptr<DataManager> data) const
 {
   QFile file(filename);
   if (!file.open(QIODevice::Append | QIODevice::Text) || !file.seek(file.size()))
@@ -187,7 +187,7 @@ bool Metadata::Write(const QString &filename, std::shared_ptr<DataManager> data)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-void Metadata::AddObject(const unsigned int label, const unsigned int segment, const unsigned int selected)
+void Metadata::addObject(const unsigned int label, const unsigned int segment, const unsigned int selected)
 {
   auto object = new struct ObjectMetadata;
   object->scalar = label;
@@ -198,7 +198,7 @@ void Metadata::AddObject(const unsigned int label, const unsigned int segment, c
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-void Metadata::AddBrick(const Vector3ui &inclusive, const Vector3ui &exclusive)
+void Metadata::addBrick(const Vector3ui &inclusive, const Vector3ui &exclusive)
 {
   auto brick = new struct CountingBrickMetadata;
   brick->inclusive = inclusive;
@@ -208,7 +208,7 @@ void Metadata::AddBrick(const Vector3ui &inclusive, const Vector3ui &exclusive)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-void Metadata::AddSegment(const std::string &name, const unsigned int value, const QColor &color)
+void Metadata::addSegment(const std::string &name, const unsigned int value, const QColor &color)
 {
   auto segment = new struct SegmentMetadata;
   segment->name = name;
@@ -219,14 +219,14 @@ void Metadata::AddSegment(const std::string &name, const unsigned int value, con
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-void Metadata::SetUnassignedTagPosition(const unsigned int position)
+void Metadata::setUnassignedTagPosition(const unsigned int position)
 {
   hasUnassignedTag = true;
   unassignedTagPosition = position;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-std::string Metadata::GetObjectSegmentName(const unsigned short objectNum) const
+std::string Metadata::objectSegmentName(const unsigned short objectNum) const
 {
   if (objectNum > this->ObjectVector.size()) return std::string("Unassigned");
 
@@ -235,7 +235,7 @@ std::string Metadata::GetObjectSegmentName(const unsigned short objectNum) const
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-bool Metadata::MarkObjectAsUsed(const unsigned short label)
+bool Metadata::markAsUsed(const unsigned short label)
 {
   for (auto it: ObjectVector)
     if (it.scalar == label)
@@ -248,7 +248,7 @@ bool Metadata::MarkObjectAsUsed(const unsigned short label)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-void Metadata::CompactObjects()
+void Metadata::compact()
 {
   std::vector<struct ObjectMetadata>::iterator it;
   for (it = ObjectVector.begin(); it != ObjectVector.end(); ++it)
@@ -262,13 +262,18 @@ void Metadata::CompactObjects()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-std::vector<unsigned int> Metadata::GetUnusedObjectsLabels() const
+std::vector<unsigned int> Metadata::unusedLabels()
 {
+  if(UnusedObjects.empty())
+  {
+    compact();
+  }
+
   return UnusedObjects;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-unsigned short Metadata::GetObjectScalar(const unsigned short label) const
+unsigned short Metadata::objectScalar(const unsigned short label) const
 {
   // vector index goes 0->(n-1)
   return ObjectVector[label - 1].scalar;

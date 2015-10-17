@@ -569,7 +569,7 @@ void EspinaVolumeEditor::EditorOpen(void)
     	delete _fileMetadata;
 
 	_fileMetadata = new Metadata;
-	if (!_fileMetadata->Read(filename))
+	if (!_fileMetadata->read(filename))
 	{
 		_progress->ManualReset();
 		msgBox.setIcon(QMessageBox::Critical);
@@ -684,9 +684,9 @@ void EspinaVolumeEditor::EditorOpen(void)
 	_dataManager->Initialize(converter->GetOutput(), _orientationData, _fileMetadata);
 
 	// check if there are unused objects
-	_fileMetadata->CompactObjects();
+	_fileMetadata->compact();
 
-	std::vector<unsigned int> unusedLabels = _fileMetadata->GetUnusedObjectsLabels();
+	std::vector<unsigned int> unusedLabels = _fileMetadata->unusedLabels();
 	if (0 != unusedLabels.size())
 	{
 		std::stringstream out;
@@ -1216,7 +1216,7 @@ void EspinaVolumeEditor::GetPointLabel()
     pointlabelnumber->setText(out.str().c_str());
     pointlabelcolor->setPixmap(icon);
 
-    pointlabelname->setText(_fileMetadata->GetObjectSegmentName(_pointScalar).c_str());
+    pointlabelname->setText(_fileMetadata->objectSegmentName(_pointScalar).c_str());
 }
 
 void EspinaVolumeEditor::FillColorLabels()
@@ -1241,7 +1241,7 @@ void EspinaVolumeEditor::FillColorLabels()
         color.setRgbF(rgba[0], rgba[1], rgba[2], 1);
         icon.fill(color);
         std::stringstream out;
-        out << _fileMetadata->GetObjectSegmentName(i) << " " << _dataManager->GetScalarForLabel(i);
+        out << _fileMetadata->objectSegmentName(i) << " " << _dataManager->GetScalarForLabel(i);
         newItem = new QListWidgetItem(QIcon(icon), QString(out.str().c_str()));
         labelselector->insertItem(i, newItem);
 
@@ -2647,7 +2647,7 @@ void EspinaVolumeEditor::RestoreSavedSession(void)
 		infile.read(reinterpret_cast<char*>(&scalar), sizeof(unsigned int));
 		infile.read(reinterpret_cast<char*>(&segment), sizeof(unsigned int));
 		infile.read(reinterpret_cast<char*>(&selected), sizeof(unsigned int));
-		_fileMetadata->AddObject(scalar, segment, selected);
+		_fileMetadata->addObject(scalar, segment, selected);
 	}
 
 	infile.read(reinterpret_cast<char*>(&size), sizeof(unsigned short int));
@@ -2661,7 +2661,7 @@ void EspinaVolumeEditor::RestoreSavedSession(void)
 		infile.read(reinterpret_cast<char*>(&exclusive[0]), sizeof(unsigned int));
 		infile.read(reinterpret_cast<char*>(&exclusive[1]), sizeof(unsigned int));
 		infile.read(reinterpret_cast<char*>(&exclusive[2]), sizeof(unsigned int));
-		_fileMetadata->AddBrick(inclusive, exclusive);
+		_fileMetadata->addBrick(inclusive, exclusive);
 	}
 
 	infile.read(reinterpret_cast<char*>(&size), sizeof(unsigned short int));

@@ -22,6 +22,9 @@
 #include <vtkImageStencilToImage.h>
 #include <vtkPolyDataToImageStencil.h>
 
+// ITK
+#include <itkImage.h>
+
 // project includes
 #include "VectorSpaceAlgebra.h"
 #include "Coordinates.h"
@@ -35,8 +38,8 @@
 #include <vector>
 
 // image typedefs
-typedef itk::Image<unsigned short, 3> ImageType;
-typedef itk::Image<unsigned char, 3> ImageTypeUC;
+using ImageType = itk::Image<unsigned short, 3>;
+using ImageTypeUC = itk::Image<unsigned char, 3>;
 
 // forward declarations
 class SliceVisualization;
@@ -46,156 +49,206 @@ class SliceVisualization;
 //
 class Selection
 {
-    public:
-        // constructor & destructor
-        Selection();
-        ~Selection();
+  public:
+    /** \brief Selection class constructor.
+     *
+     */
+    Selection();
 
-        // type of selections
-        typedef enum
-        {
-            EMPTY, CUBE, VOLUME, DISC, CONTOUR
-        } SelectionType;
+    /** \brief Selection class destructor.
+     *
+     */
+    ~Selection();
 
-        // initilize class
-        void Initialize(Coordinates *, vtkSmartPointer<vtkRenderer>, DataManager *);
+    /** \brief Type of selections.
+     *
+     */
+    enum class Type: char { EMPTY = 0, CUBE, VOLUME, DISC, CONTOUR };
 
-        // modifies selection area with this point
-        void AddSelectionPoint(const Vector3ui);
+    /** \brief Initializes the class.
+     * \param[in] coordinates image coordinates.
+     * \param[in] renderer renderer of the view displaying the selection.
+     * \param[in] dataManager application data manager.
+     *
+     */
+    void initialize(std::shared_ptr<Coordinates> coordinates, vtkSmartPointer<vtkRenderer> renderer, std::shared_ptr<DataManager> dataManager);
 
-        // contiguous area selection with the wand
-        void AddArea(const Vector3ui);
+    /** \brief Modifies selection area adding the given point.
+     * \param[in] point point coordinates.
+     */
+    void addSelectionPoint(const Vector3ui &point);
 
-        // deletes points and hides actor (clears buffer only between [_min, _max] bounds)
-        void ClearSelection(void);
+    /** \brief Contiguous area selection with the wand.
+     * \param[in] point wand seed point.
+     *
+     */
+    void addArea(const Vector3ui &point);
 
-        // get selection type
-        const SelectionType GetSelectionType(void);
+    /** \brief Seletes points and hides actor (clears buffer only between [_min, _max] bounds).
+     *
+     */
+    void clear(void);
 
-        // get minimum selected bounds
-        const Vector3ui GetSelectedMinimumBouds();
+    /** \brief Returns the selection type.
+     *
+     */
+    const Type type() const;
 
-        // get maximum selected bounds
-        const Vector3ui GetSelectedMaximumBouds();
+    /** \brief Returns the minimum selected bounds.
+     *
+     */
+    const Vector3ui minimumBouds() const;
 
-        // returns true if the voxel is inside the selection
-        bool VoxelIsInsideSelection(unsigned int, unsigned int, unsigned int);
+    /** \brief Returns the maximum selected bounds.
+     *
+     */
+    const Vector3ui maximumBouds() const;
 
-        // get a itk image from the selection, or the segmentation if there is nothing selected. the image bounds
-        // are adjusted for filter radius
-        itk::SmartPointer<ImageType> GetSelectionItkImage(const unsigned short, const unsigned int = 0);
+    /** \brief Returns true if the voxel is inside the selection.
+     * \param[in] point voxel coordinates.
+     *
+     */
+    bool isInsideSelection(const Vector3ui &point) const;
 
-        // get a itk image from the segmentation
-        itk::SmartPointer<ImageType> GetSegmentationItkImage(const unsigned short);
+    /** \brief Returns a itk image from the selection, or the segmentation if there is nothing selected.
+     * The image bounds are adjusted for filter radius (the selection grows with boundsGrow voxels in
+     * each side). Label must be specified always, but it's only used when there's nothing selected.
+     * \param[in] label segmentation label.
+     * \param[in] boundsGrow number of voxels to grow the selection on each side.
+     *
+     */
+    itk::SmartPointer<ImageType> itkImage(const unsigned short label, const unsigned int boundsGrow = 0) const;
 
-        // get a itk image from the whole data
-        itk::SmartPointer<ImageType> GetItkImage(void);
+    /** \brief Returns a itk image from the segmentation.
+     * \param[in] label segmentation label.
+     *
+     */
+    itk::SmartPointer<ImageType> segmentationItkImage(const unsigned short label) const;
 
-        // set the views to pass selection volumes
-        void SetSliceViews(SliceVisualization*, SliceVisualization*, SliceVisualization*);
+    /** \brief Returns a itk image of the whole data.
+     *
+     */
+    itk::SmartPointer<ImageType> itkImage() const;
 
-        void SetSelectionDisc(int, int, int, int, SliceVisualization*);
+    /** \brief Sets the views to pass selection volumes.
+     * \param[in] axial axial slice view.
+     * \param[in] coronal coronal slice view.
+     * \param[in] sagittal sagittal slice view.
+     *
+     */
+    void setSliceViews(std::shared_ptr<SliceVisualization> axial, std::shared_ptr<SliceVisualization> coronal, std::shared_ptr<SliceVisualization> sagittal);
 
-        // values used in the selection buffer
-        enum SelectionValues
-        {
-        	VOXEL_UNSELECTED = 0,
-        	SELECTION_UNUSED_VALUE,
-        	VOXEL_SELECTED,
-        };
+    /** \brief Sets the selection disk in the given point of the view with the given radius.
+     * \param[in] point point coordinates.
+     * \param[in] radius disc radius.
+     * \param[in] view selection view.
+     *
+     */
+    void setSelectionDisc(const Vector3i &point , const unsigned  int radius, std::shared_ptr<SliceVisualization> view);
 
-        // callbacks for widget interaction
-        static void BoxSelectionWidgetCallback (vtkObject*, unsigned long, void*, void *);
-        static void ContourSelectionWidgetCallback (vtkObject*, unsigned long, void*, void *);
+    /** \brief Values used in the selection buffer.
+     *
+     */
+    enum SelectionValues { VOXEL_UNSELECTED = 0, SELECTION_UNUSED_VALUE, VOXEL_SELECTED };
 
-        // starts lasso/polygon selection
-        void AddContourInitialPoint(const Vector3ui, SliceVisualization*);
+    /** \brief Callbacks for widget interaction
+     *
+     */
+    static void boxSelectionWidgetCallback(vtkObject *caller, unsigned long event, void *clientdata, void *calldata);
+    static void contourSelectionWidgetCallback(vtkObject *caller, unsigned long event, void *clientdata, void *calldata);
 
-        // moves the contour selection volume if there is a change in slice
-        void UpdateContourSlice(Vector3ui point);
-    private:
-        // private methods
-        //
-        // computes box selection area actor and parameters
-        void ComputeSelectionCube(void);
-        void ComputeSelectionBounds(void);
-        //
-        // computes lasso bounds for min/max selection determination and actor visibility (clipper)
-        void ComputeLassoBounds(unsigned int *);
-        //
-        // generates a rotated volume according to orientation (0 = axial, 1 = coronal, 2 = sagittal)
-        void ComputeContourSelectionVolume(const unsigned int *);
-        //
-        // computes actor from selected volume
-        void ComputeActor(vtkSmartPointer<vtkImageData>);
-        //
-        // deletes all selection volumes
-        void DeleteSelectionVolumes(void);
-        //
-        // deletes all selection actors for render view
-        void DeleteSelectionActors(void);
-        //
-        // returns true if the voxel coordinates refer to a selected voxel
-        bool VoxelIsInsideSelectionSubvolume(vtkSmartPointer<vtkImageData>, unsigned int, unsigned int, unsigned int);
+    /** \brief Starts lasso/polygon selection.
+     * \param[in] point point coordinates to start the selection.
+     * \param[in] view selection view.
+     *
+     */
+    void addContourInitialPoint(const Vector3ui &point, std::shared_ptr<SliceVisualization> view);
 
-        // pointer to renderer
-        vtkSmartPointer<vtkRenderer> 						_renderer;
+    /** \brief Moves the contour selection volume if there is a change in slice.
+     *
+     */
+    void updateContourSlice(const Vector3ui &point);
+  private:
+    /** \brief Helper method to compute box selection area actor and parameters.
+     *
+     */
+    void computeSelectionCube();
+    void computeSelectionBounds();
 
-        // min/max actual selection bounds
-        Vector3ui 											_max, _min;
+    /** \brief Computes lasso bounds for min/max selection determination and actor visibility (clipper).
+     * \param[out] bounds lasso bounds.
+     *
+     */
+    void computeLassoBounds(unsigned int *bounds) const;
 
-        // maximum possible bounds ([0,0,0] to _size)
-        Vector3ui 											_size;
+    /** \brief Generates a rotated volume according to orientation (0 = axial, 1 = coronal, 2 = sagittal).
+     * \param[in] bounds of the contour selection.
+     *
+     */
+    void computeContourSelectionVolume(const unsigned int *bounds);
 
-        // image spacing (needed for subvolume creation)
-        Vector3d											_spacing;
+    /** \brief Computes actor from selected volume.
+     *
+     */
+    void computeActor(vtkSmartPointer<vtkImageData> volume);
 
-        // selection points for box selection
-        std::vector< Vector3ui > 							_selectedPoints;
+    /** \brief Deletes all selection volumes.
+     *
+     */
+    void deleteSelectionVolumes();
 
-        // selection type
-        SelectionType										_selectionType;
+    /** \brief Deletes all selection actors for render view.
+     *
+     */
+    void deleteSelectionActors();
 
-        // pointer to data
-        DataManager 										*_dataManager;
+    /** \brief Returns true if the voxel coordinates refer to a selected voxel.
+     * \param[in] subVolume selection volume.
+     * \param[in] point voxel coordinates.
+     *
+     */
+    bool isInsideSelectionSubvolume(vtkSmartPointer<vtkImageData> subVolume, const Vector3ui &point) const;
 
-        // selection actor texture for render view
-        vtkSmartPointer<vtkTexture> 						_texture;
+    vtkSmartPointer<vtkRenderer> m_renderer; /** view's renderer. */
+    Vector3ui                    m_min;      /** min selection bounds. */
+    Vector3ui                    m_max;      /** max selection bounds. */
+    Vector3ui                    m_size;     /** Maximum possible bounds ([0,0,0] to _size). */
+    Vector3d                     m_spacing;  /** Image spacing (needed for subvolume creation). */
 
-        // slice views
-        SliceVisualization*									_axialView;
-        SliceVisualization*									_coronalView;
-        SliceVisualization*									_sagittalView;
+    std::vector<Vector3ui> m_selectedPoints; /** selection points for box selection. */
 
-        // list of selection actor for render view
-        std::vector<vtkSmartPointer<vtkActor> >				_selectionActorsList;
+    Type m_selectionType; /** Selection type */
 
-        // list of selection volumes (unsigned char scalar size)
-        std::vector<vtkSmartPointer<vtkImageData> >			_selectionVolumesList;
+    std::shared_ptr<DataManager> m_dataManager; /** data manager. */
 
-        // to change origin for erase/paint volume on the fly
-        vtkSmartPointer<vtkImageChangeInformation> 			_changer;
-        vtkSmartPointer<vtkImageClip> 						_clipper;
+    vtkSmartPointer<vtkTexture> m_texture; /**  selection actor texture for render view. */
 
-        // widgets for box selection, one per view
-        vtkSmartPointer<BoxSelectionWidget>					_axialBoxWidget;
-        vtkSmartPointer<BoxSelectionWidget>					_coronalBoxWidget;
-        vtkSmartPointer<BoxSelectionWidget>					_sagittalBoxWidget;
 
-        // box selection representation for 3d render
-        BoxSelectionRepresentation3D						*_boxRender;
+    std::shared_ptr<SliceVisualization> m_axial;     /** axial view. */
+    std::shared_ptr<SliceVisualization> m_coronal;   /** coronal view. */
+    std::shared_ptr<SliceVisualization> m_sagittal;  /** sagittal view. */
 
-        // callback for box selection interaction
-        vtkSmartPointer<vtkCallbackCommand> 				_widgetsCallbackCommand;
+    std::vector<vtkSmartPointer<vtkActor> > m_selectionActorsList; /** list of selection actor for render view. */
 
-        // contour selection widget
-        vtkSmartPointer<ContourWidget>						_contourWidget;
+    std::vector<vtkSmartPointer<vtkImageData> > m_selectionVolumesList; /** list of selection volumes (unsigned char scalar size). */
 
-        // converts VtkPolyData from a contour to a stencil that later gets converted to a volume
-        vtkSmartPointer<vtkPolyDataToImageStencil>			_polyDataToStencil;
-        vtkSmartPointer<vtkImageStencilToImage>				_stencilToImage;
-        vtkImageData										*_rotatedImage;
-        bool 												_selectionIsValid;
+    vtkSmartPointer<vtkImageChangeInformation> m_changer; /** to change origin for erase/paint volume on the fly. */
+    vtkSmartPointer<vtkImageClip> m_clipper;
+
+    vtkSmartPointer<BoxSelectionWidget> m_axialBoxWidget;    /** axial view selection box widget. */
+    vtkSmartPointer<BoxSelectionWidget> m_coronalBoxWidget;  /** coronal view selection box widget. */
+    vtkSmartPointer<BoxSelectionWidget> m_sagittalBoxWidget; /** sagittal view selection box widget. */
+
+    std::shared_ptr<BoxSelectionRepresentation3D> m_boxRender; /** box selection representation for 3d render. */
+
+    vtkSmartPointer<vtkCallbackCommand> m_widgetsCallbackCommand; /** callback for box selection interaction. */
+
+    vtkSmartPointer<ContourWidget> m_contourWidget; /** contour selection widget. */
+
+    vtkSmartPointer<vtkPolyDataToImageStencil> m_polyDataToStencil; /** converts VtkPolyData from a contour to a stencil. */
+    vtkSmartPointer<vtkImageStencilToImage> m_stencilToImage;       /** converts a stencil to a itk image. */
+    vtkSmartPointer<vtkImageData> m_rotatedImage; /** rotated contour image. */
+    bool m_selectionIsValid; /** true if selection is valid, false otherwise. */
 };
 
 #endif // _SELECTION_H_
