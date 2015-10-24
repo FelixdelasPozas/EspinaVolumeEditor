@@ -42,154 +42,193 @@ class vtkImageReslice;
 class SliceVisualization
 {
   public:
-    // type for orientation
-    typedef enum
-    {
-      Sagittal, Coronal, Axial, NoOrientation
-    } OrientationType;
+    /** \class Orientation.
+     * \brief Class to define orientation of the visualizations.
+     *
+     */
+    enum class Orientation: char { Sagittal = 0, Coronal = 1, Axial = 2, None = 3 };
 
-    // type for picking
-    typedef enum
-    {
-      Thumbnail, Slice, None
-    } PickingType;
+    /** \class PickType.
+     *
+     */
+    enum class PickType: char { Thumbnail = 0, Slice = 1, None = 2 };
 
-    // constructor & destructor
-    SliceVisualization(OrientationType);
+    /** \brief SliceVisualization class constructor.
+     * \param[in] type Orientation of the visualization.
+     */
+    explicit SliceVisualization(Orientation type);
+
+    /** \brief SliceVisualization class destructor.
+     *
+     */
     ~SliceVisualization();
 
-    // initialize class with data
-    void Initialize(vtkSmartPointer<vtkStructuredPoints>, vtkSmartPointer<vtkLookupTable>, vtkSmartPointer<vtkRenderer>, Coordinates*);
+    /** \brief Initializes the class with the required data.
+     * \param[in] data image data.
+     * \param[in] colorTable image color table.
+     * \param[in] renderer renderer where the visualization is shown.
+     * \param[in] coordinates image orientation data.
+     *
+     */
+    void initialize(vtkSmartPointer<vtkStructuredPoints> data,
+                    vtkSmartPointer<vtkLookupTable>      colorTable,
+                    vtkSmartPointer<vtkRenderer>         renderer,
+                    std::shared_ptr<Coordinates>         coordinates);
 
-    // update both slice and crosshair
-    void Update(Vector3ui);
+    /** \brief Updates the position of the visualization.
+     * \param[in] point point coordinates.
+     *
+     */
+    void update(const Vector3ui &point);
 
-    // updates crosshair
-    void UpdateCrosshair(Vector3ui);
+    /** \brief Updates the crosshair position.
+     * \param[in] point crosshair point coordinates.
+     *
+     */
+    void updateCrosshair(const Vector3ui &point);
 
-    // updates slice
-    void UpdateSlice(Vector3ui);
+    /** \brief Updates the slice actors in the given point.
+     * \param[in] point point coordinates.
+     *
+     */
+    void updateSlice(const Vector3ui &point);
 
-    // returns true if the prop has been picked, and the picked coords are returned by reference
-    SliceVisualization::PickingType GetPickData(int*, int*);
+    /** \brief Returns the type of pick and the coordinates of the picking point by reference.
+     * \param[out] X x coordinate of the pick point.
+     * \param[out] Y y coordinate of the pick point.
+     *
+     */
+    PickType pickData(int *X, int *Y) const;
 
-    // manages thumbnail visibility
-    void ZoomEvent();
+    /** \brief Manages thumbnail visibility.
+     *
+     */
+    void zoomEvent();
 
-    // segmentation reference image
-    void SetReferenceImage(vtkSmartPointer<vtkStructuredPoints> image);
+    /** \brief Sets the data reference image.
+     * \param[in] reference reference image.
+     *
+     */
+    void setReferenceImage(vtkSmartPointer<vtkStructuredPoints> image);
 
-    // segmentation opacity get/set
-    unsigned int GetSegmentationOpacity();
-    void SetSegmentationOpacity(unsigned int);
+    /** \brief Returns the segmentation opacity.
+     *
+     */
+    double segmentationOpacity() const;
 
-    // toggle segmentation view (switches from 0 opacity to previously set opacity and viceversa)
-    void ToggleSegmentationView(void);
+    /** \brief Sets the opacity of the segmentations.
+     *
+     */
+    void setSegmentationOpacity(const double opacity);
 
-    // set selection volume to reslice and create actors
-    void SetSelectionVolume(const vtkSmartPointer<vtkImageData>, bool = true);
+    /** \brief Toggles segmentation view (switches from 0 opacity to previously set opacity and viceversa)
+     *
+     */
+    void toggleSegmentationView();
 
-    // clear selection
-    void ClearSelections();
+    /** \brief Set selection volume to reslice and create actors.
+     * \param[in] selectionBuffer volume to reslice and create actors.
+     * \param[in] useActorBounds true to use actors' bounds and false otherwise.
+     *
+     */
+    void setSelectionVolume(const vtkSmartPointer<vtkImageData> selectionBuffer, bool useActorBounds = true);
 
-    // get orientation type of the object
-    const SliceVisualization::OrientationType GetOrientationType(void);
+    /** \brief Clear selection
+     *
+     */
+    void clearSelections();
 
-    // get the slice renderer
-    vtkSmartPointer<vtkRenderer> GetViewRenderer(void);
+    /** \brief Returns the orientation of the visualization.
+     *
+     */
+    const Orientation orientationType() const;
 
-    // set a pointer to the widget so we can hide and show it, also we need to
-    // deactivate/reactivate the widget depending on the slice
-    void SetSliceWidget(vtkSmartPointer<vtkAbstractWidget>);
+    /** \brief Returns the visualization's renderer.
+     *
+     */
+    vtkSmartPointer<vtkRenderer> renderer() const;
 
-    // get a pointer to the imageactor of the slice, needed for polygon/lasso widget interaction
-    vtkImageActor* GetSliceActor(void);
+    /** \brief Set a pointer to the widget so we can hide and show it, also we need to
+     * deactivate/reactivate the widget depending on the slice.
+     * \param[in] widget
+     *
+     */
+    void setSliceWidget(vtkSmartPointer<vtkAbstractWidget> widget);
+
+    /** \brief Returns the imageactor of the slice, needed for polygon/lasso widget interaction.
+     *
+     */
+    vtkSmartPointer<vtkImageActor> actor() const;
   private:
-    // private methods
-    //
-    // generate imageactor and adds it to renderer
-    void GenerateSlice(vtkSmartPointer<vtkStructuredPoints>, vtkSmartPointer<vtkLookupTable>);
-    //
-    // generate crosshairs actors and adds them to renderer
-    void GenerateCrosshair();
-    //
-    // generate thumbnail actors and adds them to thumbnail renderer
-    void GenerateThumbnail();
+    /** \brief Generate imageactor and adds it to renderer.
+     * \param[in] data data points.
+     * \param[in] colorTable data colors.
+     *
+     */
+    void generateSlice(vtkSmartPointer<vtkStructuredPoints> data, vtkSmartPointer<vtkLookupTable> colorTable);
 
-    // attributes
-    OrientationType _orientation;
-    Vector3d _spacing;
-    Vector3d _max;
-    Vector3ui _size;
-    //
-    // used to not redraw the viewport if slider is already in the correct position
-    Vector3ui _point;
-    //
-    // reslice axes pointer, used for updating slice
-    vtkSmartPointer<vtkMatrix4x4> _axesMatrix;
-    //
-    // crosshair lines pointers, used for updating crosshair
-    vtkSmartPointer<vtkPolyData> _POIHorizontalLine;
-    vtkSmartPointer<vtkPolyData> _POIVerticalLine;
-    //
-    // picking
-    vtkSmartPointer<vtkPropPicker> _picker;
-    vtkSmartPointer<vtkRenderer> _renderer;
-    //
-    // text legend
-    std::string _textbuffer;
-    vtkSmartPointer<vtkTextActor> _text;
-    //
-    // blender
-    vtkSmartPointer<vtkImageBlend> _blendimages;
-    //
-    // actors
-    vtkSmartPointer<vtkImageActor> _segmentationActor;
-    vtkSmartPointer<vtkImageActor> _blendActor;
-    vtkSmartPointer<vtkActor> _horiactor;
-    vtkSmartPointer<vtkActor> _vertactor;
-    vtkSmartPointer<vtkActor> _squareActor;
-    vtkSmartPointer<vtkActor> _sliceActor;
-    //
-    // source for imageactors
-    vtkSmartPointer<vtkImageMapToColors> _segmentationcolors;
-    vtkSmartPointer<vtkImageMapToColors> _referenceColors;
-    vtkSmartPointer<vtkImageReslice> _reslice;
-    //
-    // for thumbnail rendering
-    vtkSmartPointer<vtkRenderer> _thumbRenderer;
-    double _boundsX;
-    double _boundsY;
-    vtkSmartPointer<vtkPolyData> _square;
-    //
-    // configuration options
-    unsigned int _segmentationOpacity;
-    bool _segmentationHidden;
-    //
-    // actor texture
-    vtkSmartPointer<vtkTexture> _texture;
+    /** \brief Generate crosshairs actors and adds them to renderer.
+     *
+     */
+    void generateCrosshair();
 
-    // actor data for selected volumes
+
+    /** \brief Generate thumbnail actors and adds them to thumbnail renderer.
+     *
+     */
+    void generateThumbnail();
+
+    /** actor's data. */
     struct ActorData
     {
         vtkSmartPointer<vtkActor> actor;
-        int minSlice;
-        int maxSlice;
-        ActorData()
-            : minSlice(0), maxSlice(0)
-        {
-          actor = NULL;
-        }
-        ;
-    };
-    // selection volumes actors vector
-    std::vector<struct ActorData*> _actorList;
-    //
-    // hides or shows actors depending on the visibility
-    void ModifyActorVisibility(struct ActorData*);
+        int                       minSlice;
+        int                       maxSlice;
 
-    // pointer to widget of the slice
-    vtkSmartPointer<vtkAbstractWidget> _sliceWidget;
+        ActorData(): actor{nullptr}, minSlice{0}, maxSlice{0} {};
+    };
+
+    /** \brief Hides of shows the actors depending on the visibility.
+     * \param[in] actorInformation information of the actor to update.
+     *
+     */
+    void updateActorVisibility(std::shared_ptr<struct ActorData> actorInformation);
+
+    Orientation m_orientation; /** orientation of the visualization. */
+    Vector3d    m_spacing;     /** spacing of the data. */
+    Vector3d    m_max;         /** maximum bounds of the visualization. */
+    Vector3ui   m_size;        /** size in voxels of the visualization. */
+    Vector3ui   m_point;       /** crosshair point, to not redraw if slider is already in the correct position. */
+
+    vtkSmartPointer<vtkPropPicker>     m_picker;        /** actor's picker. */
+    vtkSmartPointer<vtkRenderer>       m_renderer;      /** view's main renderer. */
+    vtkSmartPointer<vtkRenderer>       m_thumbRenderer; /** thumbnail renderer. */
+    vtkSmartPointer<vtkAbstractWidget> m_widget;        /** active widget pointer. */
+    vtkSmartPointer<vtkTexture>        m_texture;       /** texture of the selection area. */
+    vtkSmartPointer<vtkTextActor>      m_textActor;     /** text actor. */
+
+    vtkSmartPointer<vtkMatrix4x4> m_axesMatrix;  /** reslice axes pointer, used for updating slice. */
+
+    vtkSmartPointer<vtkPolyData> m_horizontalCrosshair;      /** horizontal crosshair line data. */
+    vtkSmartPointer<vtkActor>    m_horizontalCrosshairActor; /** horizontal crosshair line actor. */
+    vtkSmartPointer<vtkPolyData> m_verticalCrosshair;        /** vertical crosshair line data. */
+    vtkSmartPointer<vtkActor>    m_verticalCrosshairActor;   /** vertical crosshair line actor. */
+
+    vtkSmartPointer<vtkPolyData> m_focusData;  /** thumbnail focus square data. */
+    vtkSmartPointer<vtkActor>    m_focusActor; /** thumbnail focus square actor. */
+
+    vtkSmartPointer<vtkImageReslice>     m_referenceReslice;     /** reslice filter. */
+    vtkSmartPointer<vtkImageMapToColors> m_referenceImageMapper; /** reference image color table. */
+    vtkSmartPointer<vtkImageBlend>       m_imageBlender;         /** data and refernce images blender. */
+
+    vtkSmartPointer<vtkImageReslice>     m_segmentationReslice;     /** reslice filter. */
+    vtkSmartPointer<vtkImageMapToColors> m_segmentationsMapper;  /** segmentations' mapper. */
+    vtkSmartPointer<vtkImageActor>       m_segmentationsActor; /** segmentations' actor. */
+
+    double m_segmentationOpacity; /** segmentations' opacity value. */
+    bool   m_segmentationHidden;  /** true if the segmentations are hidden and false otherwise. */
+
+    std::vector<std::shared_ptr<struct ActorData>> m_actorList; /** selection volumes actors' vector. */
 };
 
 #endif // _SLICEVISUALIZATION_H_

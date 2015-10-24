@@ -600,7 +600,7 @@ void EspinaVolumeEditor::EditorOpen(void)
 
     if (this->_sagittalSliceVisualization)
     {
-    	unsigned int opacity = _sagittalSliceVisualization->GetSegmentationOpacity();
+    	unsigned int opacity = _sagittalSliceVisualization->segmentationOpacity();
         delete _sagittalSliceVisualization;
         _sagittalSliceVisualization = new SliceVisualization(SliceVisualization::Sagittal);
         _sagittalSliceVisualization->SetSegmentationOpacity(opacity);
@@ -608,7 +608,7 @@ void EspinaVolumeEditor::EditorOpen(void)
 
     if (this->_coronalSliceVisualization)
     {
-        unsigned int opacity = _coronalSliceVisualization->GetSegmentationOpacity();
+        unsigned int opacity = _coronalSliceVisualization->segmentationOpacity();
         delete _coronalSliceVisualization;
         _coronalSliceVisualization = new SliceVisualization(SliceVisualization::Coronal);
         _coronalSliceVisualization->SetSegmentationOpacity(opacity);
@@ -616,7 +616,7 @@ void EspinaVolumeEditor::EditorOpen(void)
 
     if (this->_axialSliceVisualization)
     {
-        unsigned int opacity = _axialSliceVisualization->GetSegmentationOpacity();
+        unsigned int opacity = _axialSliceVisualization->segmentationOpacity();
         delete _axialSliceVisualization;
         _axialSliceVisualization = new SliceVisualization(SliceVisualization::Axial);
         _axialSliceVisualization->SetSegmentationOpacity(opacity);
@@ -1431,7 +1431,7 @@ void EspinaVolumeEditor::Preferences()
     		_dataManager->GetUndoRedoBufferCapacity(), 
     		_editorOperations->GetFiltersRadius(), 
     		_editorOperations->GetWatershedLevel(), 
-    		_axialSliceVisualization->GetSegmentationOpacity(),
+    		_axialSliceVisualization->segmentationOpacity(),
     		_saveSessionTime,
     		_saveSessionEnabled,
     		_paintEraseRadius);
@@ -1450,7 +1450,7 @@ void EspinaVolumeEditor::Preferences()
 	editorSettings.setValue("UndoRedo System Buffer Size", static_cast<unsigned long long>(configdialog.GetSize()));
 	editorSettings.setValue("Filters Radius", configdialog.GetRadius());
 	editorSettings.setValue("Watershed Flood Level", configdialog.GetLevel());
-	editorSettings.setValue("Segmentation Opacity", configdialog.GetSegmentationOpacity());
+	editorSettings.setValue("Segmentation Opacity", configdialog.segmentationOpacity());
 	editorSettings.setValue("Paint-Erase Radius", configdialog.brushRadius());
 	editorSettings.setValue("Autosave Session Data", configdialog.isAutoSaveEnabled());
 	editorSettings.setValue("Autosave Session Time", configdialog.autoSaveInterval());
@@ -1486,9 +1486,9 @@ void EspinaVolumeEditor::Preferences()
     
     if (true == this->_hasReferenceImage)
     {
-		this->_axialSliceVisualization->SetSegmentationOpacity(configdialog.GetSegmentationOpacity());
-		this->_sagittalSliceVisualization->SetSegmentationOpacity(configdialog.GetSegmentationOpacity());
-		this->_coronalSliceVisualization->SetSegmentationOpacity(configdialog.GetSegmentationOpacity());
+		this->_axialSliceVisualization->SetSegmentationOpacity(configdialog.segmentationOpacity());
+		this->_sagittalSliceVisualization->SetSegmentationOpacity(configdialog.segmentationOpacity());
+		this->_coronalSliceVisualization->SetSegmentationOpacity(configdialog.segmentationOpacity());
 	    // the visualization options could have been modified so we must update the slices
 	    UpdateViewports(Slices);
     }
