@@ -8,6 +8,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 // qt includes
+#include <EspinaVolumeEditor.h>
 #include <QString>
 #include <QDir>
 #include <QSettings>
@@ -21,9 +22,6 @@
 #include "SaveSession.h"
 #include "DataManager.h"
 #include "Metadata.h"
-#include "QtGui.h"
-
-// c++ includes
 #include <fstream>
 
 using WriterType = itk::ImageFileWriter<ImageType>;
@@ -51,7 +49,7 @@ void SaveSessionThread::run()
   std::string temporalFilenameMHA = baseFilename + std::string(".mha");
 
   // needed to save the program state in the right moment so we wait for the lock to be open. Grab the lock and notify of action.
-  QMutexLocker locker(m_editor->actionLock);
+  QMutexLocker locker(m_editor->m_mutex);
   emit startedSaving();
 
   QFile file(QString(temporalFilename.c_str()));
@@ -79,7 +77,7 @@ void SaveSessionThread::run()
   }
 
   auto image = ImageType::New();
-  image = m_editor->_editorOperations->m_selection->itkImage();
+  image = m_editor->m_editorOperations->m_selection->itkImage();
 
   // save as an mha
   auto io = itk::MetaImageIO::New();
@@ -134,27 +132,27 @@ void SaveSessionThread::run()
   // in the editor we must follow the same order while loading this data, obviously...
 
   // EspinaEditor relevant data
-  auto size = m_editor->_segmentationFileName.size();
+  auto size = m_editor->m_segmentationFileName.size();
   write(outfile, size);
-  outfile << m_editor->_segmentationFileName;
+  outfile << m_editor->m_segmentationFileName;
 
-  write(outfile, m_editor->_hasReferenceImage);
-  if (m_editor->_hasReferenceImage)
+  write(outfile, m_editor->m_hasReferenceImage);
+  if (m_editor->m_hasReferenceImage)
   {
-    size = m_editor->_referenceFileName.size();
+    size = m_editor->m_referenceFileName.size();
     write(outfile, size);
-    outfile << m_editor->_referenceFileName;
+    outfile << m_editor->m_referenceFileName;
   }
 
-  write(outfile, m_editor->_POI[0]);
-  write(outfile, m_editor->_POI[1]);
-  write(outfile, m_editor->_POI[2]);
+  write(outfile, m_editor->m_POI[0]);
+  write(outfile, m_editor->m_POI[1]);
+  write(outfile, m_editor->m_POI[2]);
 
   // Metadata::ObjectMetadata std::vector dump
-  size = m_editor->_fileMetadata->ObjectVector.size();
+  size = m_editor->m_fileMetadata->ObjectVector.size();
   write(outfile, size);
 
-  for (auto it: m_editor->_fileMetadata->ObjectVector)
+  for (auto it: m_editor->m_fileMetadata->ObjectVector)
   {
     write(outfile, it.scalar);
     write(outfile, it.segment);
@@ -164,10 +162,10 @@ void SaveSessionThread::run()
   }
 
   // Metadata::CountingBrickMetadata std::vector dump
-  size = m_editor->_fileMetadata->CountingBrickVector.size();
+  size = m_editor->m_fileMetadata->CountingBrickVector.size();
   write(outfile, size);
 
-  for (auto it: m_editor->_fileMetadata->CountingBrickVector)
+  for (auto it: m_editor->m_fileMetadata->CountingBrickVector)
   {
     write(outfile, it.inclusive[0]);
     write(outfile, it.inclusive[1]);
@@ -178,10 +176,10 @@ void SaveSessionThread::run()
   }
 
   // Metadata::SegmentMetadata std::vector dump
-  size = m_editor->_fileMetadata->SegmentVector.size();
+  size = m_editor->m_fileMetadata->SegmentVector.size();
   write(outfile, size);
 
-  for (auto it: m_editor->_fileMetadata->SegmentVector)
+  for (auto it: m_editor->m_fileMetadata->SegmentVector)
   {
     write(outfile, it.color.red());
     write(outfile, it.color.green());
@@ -193,14 +191,14 @@ void SaveSessionThread::run()
   }
 
   // Metadata relevant data
-  write(outfile, m_editor->_fileMetadata->hasUnassignedTag);
-  write(outfile, m_editor->_fileMetadata->unassignedTagPosition);
+  write(outfile, m_editor->m_fileMetadata->hasUnassignedTag);
+  write(outfile, m_editor->m_fileMetadata->unassignedTagPosition);
 
   // DataManager::ObjectInformation std::map dump
-  size = m_editor->_dataManager->ObjectVector.size();
+  size = m_editor->m_dataManager->ObjectVector.size();
   write(outfile, size);
 
-  for (auto it: m_editor->_dataManager->ObjectVector)
+  for (auto it: m_editor->m_dataManager->ObjectVector)
   {
     unsigned short int position = it.first;
     write(outfile, position);
@@ -226,12 +224,12 @@ void SaveSessionThread::run()
   filename.replace(QChar('/'), QChar('\\'));
   editorSettings.beginGroup("Editor");
 
-  std::set<unsigned short> labelIndexes = m_editor->_dataManager->GetSelectedLabelsSet();
+  std::set<unsigned short> labelIndexes = m_editor->m_dataManager->GetSelectedLabelsSet();
   std::set<unsigned short> labelScalars;
 
   for (auto it: labelIndexes)
   {
-    labelScalars.insert(m_editor->_dataManager->GetScalarForLabel(it));
+    labelScalars.insert(m_editor->m_dataManager->GetScalarForLabel(it));
   }
 
   QList<QVariant> labelList;

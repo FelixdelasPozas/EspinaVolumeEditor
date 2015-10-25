@@ -6,10 +6,10 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 // c++ includes
+#include <EspinaVolumeEditor.h>
 #include <cstddef>
 
 // includes qt
-#include "QtGui.h"
 
 int main(int argc, char * argv[])
 {

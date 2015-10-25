@@ -20,13 +20,13 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-SET(QtSrcs QtGui.cxx QtPreferences.cxx QtRelabel.cxx QtAbout.cxx QtColorPicker.cxx SaveSession.cxx QtSessionInfo.cxx QtKeyboardHelp.cxx)
-SET(UIS QtGui.ui QtPreferences.ui QtRelabel.ui QtAbout.ui QtColorPicker.ui QtSessionInfo.ui QtKeyboardHelp.ui)
-SET (QtHeaders QtGui.h QtPreferences.h QtRelabel.h QtAbout.h QtColorPicker.h SaveSession.h QtSessionInfo.h QtKeyboardHelp.h)
+SET(QtSrcs EspinaVolumeEditor.cpp QtPreferences.cpp QtRelabel.cpp QtAbout.cpp QtColorPicker.cpp SaveSession.cpp QtSessionInfo.cpp QtKeyboardHelp.cpp)
+SET(UIS EspinaVolumeEditor.ui QtPreferences.ui QtRelabel.ui QtAbout.ui QtColorPicker.ui QtSessionInfo.ui QtKeyboardHelp.ui)
+SET (QtHeaders EspinaVolumeEditor.h QtPreferences.h QtRelabel.h QtAbout.h QtColorPicker.h SaveSession.h QtSessionInfo.h QtKeyboardHelp.h)
 SET (QtResources editor.qrc about.qrc colorpicker.qrc keyboardhelp.qrc)
 QT4_WRAP_UI(UIHeaders ${UIS})
 QT4_WRAP_CPP(MOCSrcs ${QtHeaders} )
-QT4_ADD_RESOURCES(QtResources_CXX ${QtResources})
+QT4_ADD_RESOURCES(QtResources_cpp ${QtResources})
 ADD_DEFINITIONS(-DQT_GUI_LIBS -DQT_CORE_LIB -DQT3_SUPPORT)
 SET_SOURCE_FILES_PROPERTIES(${QtSrcs} PROPERTIES OBJECT_DEPENDS "${UIHeaders}")
 
@@ -67,7 +67,7 @@ SET(CurrentFiles
 	"ContourRepresentationGlyph"
 )
 
-ADD_EXECUTABLE(Editor ${CurrentFiles}.cxx ${QtSrcs} ${MOCSrcs} ${QtResources_CXX})
+ADD_EXECUTABLE(Editor ${CurrentFiles}.cpp ${QtSrcs} ${MOCSrcs} ${QtResources_cpp})
 TARGET_LINK_LIBRARIES(Editor ${Libraries})
 SET_TARGET_PROPERTIES(Editor PROPERTIES OUTPUT_NAME EspinaEditor)
 
