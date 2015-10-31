@@ -8,9 +8,6 @@
 //        label map and vtkStructuredPoints scalars is necessary
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-// c++ includes
-#include <cassert>
-
 // itk includes
 #include <itkMacro.h>
 #include <itkChangeLabelLabelMapFilter.h>
@@ -50,14 +47,14 @@ void DataManager::Initialize(itk::SmartPointer<LabelMapType> labelMap, std::shar
   auto imagesize    = m_orientationData->GetImageSize();
 
   // insert background label info, initially all voxels are background, we'll subtract later
-  auto object = new struct ObjectInformation;
+  auto object = std::make_shared<ObjectInformation>();
   object->scalar   = 0;
   object->centroid = Vector3d((imagesize[0] / 2.0) * spacing[0], (imagesize[1] / 2.0) * spacing[1], (imagesize[2] / 2.0) / spacing[2]);
   object->size     = imagesize[0] * imagesize[1] * imagesize[2];
   object->min      = Vector3ui(0, 0, 0);
   object->max      = Vector3ui(imagesize[0], imagesize[1], imagesize[2]);
 
-  ObjectVector.insert(std::pair<unsigned short, ObjectInformation*>(0, object));
+  ObjectVector.insert(std::pair<unsigned short, std::shared_ptr<ObjectInformation>>(0, object));
 
   // evaluate shapelabelobjects to get the centroid of the object
   auto evaluator = itk::ShapeLabelMapFilter<LabelMapType>::New();
@@ -85,14 +82,14 @@ void DataManager::Initialize(itk::SmartPointer<LabelMapType> labelMap, std::shar
     auto regionOrigin = region.GetIndex();
     auto regionSize = region.GetSize();
 
-    object = new struct ObjectInformation;
+    object = std::make_shared<ObjectInformation>();
     object->scalar   = scalar;
     object->centroid = Vector3d(centroid[0] / spacing[0], centroid[1] / spacing[1], centroid[2] / spacing[2]);
     object->size     = labelObject->Size();
     object->min      = Vector3ui(regionOrigin[0], regionOrigin[1], regionOrigin[2]);
     object->max      = Vector3ui(regionSize[0] + regionOrigin[0], regionSize[1] + regionOrigin[1], regionSize[2] + regionOrigin[2]) - Vector3ui(1, 1, 1);
 
-    ObjectVector.insert(std::pair<unsigned short, ObjectInformation*>(i, object));
+    ObjectVector.insert(std::pair<unsigned short, std::shared_ptr<ObjectInformation>>(i, object));
 
     // substract the voxels of this object from the background label
     ObjectVector[0]->size -= labelObject->Size();
@@ -124,17 +121,7 @@ void DataManager::Initialize(itk::SmartPointer<LabelMapType> labelMap, std::shar
 //////////////////////////////////////////////////////////////////////////////////////////////////
 DataManager::~DataManager()
 {
-  // delete manually allocated memory
-  for (auto it: ObjectVector)
-  {
-    delete it.second;
-  }
   ObjectVector.clear();
-
-  for (auto it: ActionInformationVector)
-  {
-    delete it.second;
-  }
   ActionInformationVector.clear();
 }
 
@@ -167,7 +154,7 @@ std::shared_ptr<Coordinates> DataManager::GetOrientationData() const
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
-std::map<unsigned short, struct DataManager::ObjectInformation*>* DataManager::GetObjectTablePointer() const
+std::map<unsigned short, std::shared_ptr<DataManager::ObjectInformation>>* DataManager::GetObjectTablePointer()
 {
   return &ObjectVector;
 }
@@ -191,7 +178,7 @@ void DataManager::SetVoxelScalar(const Vector3ui &point, const unsigned short sc
 
   if (ActionInformationVector.find(*pixel) == ActionInformationVector.end())
   {
-    struct ActionInformation *action = new struct ActionInformation;
+    auto action = std::make_shared<ActionInformation>();
     ActionInformationVector[*pixel] = action;
     action->min = Vector3ui(x, y, z);
     action->max = Vector3ui(x, y, z);
@@ -203,7 +190,7 @@ void DataManager::SetVoxelScalar(const Vector3ui &point, const unsigned short sc
 
   if (ActionInformationVector.find(scalar) == ActionInformationVector.end())
   {
-    struct ActionInformation *action = new struct ActionInformation;
+    auto action = std::make_shared<ActionInformation>();
     ActionInformationVector[scalar] = action;
     action->min = Vector3ui(x, y, z);
     action->max = Vector3ui(x, y, z);
@@ -232,7 +219,7 @@ void DataManager::SetVoxelScalar(const Vector3ui &point, const unsigned short sc
   ActionInformationVector[scalar]->min = min;
   ActionInformationVector[scalar]->max = max;
 
-  m_actionsBuffer->StorePoint(Vector3ui(x, y, z), *pixel);
+  m_actionsBuffer->storePoint(Vector3ui(x, y, z), *pixel);
   *pixel = scalar;
 }
 
@@ -269,16 +256,16 @@ const unsigned short DataManager::SetLabel(const QColor &color)
       }
   }
 
-  auto object = new struct ObjectInformation;
+  auto object = std::make_shared<ObjectInformation>();
   object->scalar   = freevalue;
   object->size     = 0;
   object->centroid = Vector3d{0, 0, 0};
   object->min      = Vector3ui{0, 0, 0};
   object->max      = Vector3ui{0, 0, 0};
 
-  ObjectVector.insert(std::pair<unsigned short, struct ObjectInformation*>(newlabel, object));
+  ObjectVector.insert(std::pair<unsigned short, std::shared_ptr<ObjectInformation>>(newlabel, object));
 
-  m_actionsBuffer->StoreObject(std::pair<unsigned short, struct ObjectInformation*>(newlabel, object));
+  m_actionsBuffer->storeObject(std::pair<unsigned short, std::shared_ptr<ObjectInformation>>(newlabel, object));
 
   auto temptable = vtkSmartPointer<vtkLookupTable>::New();
   CopyLookupTable(m_lookupTable, temptable);
@@ -324,7 +311,7 @@ void DataManager::GenerateLookupTable()
   // rest are precalculated by _lookupTable->Build() based on the number of labels
   double rgba[4]{ 0.05, 0.05, 0.05, 1.0 };
   auto labels = m_labelMap->GetNumberOfLabelObjects();
-  assert(0 != labels);
+  Q_ASSERT(0 != labels);
 
   m_lookupTable->Allocate();
   m_lookupTable->SetNumberOfTableValues(labels + 1);
@@ -360,7 +347,7 @@ void DataManager::StatisticsActionClear(void)
 {
   for(auto it: ActionInformationVector)
   {
-    delete it.second;
+    it.second = nullptr;
   }
 
   ActionInformationVector.clear();
@@ -370,57 +357,57 @@ void DataManager::StatisticsActionClear(void)
 void DataManager::OperationStart(const std::string &actionName)
 {
   StatisticsActionClear();
-  m_actionsBuffer->SignalBeginAction(actionName, m_selectedLabels, m_lookupTable);
+  m_actionsBuffer->signalBeginAction(actionName, m_selectedLabels, m_lookupTable);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 void DataManager::OperationEnd()
 {
-  m_actionsBuffer->SignalEndAction();
+  m_actionsBuffer->signalEndAction();
   StatisticsActionUpdate();
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 void DataManager::OperationCancel()
 {
-  m_actionsBuffer->SignalCancelAction();
+  m_actionsBuffer->signalCancelAction();
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
-const std::string & DataManager::GetUndoActionString() const
+const std::string DataManager::GetUndoActionString() const
 {
-  return m_actionsBuffer->GetActionString(UndoRedoSystem::UNDO);
+  return m_actionsBuffer->getActionString(UndoRedoSystem::Type::UNDO);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
-const std::string & DataManager::GetRedoActionString() const
+const std::string DataManager::GetRedoActionString() const
 {
-  return m_actionsBuffer->GetActionString(UndoRedoSystem::REDO);
+  return m_actionsBuffer->getActionString(UndoRedoSystem::Type::REDO);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
-const std::string & DataManager::GetActualActionString() const
+const std::string DataManager::GetActualActionString() const
 {
-  return m_actionsBuffer->GetActionString(UndoRedoSystem::ACTUAL);
+  return m_actionsBuffer->getActionString(UndoRedoSystem::Type::ACTUAL);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 bool DataManager::IsUndoBufferEmpty() const
 {
-  return m_actionsBuffer->IsEmpty(UndoRedoSystem::UNDO);
+  return m_actionsBuffer->isEmpty(UndoRedoSystem::Type::UNDO);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 bool DataManager::IsRedoBufferEmpty() const
 {
-  return m_actionsBuffer->IsEmpty(UndoRedoSystem::REDO);
+  return m_actionsBuffer->isEmpty(UndoRedoSystem::Type::REDO);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 void DataManager::DoUndoOperation()
 {
   StatisticsActionClear();
-  m_actionsBuffer->DoAction(UndoRedoSystem::UNDO);
+  m_actionsBuffer->doAction(UndoRedoSystem::Type::UNDO);
   StatisticsActionUpdate();
 }
 
@@ -428,26 +415,26 @@ void DataManager::DoUndoOperation()
 void DataManager::DoRedoOperation()
 {
   StatisticsActionClear();
-  m_actionsBuffer->DoAction(UndoRedoSystem::REDO);
+  m_actionsBuffer->doAction(UndoRedoSystem::Type::REDO);
   StatisticsActionUpdate();
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 void DataManager::SetUndoRedoBufferSize(unsigned long size)
 {
-  m_actionsBuffer->ChangeSize(size);
+  m_actionsBuffer->changeSize(size);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 const unsigned long int DataManager::GetUndoRedoBufferSize() const
 {
-  return m_actionsBuffer->GetSize();
+  return m_actionsBuffer->size();
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 const unsigned long int DataManager::GetUndoRedoBufferCapacity() const
 {
-  return m_actionsBuffer->GetCapacity();
+  return m_actionsBuffer->capacity();
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -535,6 +522,7 @@ void DataManager::StatisticsActionUpdate(void)
       }
       // else calculate new bounding box based on modified voxels, but only if we've been adding voxels, not substracting them
       else
+      {
         if (0LL < it.second->size)
         {
           if (ObjectVector[it.first]->min[0] > it.second->min[0]) ObjectVector[it.first]->min[0] = it.second->min[0];
@@ -544,22 +532,23 @@ void DataManager::StatisticsActionUpdate(void)
           if (ObjectVector[it.first]->max[1] < it.second->max[1]) ObjectVector[it.first]->max[1] = it.second->max[1];
           if (ObjectVector[it.first]->max[2] < it.second->max[2]) ObjectVector[it.first]->max[2] = it.second->max[2];
         }
+      }
     }
     ObjectVector[it.first]->size += it.second->size;
   }
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
-unsigned long long int DataManager::GetNumberOfVoxelsForLabel(unsigned short label) const
+unsigned long long int DataManager::GetNumberOfVoxelsForLabel(unsigned short label)
 {
-  assert(label < ObjectVector.size());
+  Q_ASSERT(label < ObjectVector.size());
   return ObjectVector[label]->size;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
-unsigned short DataManager::GetScalarForLabel(const unsigned short label) const
+unsigned short DataManager::GetScalarForLabel(const unsigned short label)
 {
-  assert(label < ObjectVector.size());
+  Q_ASSERT(label < ObjectVector.size());
   return ObjectVector[label]->scalar;
 }
 
@@ -575,23 +564,23 @@ unsigned short DataManager::GetLabelForScalar(const unsigned short scalar) const
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
-Vector3d DataManager::GetCentroidForObject(const unsigned short int label) const
+Vector3d DataManager::GetCentroidForObject(const unsigned short int label)
 {
-  assert(label < ObjectVector.size());
-  return ObjectVector[label]->centroid;
+  Q_ASSERT(label < ObjectVector.size());
+  return (ObjectVector[label])->centroid;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
-Vector3ui DataManager::GetBoundingBoxMin(unsigned short label) const
+Vector3ui DataManager::GetBoundingBoxMin(unsigned short label)
 {
-  assert(label < ObjectVector.size());
+  Q_ASSERT(label < ObjectVector.size());
   return ObjectVector[label]->min;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
-Vector3ui DataManager::GetBoundingBoxMax(unsigned short label) const
+Vector3ui DataManager::GetBoundingBoxMax(unsigned short label)
 {
-  assert(label < ObjectVector.size());
+  Q_ASSERT(label < ObjectVector.size());
   return ObjectVector[label]->max;
 }
 

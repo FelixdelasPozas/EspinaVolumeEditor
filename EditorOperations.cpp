@@ -259,9 +259,9 @@ bool EditorOperations::Relabel(QWidget *parent, std::shared_ptr<Metadata> data, 
 
     if (!colorpicker.ModifiedData()) return false;
 
-    Vector3d color = colorpicker.GetColor();
+    auto color = colorpicker.GetColor();
 
-    newlabel = m_dataManager->SetLabel(QColor{color[0], color[1], color[2]});
+    newlabel = m_dataManager->SetLabel(color);
     *isANewColor = true;
   }
 
@@ -274,10 +274,11 @@ bool EditorOperations::Relabel(QWidget *parent, std::shared_ptr<Metadata> data, 
   {
     case Selection::Type::DISC:
     case Selection::Type::EMPTY:
-      for (auto it: labels)
+    {
+      for (auto it: *labels)
       {
-        min = m_dataManager->GetBoundingBoxMin(*it);
-        max = m_dataManager->GetBoundingBoxMax(*it);
+        min = m_dataManager->GetBoundingBoxMin(it);
+        max = m_dataManager->GetBoundingBoxMax(it);
         for (unsigned int x = min[0]; x <= max[0]; x++)
         {
           for (unsigned int y = min[1]; y <= max[1]; y++)
@@ -290,17 +291,22 @@ bool EditorOperations::Relabel(QWidget *parent, std::shared_ptr<Metadata> data, 
           }
         }
       }
+    }
       break;
     case Selection::Type::VOLUME:
       min = m_selection->minimumBouds();
       max = m_selection->maximumBouds();
       for (unsigned int x = min[0]; x <= max[0]; x++)
+      {
         for (unsigned int y = min[1]; y <= max[1]; y++)
+        {
           for (unsigned int z = min[2]; z <= max[2]; z++)
           {
             Vector3ui point{x,y,z};
             if (m_selection->isInsideSelection(point)) m_dataManager->SetVoxelScalar(point, newlabel);
           }
+        }
+      }
       break;
     case Selection::Type::CONTOUR:
       if (labels->empty()) labels->insert(0);

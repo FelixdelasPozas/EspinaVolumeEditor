@@ -28,7 +28,6 @@ ProgressAccumulator::ProgressAccumulator()
 , m_VTKCommand   {nullptr}
 , m_progress     {0}
 , m_progressBar  {nullptr}
-, m_progressLabel{nullptr}
 {
 }
 
@@ -40,21 +39,16 @@ void ProgressAccumulator::Reset()
   if (m_progressBar)
   {
     m_progressBar->setValue(100);
-  }
-
-  if (m_progressLabel)
-  {
-    m_progressLabel->setText("Ready");
+    m_progressBar->setFormat("Ready");
   }
 
   QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-void ProgressAccumulator::SetProgressBar(QProgressBar *bar, QLabel *label)
+void ProgressAccumulator::SetProgressBar(QProgressBar *bar)
 {
   m_progressBar = bar;
-  m_progressLabel = label;
 
   m_ITKCommand = ITKCommandType::New();
   m_ITKCommand->SetCallbackFunction(this, &ProgressAccumulator::ITKProcessEvent);
@@ -72,13 +66,6 @@ void ProgressAccumulator::SetProgressBar(QProgressBar *bar, QLabel *label)
     m_progressBar->setUpdatesEnabled(true);
   }
 
-  if (!m_progressLabel->isEnabled())
-  {
-    m_progressLabel->setEnabled(true);
-    m_progressLabel->setUpdatesEnabled(true);
-  }
-
-  m_progressLabel->show();
   m_progressBar->show();
   m_progressBar->reset();
 
@@ -90,8 +77,8 @@ void ProgressAccumulator::VTKProcessEvent(vtkObject *caller, unsigned long eid, 
 {
   // Figure out the pointers
   auto alg = dynamic_cast<vtkAlgorithm *>(caller);
-  auto self = dynamic_cast<ProgressAccumulator *>(clientdata);
-  Q_ASSERT(alg & self);
+  auto self = static_cast<ProgressAccumulator *>(clientdata);
+  Q_ASSERT(alg && self);
 
   switch(eid)
   {
@@ -102,7 +89,7 @@ void ProgressAccumulator::VTKProcessEvent(vtkObject *caller, unsigned long eid, 
       self->CallbackStart(caller);
       break;
     case vtkCommand::EndEvent:
-      self->CallbackEnd(caller)
+      self->CallbackEnd(caller);
       break;
     default:
       break;
@@ -166,7 +153,7 @@ void ProgressAccumulator::Observe(itk::Object *caller, const std::string &text, 
   if (m_observed.find(caller) != m_observed.end()) return;
 
   auto tags = new struct observerTags;
-  tags->type = ITK;
+  tags->type = callerType::ITK;
   tags->tagProgress = caller->AddObserver(itk::ProgressEvent(), m_ITKCommand.GetPointer());
   tags->tagStart = caller->AddObserver(itk::StartEvent(), m_ITKCommand.GetPointer());
   tags->tagEnd = caller->AddObserver(itk::EndEvent(), m_ITKCommand.GetPointer());
@@ -175,7 +162,7 @@ void ProgressAccumulator::Observe(itk::Object *caller, const std::string &text, 
 
   m_observed.insert(std::make_pair(caller, tags));
 
-  m_progressLabel->setText(QString(tags->text.c_str()));
+  m_progressBar->setFormat(QString("%1: %p%").arg(QString(tags->text.c_str())));
   QApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
   QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
 }
@@ -196,7 +183,7 @@ void ProgressAccumulator::Observe(vtkObject *caller, const std::string &text, co
 
   m_observed.insert(std::make_pair(caller, tags));
 
-  m_progressLabel->setText(QString(tags->text.c_str()));
+  m_progressBar->setFormat(QString("%1: %p%").arg(QString(tags->text.c_str())));
   QApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
   QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
 }
@@ -230,27 +217,26 @@ void ProgressAccumulator::Ignore(vtkObject *caller)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void ProgressAccumulator::IgnoreAll()
 {
-  std::map<void *, struct observerTags*>::iterator it;
-
-  for (it = m_observed.begin(); it != m_observed.end(); it++)
+  for (auto process: m_observed)
   {
-    if((*it).second->type == callerType::ITK)
+    if(process.second->type == callerType::ITK)
     {
-      auto obj = reinterpret_cast<itk::Object *>((*it).first);
+      auto obj = reinterpret_cast<itk::Object *>(process.first);
 
-      obj->RemoveObserver((*it).second->tagProgress);
-      obj->RemoveObserver((*it).second->tagStart);
-      obj->RemoveObserver((*it).second->tagEnd);
+      obj->RemoveObserver(process.second->tagProgress);
+      obj->RemoveObserver(process.second->tagStart);
+      obj->RemoveObserver(process.second->tagEnd);
     }
     else
     {
-      auto obj = reinterpret_cast<vtkObject *>((*it).first);
+      auto obj = reinterpret_cast<vtkObject *>(process.first);
 
-      obj->RemoveObserver((*it).second->tagProgress);
-      obj->RemoveObserver((*it).second->tagStart);
-      obj->RemoveObserver((*it).second->tagEnd);
+      obj->RemoveObserver(process.second->tagProgress);
+      obj->RemoveObserver(process.second->tagStart);
+      obj->RemoveObserver(process.second->tagEnd);
     }
 
+    auto it = m_observed.find(process.first);
     m_observed.erase(it);
   }
   QApplication::restoreOverrideCursor();
@@ -259,8 +245,8 @@ void ProgressAccumulator::IgnoreAll()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void ProgressAccumulator::ManualSet(const std::string &text, const int value, bool calledFromThread)
 {
-  m_progressLabel->setText(QString(text.c_str()));
   m_progressBar->setValue(value);
+  m_progressBar->setFormat(QString("%1: %p%").arg(QString(text.c_str())));
 
   if (!calledFromThread)
   {
@@ -283,14 +269,10 @@ void ProgressAccumulator::ManualReset(bool calledFromThread)
 {
   m_progress = 0;
 
-  if (m_progressLabel)
-  {
-    m_progressLabel->setText("Ready");
-  }
-
   if (m_progressBar)
   {
     m_progressBar->setValue(100);
+    m_progressBar->setFormat(QString("Ready"));
   }
 
   if (!calledFromThread)

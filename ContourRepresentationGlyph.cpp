@@ -48,11 +48,7 @@ vtkStandardNewMacro(ContourRepresentationGlyph);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ContourRepresentationGlyph::ContourRepresentationGlyph()
-: InteractionState        {ContourRepresentation::Outside}
-, PointPlacer             {vtkFocalPlanePointPlacer::New()}
-, LineInterpolator        {vtkBezierContourLineInterpolator::New()}
-, HandleSize              {0.01}
-, Glypher                 {vtkSmartPointer<vtkGlyph3D>::New()}
+: Glypher                 {vtkSmartPointer<vtkGlyph3D>::New()}
 , Mapper                  {vtkSmartPointer<vtkPolyDataMapper>::New()}
 , Actor                   {vtkSmartPointer<vtkActor>::New()}
 , ActiveGlypher           {vtkSmartPointer<vtkGlyph3D>::New()}
@@ -78,6 +74,11 @@ ContourRepresentationGlyph::ContourRepresentationGlyph()
 , LinesProperty           {vtkSmartPointer<vtkProperty>::New()}
 , AlwaysOnTop             {0}
 {
+  this->InteractionState = ContourRepresentation::Outside;
+  this->SetPointPlacer(vtkFocalPlanePointPlacer::New());
+  this->SetLineInterpolator(vtkBezierContourLineInterpolator::New());
+  this->HandleSize = 0.01;
+
 	this->Spacing[0] = this->Spacing[1] = 1.0;
 	this->LastPickPosition[0] = this->LastPickPosition[1] = 0;
 	this->LastEventPosition[0] = this->LastEventPosition[1] = 0;
@@ -252,7 +253,7 @@ void ContourRepresentationGlyph::SetRenderer(vtkRenderer *ren)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 int ContourRepresentationGlyph::ComputeInteractionState(int X, int Y, int vtkNotUsed(modified))
 {
-	double pos[4], xyz[3];
+	double pos[4];
 	this->FocalPoint->GetPoint(0, pos);
 	pos[3] = 1.0;
 	this->Renderer->SetWorldPoint(pos);
@@ -592,7 +593,7 @@ void ContourRepresentationGlyph::BuildLines()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-vtkPolyData *ContourRepresentationGlyph::GetContourRepresentationAsPolyData() const
+vtkPolyData *ContourRepresentationGlyph::GetContourRepresentationAsPolyData()
 {
 	// Get the points in this contour as a vtkPolyData.
 	return this->Lines;

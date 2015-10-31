@@ -49,7 +49,7 @@ void SaveSessionThread::run()
   std::string temporalFilenameMHA = baseFilename + std::string(".mha");
 
   // needed to save the program state in the right moment so we wait for the lock to be open. Grab the lock and notify of action.
-  QMutexLocker locker(m_editor->m_mutex);
+  QMutexLocker locker(&(m_editor->m_mutex));
   emit startedSaving();
 
   QFile file(QString(temporalFilename.c_str()));
@@ -134,14 +134,14 @@ void SaveSessionThread::run()
   // EspinaEditor relevant data
   auto size = m_editor->m_segmentationFileName.size();
   write(outfile, size);
-  outfile << m_editor->m_segmentationFileName;
+  outfile << m_editor->m_segmentationFileName.toStdString();
 
   write(outfile, m_editor->m_hasReferenceImage);
   if (m_editor->m_hasReferenceImage)
   {
     size = m_editor->m_referenceFileName.size();
     write(outfile, size);
-    outfile << m_editor->m_referenceFileName;
+    outfile << m_editor->m_referenceFileName.toStdString();
   }
 
   write(outfile, m_editor->m_POI[0]);
@@ -154,9 +154,9 @@ void SaveSessionThread::run()
 
   for (auto it: m_editor->m_fileMetadata->ObjectVector)
   {
-    write(outfile, it.scalar);
-    write(outfile, it.segment);
-    write(outfile, it.selected);
+    write(outfile, it->scalar);
+    write(outfile, it->segment);
+    write(outfile, it->selected);
     // we could write the whole structure just by doing write(outfile, object) but i don't want to write down the
     // "used" bool field, i already know it's true
   }
@@ -167,12 +167,12 @@ void SaveSessionThread::run()
 
   for (auto it: m_editor->m_fileMetadata->CountingBrickVector)
   {
-    write(outfile, it.inclusive[0]);
-    write(outfile, it.inclusive[1]);
-    write(outfile, it.inclusive[2]);
-    write(outfile, it.exclusive[0]);
-    write(outfile, it.exclusive[1]);
-    write(outfile, it.exclusive[2]);
+    write(outfile, it->inclusive[0]);
+    write(outfile, it->inclusive[1]);
+    write(outfile, it->inclusive[2]);
+    write(outfile, it->exclusive[0]);
+    write(outfile, it->exclusive[1]);
+    write(outfile, it->exclusive[2]);
   }
 
   // Metadata::SegmentMetadata std::vector dump
@@ -181,13 +181,13 @@ void SaveSessionThread::run()
 
   for (auto it: m_editor->m_fileMetadata->SegmentVector)
   {
-    write(outfile, it.color.red());
-    write(outfile, it.color.green());
-    write(outfile, it.color.blue());
-    write(outfile, it.value);
-    size = it.name.size();
+    write(outfile, it->color.red());
+    write(outfile, it->color.green());
+    write(outfile, it->color.blue());
+    write(outfile, it->value);
+    size = it->name.size();
     write(outfile, size);
-    outfile << it.name;
+    outfile << it->name;
   }
 
   // Metadata relevant data

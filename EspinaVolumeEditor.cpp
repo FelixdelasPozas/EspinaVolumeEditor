@@ -8,9 +8,13 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 // qt includes 
-#include <EspinaVolumeEditor.h>
+
+// Qt
 #include <QtGui>
 #include <QMetaType>
+#include <QFile>
+
+// itk
 #include <itkImage.h>
 #include <itkImageFileReader.h>
 #include <itkLabelMap.h>
@@ -39,7 +43,8 @@
 #include <vtkInformation.h>
 #include <vtkImageChangeInformation.h>
 
-// project includes 
+// project includes
+#include <EspinaVolumeEditor.h>
 #include "DataManager.h"
 #include "VoxelVolumeRender.h"
 #include "Coordinates.h"
@@ -112,7 +117,6 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *parent)
   labelselector->setSelectionMode(QAbstractItemView::ExtendedSelection);
 
   // disable unused widgets
-  progressLabel->hide();
   progressBar->hide();
 
   // initialize views
@@ -239,7 +243,7 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *parent)
   loadSettings();
 
   // initialize editor progress bar
-  m_progress->SetProgressBar(progressBar, progressLabel);
+  m_progress->SetProgressBar(progressBar);
   m_progress->Reset();
 
   // let's see if a previous session crashed
@@ -248,8 +252,8 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *parent)
 	auto temporalFilename = baseFilename + QString(".session");
 	auto temporalFilenameMHA = baseFilename + QString(".mha");
 
-	QFile file(QString(temporalFilename));
-	QFile fileMHA(QString(temporalFilenameMHA));
+	QFile file(temporalFilename);
+	QFile fileMHA(temporalFilenameMHA);
 
 	if (file.exists() && fileMHA.exists())
 	{
@@ -462,12 +466,13 @@ void EspinaVolumeEditor::open()
   {
     msgBox.setCaption("Unused objects detected");
     msgBox.setIcon(QMessageBox::Warning);
+    msgBox.setWindowIcon(QIcon(":/newPrefix/icons/brain.png"));
 
     QApplication::restoreOverrideCursor();
 
     auto text = QString("The segmentation contains unused objects (with no voxels assigned).\nThose objects will be discarded.\n");
     msgBox.setText(text);
-    auto details = QString("Unused objects:");
+    auto details = QString("Unused objects:\n");
     for (auto label: unusedLabels)
     {
       details += QString("label %1").arg(label) + QString("\n");
@@ -579,10 +584,10 @@ void EspinaVolumeEditor::referenceOpen()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void EspinaVolumeEditor::loadReferenceFile(const QString &filename)
 {
-  QMessageBox msgBox;
+  QMessageBox msgBox(this);
 
   // store reference filename
-  m_referenceFileName = filename.toStdString();
+  m_referenceFileName = filename;
 
   auto reader = vtkSmartPointer<vtkMetaImageReader>::New();
   reader->SetFileName(filename.toStdString().c_str());
@@ -710,7 +715,7 @@ void EspinaVolumeEditor::loadReferenceFile(const QString &filename)
   structuredPoints->Modified();
 
   // now that we have a reference image make the background of the segmentation completely transparent
-  auto color = QColor::fromRgbF(0,0,0,0);
+  auto color = QColor::fromRgbF(0,0,0,1);
   m_dataManager->SetColorComponents(0, color);
 
   // pass reference image to slice visualization
@@ -811,7 +816,7 @@ void EspinaVolumeEditor::save()
   editorSettings.setValue(filenameQt, variant);
   editorSettings.sync();
 
-  m_segmentationFileName = filenameStd;
+  m_segmentationFileName = filename;
 
   // put the name of the opened file in the window title
   auto caption = QString("Espina Volume Editor - ") + m_segmentationFileName;
@@ -1027,10 +1032,11 @@ void EspinaVolumeEditor::fillColorLabels()
   labelselector->insertItem(0, newItem);
 
   // iterate over the colors to fill the table
-  for (unsigned int i = 1; i < m_dataManager->GetNumberOfColors(); i++)
+  for (unsigned int i = 1; i < m_dataManager->GetNumberOfColors(); ++i)
   {
     QPixmap icon(16, 16);
     auto color = m_dataManager->GetColorComponents(i);
+    color.setAlphaF(1);
     icon.fill(color);
 
     std::stringstream out;
@@ -1063,7 +1069,7 @@ void EspinaVolumeEditor::fillColorLabels()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-void EspinaVolumeEditor::onLabelSelectionInteraction(QListWidgetItem *current, QListWidgetItem *previous)
+void EspinaVolumeEditor::onLabelSelectionInteraction(QListWidgetItem *unused1, QListWidgetItem *unused2)
 {
   if (wandButton->isChecked()) viewbutton->setChecked(true);
 }
@@ -1219,6 +1225,9 @@ void EspinaVolumeEditor::onSelectionChanged()
     }
   }
 
+  m_axialView->updateSlice(m_POI);
+  m_coronalView->updateSlice(m_POI);
+  m_sagittalView->updateSlice(m_POI);
   updateViewports(ViewPorts::All);
 }
 
@@ -1292,6 +1301,11 @@ void EspinaVolumeEditor::preferences()
     m_axialView->setSegmentationOpacity(configdialog.opacity());
     m_sagittalView->setSegmentationOpacity(configdialog.opacity());
     m_coronalView->setSegmentationOpacity(configdialog.opacity());
+
+    m_axialView->updateActors();
+    m_coronalView->updateActors();
+    m_sagittalView->updateActors();
+
     // the visualization options could have been modified so we must update the slices
     updateViewports(ViewPorts::Slices);
   }
@@ -1410,13 +1424,12 @@ void EspinaVolumeEditor::relabel()
 {
   QMutexLocker locker(&m_mutex);
 
-  auto labels = new std::set<unsigned short>;
-  *labels = m_dataManager->GetSelectedLabelsSet();
-  bool *isANewColor = new bool(false);
+  std::set<unsigned short> labels = m_dataManager->GetSelectedLabelsSet();
+  bool isANewColor{false};
 
-  if (m_editorOperations->Relabel(this, m_fileMetadata, labels, isANewColor))
+  if (m_editorOperations->Relabel(this, m_fileMetadata, &labels, &isANewColor))
   {
-    if (true == *isANewColor)
+    if (isANewColor)
     {
       restartVoxelRender();
       fillColorLabels();
@@ -1436,14 +1449,11 @@ void EspinaVolumeEditor::relabel()
     }
     labelselector->blockSignals(false);
 
-    selectLabels(*labels);
+    selectLabels(labels);
     updatePointLabel();
     updateUndoRedoMenu();
     updateViewports(ViewPorts::All);
   }
-
-  delete labels;
-  delete isANewColor;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2075,7 +2085,7 @@ void EspinaVolumeEditor::sliceXYPick(const unsigned long event, std::shared_ptr<
         }
         else
         {
-          applyUserAction (sliceView);
+          applyUserAction(view);
           m_volumeView->updateFocusExtent();
         }
         break;
@@ -2093,7 +2103,7 @@ void EspinaVolumeEditor::sliceXYPick(const unsigned long event, std::shared_ptr<
         }
         else
         {
-          applyUserAction (sliceView);
+          applyUserAction(view);
           m_volumeView->updateFocusExtent();
         }
         break;
@@ -2643,7 +2653,7 @@ void EspinaVolumeEditor::removeSessionFiles(void)
   auto temporalFilename = baseFilename + QString(".session");
   auto temporalFilenameMHA = baseFilename + QString(".mha");
 
-  QFile file(QString(temporalFilename));
+  QFile file(temporalFilename);
   if (file.exists() && !file.remove())
   {
     QMessageBox msgBox;
@@ -2653,7 +2663,7 @@ void EspinaVolumeEditor::removeSessionFiles(void)
     msgBox.exec();
   }
 
-  QFile fileMHA(QString(temporalFilenameMHA));
+  QFile fileMHA(temporalFilenameMHA);
   if (fileMHA.exists() && !fileMHA.remove())
   {
     QMessageBox msgBox;
@@ -2683,7 +2693,7 @@ void EspinaVolumeEditor::initializeGUI(void)
   m_POI[2] = (imageSize[2] - 1) / 2;
 
   // add volume actors to 3D renderer
-  m_volumeView = new VoxelVolumeRender(m_dataManager, m_volumeRenderer, m_progress);
+  m_volumeView = std::make_shared<VoxelVolumeRender>(m_dataManager, m_volumeRenderer, m_progress);
 
   // visualize slices in all planes
   m_sagittalView->initialize(m_dataManager->GetStructuredPoints(), m_dataManager->GetLookupTable(), m_sagittalRenderer, m_orientationData);
@@ -2769,7 +2779,7 @@ void EspinaVolumeEditor::initializeGUI(void)
   viewgrid->setRowMinimumHeight(1, 0);
 
   // set axes initial state
-  m_axesRender = new AxesRender(m_volumeRenderer, m_orientationData);
+  m_axesRender = std::make_shared<AxesRender>(m_volumeRenderer, m_orientationData);
   m_axesRender->Update(m_POI);
 
   // update all renderers
@@ -3079,7 +3089,7 @@ void EspinaVolumeEditor::applyUserAction(std::shared_ptr<SliceVisualization> vie
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void EspinaVolumeEditor::sessionInfo()
 {
-  QFileInfo fileInfo(QString(m_segmentationFileName));
+  QFileInfo fileInfo{m_segmentationFileName};
 
   QtSessionInfo infodialog(this);
 
@@ -3088,22 +3098,20 @@ void EspinaVolumeEditor::sessionInfo()
   infodialog.SetFileInfo(fileInfo);
 
   int segmentationsNum = 0;
-  for (unsigned int i = 1; i < m_dataManager->GetNumberOfLabels(); i++)
+  for (unsigned int i = 1; i < m_dataManager->GetNumberOfLabels(); ++i)
   {
     if (!labelselector->item(i)->isHidden())
     {
-      segmentationsNum++;
+      ++segmentationsNum;
     }
   }
   infodialog.SetNumberOfSegmentations(segmentationsNum);
 
-  Matrix3d matrix;
-  matrix = m_orientationData->GetImageDirectionCosineMatrix();
-  infodialog.SetDirectionCosineMatrix(matrix);
+  infodialog.SetDirectionCosineMatrix(m_orientationData->GetImageDirectionCosineMatrix());
 
   if (!m_referenceFileName.isEmpty())
   {
-    QFileInfo referenceFileInfo(QString(m_referenceFileName));
+    QFileInfo referenceFileInfo{m_referenceFileName};
     infodialog.SetReferenceFileInfo(referenceFileInfo);
   }
 

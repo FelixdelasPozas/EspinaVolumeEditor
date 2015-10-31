@@ -13,10 +13,12 @@
 // c++ includes
 #include <vector>
 #include <map>
+#include <memory>
 
 // qt includes
 #include <QFile>
 #include <QString>
+#include <QColor>
 
 // project includes
 #include "VectorSpaceAlgebra.h"
@@ -33,6 +35,11 @@ class Metadata
      *
      */
     Metadata();
+
+    /** \brief Metadata class destructor.
+     *
+     */
+    ~Metadata();
 
     /** \brief Read metadata from a segmha file, returns true on success and false otherwise.
      * \param[in] fileName name of the segmha file.
@@ -72,7 +79,7 @@ class Metadata
     /** \brief Returns a vector containing unused objects.
      *
      */
-    std::vector<unsigned int> unusedLabels();
+    QList<unsigned int> unusedLabels();
 
     friend class SaveSessionThread;
     friend class EspinaVolumeEditor;
@@ -146,10 +153,10 @@ class Metadata
 
     bool hasUnassignedTag;     /** true if the segmha file readed had a segment with "Unassigned" name, false otherwise. */
     int unassignedTagPosition; /** position in the SegmentMetadata vector of the "Unassigned" tag, only valid if hasUnassignedTag==true */
-    std::vector<struct ObjectMetadata>        ObjectVector;        /** vector containing Object metadata. */
-    std::vector<struct CountingBrickMetadata> CountingBrickVector; /** vector containing Counting Brick metadata. */
-    std::vector<struct SegmentMetadata>       SegmentVector;       /** vector containing Segment metadata. */
-    std::vector<unsigned int>                 UnusedObjects;       /** vector containing unused objects. */
+    QList<std::shared_ptr<ObjectMetadata>>        ObjectVector;        /** vector containing Object metadata. */
+    QList<std::shared_ptr<CountingBrickMetadata>> CountingBrickVector; /** vector containing Counting Brick metadata. */
+    QList<std::shared_ptr<SegmentMetadata>>       SegmentVector;       /** vector containing Segment metadata. */
+    QList<unsigned int>                           UnusedObjects;       /** vector containing unused objects. */
 };
 
 #endif // _METADATA_H_

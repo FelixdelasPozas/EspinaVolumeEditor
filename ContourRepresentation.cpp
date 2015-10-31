@@ -32,6 +32,9 @@
 #include <vtkRenderer.h>
 #include <vtkWindow.h>
 
+// C++
+#include <memory>
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // ContourRepresentation class
 //
@@ -244,13 +247,13 @@ int ContourRepresentation::AddNodeAtDisplayPosition(double displayPos[2])
   return 1;
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
 int ContourRepresentation::AddNodeAtDisplayPosition(int displayPos[2])
 {
-  double doubleDisplayPos[2] { displayPos[0], displayPos[1] };
-
-  return this->AddNodeAtDisplayPosition(doubleDisplayPos);
+  return this->AddNodeAtDisplayPosition(displayPos[0], displayPos[1]);
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
 int ContourRepresentation::AddNodeAtDisplayPosition(int X, int Y)
 {
   double displayPos[2]{ static_cast<double>(X), static_cast<double>(Y) };
@@ -281,9 +284,7 @@ int ContourRepresentation::ActivateNode(double displayPos[2])
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 int ContourRepresentation::ActivateNode(int displayPos[2])
 {
-  double doubleDisplayPos[2]{ displayPos[0], displayPos[1] };
-
-  return this->ActivateNode(doubleDisplayPos);
+  return this->ActivateNode(displayPos[0], displayPos[1]);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -294,6 +295,7 @@ int ContourRepresentation::ActivateNode(int X, int Y)
   return this->ActivateNode(doubleDisplayPos);
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
 int ContourRepresentation::SetActiveNodeToWorldPosition(double worldPos[3], double worldOrient[9])
 {
   if (this->ActiveNode < 0 || static_cast<unsigned int>(this->ActiveNode) >= this->Internal->Nodes.size()) return 0;
@@ -342,9 +344,7 @@ int ContourRepresentation::SetActiveNodeToDisplayPosition(double displayPos[2])
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 int ContourRepresentation::SetActiveNodeToDisplayPosition(int displayPos[2])
 {
-  double doubleDisplayPos[2]{ displayPos[0], displayPos[1] };
-
-  return this->SetActiveNodeToDisplayPosition(doubleDisplayPos);
+  return this->SetActiveNodeToDisplayPosition(displayPos[0], displayPos[1]);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -558,7 +558,7 @@ int ContourRepresentation::SetNthNodeDisplayPosition(int n, double displayPos[2]
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 int ContourRepresentation::SetNthNodeDisplayPosition(int n, int displayPos[2])
 {
-  double doubleDisplayPos[2]{ displayPos[0], displayPos[1] };
+  double doubleDisplayPos[2]{ static_cast<double>(displayPos[0]), static_cast<double>(displayPos[1]) };
 
   return this->SetNthNodeDisplayPosition(n, doubleDisplayPos);
 }
@@ -1735,7 +1735,7 @@ bool ContourRepresentation::NodesIntersection(int nodeA, int nodeC)
 
   // nMitc[0] = numerator_of_M_inverse_times_c0
   // nMitc[1] = numerator_of_M_inverse_times_c1
-  auto nMitc[2] = { (b0[0] - a0[0]) * (b1[1] - b0[1]) + (b0[1] - a0[1]) * (b0[0] - b1[0]), (b0[0] - a0[0]) * (a0[1] - a1[1]) + (b0[1] - a0[1]) * (a1[0] - a0[0]) };
+  double nMitc[2] = { (b0[0] - a0[0]) * (b1[1] - b0[1]) + (b0[1] - a0[1]) * (b0[0] - b1[0]), (b0[0] - a0[0]) * (a0[1] - a1[1]) + (b0[1] - a0[1]) * (a1[0] - a0[0]) };
 
   // true if an intersection between two non-parallel lines occurs between the given segment double *s.
   return ((0 <= nMitc[0] && nMitc[0] <= det) && (0 >= nMitc[1] && nMitc[1] >= -det))

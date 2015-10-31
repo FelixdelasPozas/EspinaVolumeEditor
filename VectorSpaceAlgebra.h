@@ -36,6 +36,7 @@ template<class T> class Vector3
      */
     Vector3()
     {
+      data.reserve(3);
       data.push_back(T(0));
       data.push_back(T(0));
       data.push_back(T(0));
@@ -105,7 +106,7 @@ template<class T> class Vector3
      * \param[in] b vector.
      *
      */
-    friend bool operator==(const Vector3<T> &a, const Vector3<T> &b) throw ()
+    friend bool operator==(const Vector3<T> &a, const Vector3<T> &b)
     {
       for (auto i: {0,1,2})
       {
@@ -496,7 +497,7 @@ template<class T> class Matrix3
     /** \brief Returns true if the matrix is null.
      *
      */
-    const bool isNull()
+    const bool isNull() const
     {
       for (auto i: {0,1,2})
       {
@@ -656,7 +657,7 @@ template<class T> class Matrix3
      * \param[in] i row index.
      *
      */
-    Vector3<T> row(int i)
+    Vector3<T> row(int i) const
     {
       assert((0 <= i) && (i < 3));
 
@@ -667,7 +668,7 @@ template<class T> class Matrix3
      * \param[in] i column index.
      *
      */
-    Vector3<T> column(const int i)
+    Vector3<T> column(const int i) const
     {
       assert((0 <= i) && (i < 3));
 

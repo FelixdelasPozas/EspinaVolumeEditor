@@ -3,6 +3,15 @@ cmake_minimum_required(VERSION 2.8)
 
 PROJECT(EspinaVolumeEditor)
 
+# Version Number
+set (ESPINAEDITOR_VERSION_MAJOR 2)
+set (ESPINAEDITOR_VERSION_MINOR 0)
+set (ESPINAEDITOR_VERSION_PATCH 0)
+
+add_definitions(
+  -std=c++11
+  -mwindows
+  )
 # use what QVTK built with
 FIND_PACKAGE(Qt4 REQUIRED)
 INCLUDE(${QT_USE_FILE})
@@ -20,8 +29,15 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
+if(DEFINED ESPINAEDITOR_VERSION_MAJOR)
+  configure_file("${PROJECT_SOURCE_DIR}/EspinaEditor.rc.in" "${PROJECT_BINARY_DIR}/EspinaEditor.rc")
+  set(RC_FILE ${CMAKE_CURRENT_BINARY_DIR}/ESPINAEDITOR.rc)
+  set(CMAKE_RC_COMPILE_OBJECT "<CMAKE_RC_COMPILER> -O coff -o <OBJECT> -i <SOURCE>")
+  enable_language(RC)
+endif(DEFINED ESPINAEDITOR_VERSION_MAJOR)
+
 SET(QtSrcs EspinaVolumeEditor.cpp QtPreferences.cpp QtRelabel.cpp QtAbout.cpp QtColorPicker.cpp SaveSession.cpp QtSessionInfo.cpp QtKeyboardHelp.cpp)
-SET(UIS EspinaVolumeEditor.ui QtPreferences.ui QtRelabel.ui QtAbout.ui QtColorPicker.ui QtSessionInfo.ui QtKeyboardHelp.ui)
+SET(UIS QtPreferences.ui QtRelabel.ui QtAbout.ui QtColorPicker.ui QtSessionInfo.ui QtKeyboardHelp.ui EspinaVolumeEditor.ui)
 SET (QtHeaders EspinaVolumeEditor.h QtPreferences.h QtRelabel.h QtAbout.h QtColorPicker.h SaveSession.h QtSessionInfo.h QtKeyboardHelp.h)
 SET (QtResources editor.qrc about.qrc colorpicker.qrc keyboardhelp.qrc)
 QT4_WRAP_UI(UIHeaders ${UIS})
@@ -67,7 +83,7 @@ SET(CurrentFiles
 	"ContourRepresentationGlyph"
 )
 
-ADD_EXECUTABLE(Editor ${CurrentFiles}.cpp ${QtSrcs} ${MOCSrcs} ${QtResources_cpp})
+ADD_EXECUTABLE(Editor ${CurrentFiles}.cpp ${QtSrcs} ${MOCSrcs} ${QtResources_cpp} ${RC_FILE})
 TARGET_LINK_LIBRARIES(Editor ${Libraries})
 SET_TARGET_PROPERTIES(Editor PROPERTIES OUTPUT_NAME EspinaEditor)
 

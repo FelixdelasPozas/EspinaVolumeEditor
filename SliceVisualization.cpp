@@ -60,20 +60,15 @@ SliceVisualization::SliceVisualization(Orientation type)
 , m_segmentationReslice{nullptr}
 , m_segmentationsMapper{nullptr}
 , m_segmentationsActor{nullptr}
+, m_selectionReslice{nullptr}
+, m_caster{nullptr}
+, m_geometryFilter{nullptr}
+, m_iconFilter{nullptr}
+, m_selectionMapper{nullptr}
+, m_selectionActor{nullptr}
 , m_segmentationOpacity{0.75}
 , m_segmentationHidden{false}
 {
-  // initilize options, minimum required
-  m_segmentationOpacity = 75;
-  m_segmentationHidden = false;
-  m_imageBlender = NULL;
-  m_thumbRenderer = NULL;
-  m_renderer = NULL;
-  m_orientation = type;
-  m_widget = NULL;
-  m_referenceImageMapper = NULL;
-  m_referenceReslice = NULL;
-
   // create 2D actors texture
   auto texture = vtkSmartPointer<vtkImageCanvasSource2D>::New();
   texture->SetScalarTypeToUnsignedChar();
@@ -228,16 +223,16 @@ void SliceVisualization::generateCrosshair()
   switch(m_orientation)
   {
     case Orientation::Sagittal:
-      horizontalColor = Qt::green;
-      verticalColor   = Qt::blue;
+      horizontalColor = Qt::blue;
+      verticalColor   = Qt::green;
       break;
     case Orientation::Coronal:
-      horizontalColor = Qt::red;
-      verticalColor   = Qt::blue;
+      horizontalColor = Qt::blue;
+      verticalColor   = Qt::red;
       break;
     case Orientation::Axial:
-      horizontalColor = Qt::red;
-      verticalColor   = Qt::green;
+      horizontalColor = Qt::green;
+      verticalColor   = Qt::red;
       break;
     default:
       Q_ASSERT(false);
@@ -249,7 +244,7 @@ void SliceVisualization::generateCrosshair()
   verticalmapper->SetInputData(verticaldata);
   m_verticalCrosshairActor = vtkSmartPointer<vtkActor>::New();
   m_verticalCrosshairActor->SetMapper(verticalmapper);
-  m_verticalCrosshairActor->GetProperty()->SetColor(verticalColor.redF(), verticalColor.blueF(), verticalColor.greenF());
+  m_verticalCrosshairActor->GetProperty()->SetColor(verticalColor.redF(), verticalColor.greenF(), verticalColor.blueF());
   m_verticalCrosshairActor->GetProperty()->SetLineStipplePattern(0xF0F0);
   m_verticalCrosshairActor->GetProperty()->SetLineStippleRepeatFactor(1);
   m_verticalCrosshairActor->GetProperty()->SetPointSize(1);
@@ -296,8 +291,6 @@ void SliceVisualization::updateSlice(const Vector3ui &point)
   // change slice by changing reslice axes
   auto index = static_cast<int>(m_orientation);
 
-  if (m_point[index] == point[index]) return;
-
   m_point[index] = point[index];
   out << m_point[index] + 1 << " of " << m_size[index];
 
@@ -314,6 +307,12 @@ void SliceVisualization::updateSlice(const Vector3ui &point)
   m_textActor->SetInput(textbuffer.c_str());
   m_textActor->Modified();
 
+  updateActors();
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+void SliceVisualization::updateActors()
+{
   m_segmentationReslice->Update();
   m_segmentationsMapper->Update();
 
@@ -324,6 +323,16 @@ void SliceVisualization::updateSlice(const Vector3ui &point)
     m_imageBlender->Update();
   }
   m_segmentationsActor->Update();
+
+  if(m_selectionMapper)
+  {
+    m_selectionReslice->Update();
+    m_caster->Update();
+    m_geometryFilter->Update();
+    m_iconFilter->Update();
+    m_selectionMapper->Update();
+    m_selectionActor->Modified();
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -640,10 +649,12 @@ void SliceVisualization::setReferenceImage(vtkSmartPointer<vtkStructuredPoints> 
 
 	// remove actual actor and add the blended actor with both the segmentation and the stack
 	m_imageBlender = vtkSmartPointer<vtkImageBlend>::New();
-	m_imageBlender->SetInputData(0, m_referenceImageMapper->GetOutput());
-	m_imageBlender->SetInputData(1, m_segmentationsMapper->GetOutput());
+	m_imageBlender->SetInputConnection(0, m_referenceImageMapper->GetOutputPort());
+	m_imageBlender->AddInputConnection(0, m_segmentationsMapper->GetOutputPort());
 	m_imageBlender->SetOpacity(1, m_segmentationOpacity);
 	m_imageBlender->SetBlendModeToNormal();
+	m_imageBlender->SetNumberOfThreads(1);
+	m_imageBlender->SetUpdateExtentToWholeExtent();
 	m_imageBlender->Update();
 
   m_segmentationsActor->SetInputData(m_imageBlender->GetOutput());
@@ -743,68 +754,68 @@ void SliceVisualization::updateActorVisibility(std::shared_ptr<struct ActorData>
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void SliceVisualization::setSelectionVolume(const vtkSmartPointer<vtkImageData> selectionBuffer, bool useActorBounds)
 {
-  auto reslice = vtkSmartPointer<vtkImageReslice>::New();
-  reslice->SetOptimization(true);
-  reslice->BorderOn();
-  reslice->SetInputData(selectionBuffer);
-  reslice->SetOutputDimensionality(2);
-  reslice->SetResliceAxes(m_axesMatrix);
-  reslice->Update();
+  m_selectionReslice = vtkSmartPointer<vtkImageReslice>::New();
+  m_selectionReslice->SetOptimization(true);
+  m_selectionReslice->BorderOn();
+  m_selectionReslice->SetInputData(selectionBuffer);
+  m_selectionReslice->SetOutputDimensionality(2);
+  m_selectionReslice->SetResliceAxes(m_axesMatrix);
+  m_selectionReslice->Update();
 
   // we need integer indexes, must cast first
-  auto caster = vtkSmartPointer<vtkImageCast>::New();
-  caster->SetInputData(reslice->GetOutput());
-  caster->SetOutputScalarTypeToInt();
-  caster->Update();
+  m_caster = vtkSmartPointer<vtkImageCast>::New();
+  m_caster->SetInputData(m_selectionReslice->GetOutput());
+  m_caster->SetOutputScalarTypeToInt();
+  m_caster->Update();
 
   // transform the vtkImageData to vtkPolyData
-  auto imageDataGeometryFilter = vtkSmartPointer<vtkImageDataGeometryFilter>::New();
-  imageDataGeometryFilter->SetInputData(caster->GetOutput());
-  imageDataGeometryFilter->SetGlobalWarningDisplay(false);
-  imageDataGeometryFilter->SetThresholdCells(true);
-  imageDataGeometryFilter->SetThresholdValue(Selection::SELECTION_UNUSED_VALUE);
-  imageDataGeometryFilter->Update();
+  m_geometryFilter = vtkSmartPointer<vtkImageDataGeometryFilter>::New();
+  m_geometryFilter->SetInputData(m_caster->GetOutput());
+  m_geometryFilter->SetGlobalWarningDisplay(false);
+  m_geometryFilter->SetThresholdCells(true);
+  m_geometryFilter->SetThresholdValue(Selection::SELECTION_UNUSED_VALUE);
+  m_geometryFilter->Update();
 
   // create filter to apply the same texture to every point in the set
-  auto iconFilter = vtkSmartPointer<vtkIconGlyphFilter>::New();
-  iconFilter->SetInputData(imageDataGeometryFilter->GetOutput());
-  iconFilter->SetIconSize(8, 8);
-  iconFilter->SetUseIconSize(false);
+  m_iconFilter = vtkSmartPointer<vtkIconGlyphFilter>::New();
+  m_iconFilter->SetInputData(m_geometryFilter->GetOutput());
+  m_iconFilter->SetIconSize(8, 8);
+  m_iconFilter->SetUseIconSize(false);
   // if spacing < 1, we're fucked, literally
   switch (m_orientation)
   {
     case Orientation::Axial:
-      iconFilter->SetDisplaySize(static_cast<int>(m_spacing[0]), static_cast<int>(m_spacing[1]));
+      m_iconFilter->SetDisplaySize(static_cast<int>(m_spacing[0]), static_cast<int>(m_spacing[1]));
       break;
     case Orientation::Coronal:
-      iconFilter->SetDisplaySize(static_cast<int>(m_spacing[0]), static_cast<int>(m_spacing[2]));
+      m_iconFilter->SetDisplaySize(static_cast<int>(m_spacing[0]), static_cast<int>(m_spacing[2]));
       break;
     case Orientation::Sagittal:
-      iconFilter->SetDisplaySize(static_cast<int>(m_spacing[1]), static_cast<int>(m_spacing[2]));
+      m_iconFilter->SetDisplaySize(static_cast<int>(m_spacing[1]), static_cast<int>(m_spacing[2]));
       break;
     default:
       Q_ASSERT(false);
       break;
   }
-  iconFilter->SetIconSheetSize(24, 8);
-  iconFilter->SetGravityToCenterCenter();
+  m_iconFilter->SetIconSheetSize(24, 8);
+  m_iconFilter->SetGravityToCenterCenter();
 
-  auto mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-  mapper->SetInputConnection(iconFilter->GetOutputPort());
+  m_selectionMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+  m_selectionMapper->SetInputConnection(m_iconFilter->GetOutputPort());
 
-  auto actor = vtkSmartPointer<vtkActor>::New();
-  actor->SetMapper(mapper);
-  actor->SetTexture(m_texture);
-  actor->SetDragable(false);
-  actor->UseBoundsOff();
+  m_selectionActor = vtkSmartPointer<vtkActor>::New();
+  m_selectionActor->SetMapper(m_selectionMapper);
+  m_selectionActor->SetTexture(m_texture);
+  m_selectionActor->SetDragable(false);
+  m_selectionActor->UseBoundsOff();
 
-  m_renderer->AddActor(actor);
+  m_renderer->AddActor(m_selectionActor);
 
   double bounds[6];
   selectionBuffer->GetBounds(bounds);
 
   auto actorInformation = std::make_shared<struct ActorData>();
-  actorInformation->actor = actor;
+  actorInformation->actor = m_selectionActor;
 
   switch (m_orientation)
   {

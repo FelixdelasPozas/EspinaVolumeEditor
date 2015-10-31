@@ -222,7 +222,7 @@ void ContourWidget::SelectAction(vtkAbstractWidget *widget)
 				break;
 			}
 
-			if (self->WidgetRep->GetInteractionState() == ContourRepresentation::Position::Inside)
+			if (self->WidgetRep->GetInteractionState() == ContourRepresentation::Inside)
 			{
 				self->TranslateContourAction(widget);
 				break;
@@ -781,20 +781,20 @@ void ContourWidget::SetCursor(int cState)
 
 	switch (cState)
 	{
-		case ContourRepresentation::Position::Nearby:
-		case ContourRepresentation::Position::NearPoint:
+		case ContourRepresentation::Nearby:
+		case ContourRepresentation::NearPoint:
 			if (pressedKeys & Qt::ShiftModifier)
 				QApplication::changeOverrideCursor(crossMinusCursor);
 			else
 				QApplication::changeOverrideCursor(Qt::PointingHandCursor);
 			break;
-		case ContourRepresentation::Position::NearContour:
+		case ContourRepresentation::NearContour:
 			if (pressedKeys & Qt::ShiftModifier)
 				QApplication::changeOverrideCursor(Qt::CrossCursor);
 			else
 				QApplication::changeOverrideCursor(crossPlusCursor);
 			break;
-		case ContourRepresentation::Position::Inside:
+		case ContourRepresentation::Inside:
 			this->RequestCursorShape(VTK_CURSOR_SIZEALL);
 			break;
 		default:

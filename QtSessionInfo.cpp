@@ -90,6 +90,6 @@ void QtSessionInfo::SetDirectionCosineMatrix(const Matrix3d &matrix)
   vector2Label->setText(text);
 
   vector = matrix[2];
-  auto text = QString("%1  %2  %3").arg(vector[0]).arg(vector[1]).arg(vector[2]);
+  text = QString("%1  %2  %3").arg(vector[0]).arg(vector[1]).arg(vector[2]);
   vector3Label->setText(text);
 }

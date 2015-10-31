@@ -25,6 +25,14 @@ Metadata::Metadata(void)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+Metadata::~Metadata()
+{
+  ObjectVector.clear();
+  CountingBrickVector.clear();
+  SegmentVector.clear();
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 bool Metadata::read(const QString &filename)
 {
   QFile file(filename);
@@ -132,21 +140,21 @@ bool Metadata::write(const QString &filename, std::shared_ptr<DataManager> data)
 
   for (auto it: ObjectVector)
   {
-    auto label = data->GetLabelForScalar(it.scalar);
+    auto label = data->GetLabelForScalar(it->scalar);
 
     if (0LL == data->GetNumberOfVoxelsForLabel(label)) continue;
 
     // write object metadata
-    out << "Object: label=" << it.scalar;
-    out << " segment=" << it.segment;
-    out << " selected=" << it.selected;
+    out << "Object: label=" << it->scalar;
+    out << " segment="      << it->segment;
+    out << " selected="     << it->selected;
     out << "\n";
   }
 
   if (ObjectVector.size() < (data->GetNumberOfLabels() - 1))
   {
     auto label = ObjectVector.size() + 1;
-    auto position = ((true == hasUnassignedTag) ? unassignedTagPosition : this->SegmentVector.size() + 1);
+    auto position = ((true == hasUnassignedTag) ? unassignedTagPosition : SegmentVector.size() + 1);
 
     while (label != data->GetNumberOfLabels())
     {
@@ -161,8 +169,8 @@ bool Metadata::write(const QString &filename, std::shared_ptr<DataManager> data)
 
   for (auto it: CountingBrickVector)
   {
-    out << "Counting Brick: inclusive=[" << it.inclusive[0] << ", " << it.inclusive[1] << ", " << it.inclusive[2];
-    out << "] exclusive=[" << it.exclusive[0] << ", " << it.exclusive[1] << ", " << it.exclusive[2];
+    out << "Counting Brick: inclusive=[" << it->inclusive[0] << ", " << it->inclusive[1] << ", " << it->inclusive[2];
+    out << "] exclusive=[" << it->exclusive[0] << ", " << it->exclusive[1] << ", " << it->exclusive[2];
     out << "]\n";
   }
 
@@ -171,15 +179,15 @@ bool Metadata::write(const QString &filename, std::shared_ptr<DataManager> data)
   for (auto it: SegmentVector)
   {
     out << "Segment: name=\"";
-    out << it.name.c_str();
-    out << "\" value=" << it.value;
-    out << " color= " << it.color.red() << ", " << it.color.green() << ", " << it.color.blue() << "\n";
+    out << it->name.c_str();
+    out << "\" value=" << it->value;
+    out << " color= " << it->color.red() << ", " << it->color.green() << ", " << it->color.blue() << "\n";
   }
 
   // BEWARE: assumes that segment values are consecutive, and only adds this segment definition if there are new labels.
-  if ((false == hasUnassignedTag) && (ObjectVector.size() < (data->GetNumberOfLabels() - 1)))
+  if ((!hasUnassignedTag) && (ObjectVector.size() < (data->GetNumberOfLabels() - 1)))
   {
-    out << "Segment: name=\"Unassigned\" value=" << this->SegmentVector.size() + 1 << " color= 0, 0, 255" << "\n";
+    out << "Segment: name=\"Unassigned\" value=" << SegmentVector.size() + 1 << " color= 0, 0, 255" << "\n";
   }
 
   file.close();
@@ -189,33 +197,33 @@ bool Metadata::write(const QString &filename, std::shared_ptr<DataManager> data)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void Metadata::addObject(const unsigned int label, const unsigned int segment, const unsigned int selected)
 {
-  auto object = new struct ObjectMetadata;
+  auto object = std::make_shared<ObjectMetadata>();
   object->scalar = label;
   object->segment = segment;
   object->selected = selected;
 
-  this->ObjectVector.push_back(*object);
+  ObjectVector << object;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void Metadata::addBrick(const Vector3ui &inclusive, const Vector3ui &exclusive)
 {
-  auto brick = new struct CountingBrickMetadata;
+  auto brick = std::make_shared<CountingBrickMetadata>();
   brick->inclusive = inclusive;
   brick->exclusive = exclusive;
 
-  this->CountingBrickVector.push_back(*brick);
+  CountingBrickVector << brick;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void Metadata::addSegment(const std::string &name, const unsigned int value, const QColor &color)
 {
-  auto segment = new struct SegmentMetadata;
+  auto segment = std::make_shared<SegmentMetadata>();
   segment->name = name;
   segment->value = value;
   segment->color = color;
 
-  this->SegmentVector.push_back(*segment);
+  SegmentVector << segment;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -228,21 +236,23 @@ void Metadata::setUnassignedTagPosition(const unsigned int position)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 std::string Metadata::objectSegmentName(const unsigned short objectNum) const
 {
-  if (objectNum > this->ObjectVector.size()) return std::string("Unassigned");
+  if (objectNum > ObjectVector.size()) return std::string("Unassigned");
 
   // vector index goes 0->(n-1)
-  return std::string(this->SegmentVector[this->ObjectVector[objectNum - 1].segment - 1].name);
+  return std::string(SegmentVector[ObjectVector[objectNum - 1]->segment - 1]->name);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 bool Metadata::markAsUsed(const unsigned short label)
 {
   for (auto it: ObjectVector)
-    if (it.scalar == label)
+  {
+    if (it->scalar == label)
     {
-      it.used = true;
+      it->used = true;
       return true;
     }
+  }
 
   return false;
 }
@@ -250,19 +260,28 @@ bool Metadata::markAsUsed(const unsigned short label)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void Metadata::compact()
 {
-  std::vector<struct ObjectMetadata>::iterator it;
-  for (it = ObjectVector.begin(); it != ObjectVector.end(); ++it)
+  QList<std::shared_ptr<ObjectMetadata>> toDelete;
+
+  for (auto object: ObjectVector)
   {
-    if ((*it).used == false)
+    if (object->used == false)
     {
-      UnusedObjects.push_back((*it).scalar);
-      ObjectVector.erase(it);
+      UnusedObjects << object->scalar;
+      toDelete << object;
+    }
+  }
+
+  if(!toDelete.isEmpty())
+  {
+    for(auto object: toDelete)
+    {
+      ObjectVector.remove(object);
     }
   }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-std::vector<unsigned int> Metadata::unusedLabels()
+QList<unsigned int> Metadata::unusedLabels()
 {
   if(UnusedObjects.empty())
   {
@@ -276,5 +295,5 @@ std::vector<unsigned int> Metadata::unusedLabels()
 unsigned short Metadata::objectScalar(const unsigned short label) const
 {
   // vector index goes 0->(n-1)
-  return ObjectVector[label - 1].scalar;
+  return ObjectVector[label - 1]->scalar;
 }

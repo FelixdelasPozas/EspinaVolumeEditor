@@ -7,13 +7,13 @@
 // Notes:
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-// qt includes
-#include <QtGui>
-
 // c++ includes
 #include <vector>
 #include <fstream>
 #include <algorithm>
+
+// Qt
+#include <QThread>
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // SaveSession class
@@ -47,7 +47,7 @@ class SaveSessionThread
 		/** \brief Helper method to write to a stream.
 		 *
 		 */
-		template<typename T>void write(std::ofstream& out, T& t)
+		template<typename T>void write(std::ofstream& out, T t)
 		{
 			out.write(reinterpret_cast<char*>(&t), sizeof(T));
 		}
@@ -55,7 +55,7 @@ class SaveSessionThread
     /** \brief Helper method to read from a stream.
      *
      */
-		template<typename T>void read(std::ifstream& in, T& t)
+		template<typename T>void read(std::ifstream& in, T t)
 		{
 			in.read(reinterpret_cast<char*>(&t), sizeof(T));
 		}

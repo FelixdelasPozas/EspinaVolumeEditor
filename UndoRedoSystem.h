@@ -31,7 +31,7 @@ class UndoRedoSystem
      * \param[in] data application data manager.
      *
      */
-    UndoRedoSystem(std::shared_ptr<DataManager> data);
+    UndoRedoSystem(DataManager *data);
 
     /** \brief UndoRedoSystem class destructor.
      *
@@ -103,7 +103,7 @@ class UndoRedoSystem
      * \param[in] object object information pair <label, object information>.
      *
      */
-    void storeObject(std::pair<unsigned short, struct DataManager::ObjectInformation*> object);
+    void storeObject(std::pair<unsigned short, std::shared_ptr<DataManager::ObjectInformation>> object);
 
     /** \brief Returns the action string of the specified buffer.
      * \param[in] type buffer type.
@@ -131,7 +131,7 @@ class UndoRedoSystem
         std::string                                        description; /** description of the action. */
         std::set<unsigned short>                           labels;      /** labels of the action. */
 
-        std::vector<std::pair<unsigned short, struct DataManager::ObjectInformation*> > objects; /** list of objects. */
+        std::vector<std::pair<unsigned short, std::shared_ptr<DataManager::ObjectInformation>> > objects; /** list of objects. */
     };
 
     struct action *m_current; /** \brief Action in progress. */
@@ -142,7 +142,7 @@ class UndoRedoSystem
     std::list<struct action> m_undo; /** undo buffer. */
     std::list<struct action> m_redo; /** redo buffer. */
 
-    std::shared_ptr<DataManager> m_dataManager; /** application data manager. */
+    DataManager *m_dataManager; /** application data manager. */
 
     bool m_bufferFull; /** true if the buffer is full and we must delete an action before storing another. */
 

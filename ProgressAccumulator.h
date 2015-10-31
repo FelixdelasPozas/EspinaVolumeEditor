@@ -66,7 +66,7 @@ class ProgressAccumulator
      * \param[in] label label of the bar.
      *
      */
-    void SetProgressBar(QProgressBar *bar, QLabel *label);
+    void SetProgressBar(QProgressBar *bar);
 
     /** \brief Observe a ITK process (add as a observer of that process).
      * \param[in] filter filter to observe.
@@ -168,7 +168,6 @@ class ProgressAccumulator
     double                          m_progress; /** accumulated progress. */
 
     QProgressBar *m_progressBar;   /** QProgress bar showing the progress. */
-    QLabel       *m_progressLabel; /** QLabel associated to the bar.       */
 };
 
 #endif // _PROGRESS_ACCUMULATOR_H_

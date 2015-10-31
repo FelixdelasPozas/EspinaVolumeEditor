@@ -37,8 +37,8 @@ vtkStandardNewMacro(BoxSelectionWidget);
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 BoxSelectionWidget::BoxSelectionWidget()
 : m_state{WidgetState::Start}
-, ManagesCursor{false}
 {
+  this->ManagesCursor = false;
   this->CallbackMapper->SetCallbackMethod(vtkCommand::LeftButtonPressEvent, vtkWidgetEvent::Select, this, BoxSelectionWidget::SelectAction);
   this->CallbackMapper->SetCallbackMethod(vtkCommand::LeftButtonReleaseEvent, vtkWidgetEvent::EndSelect, this, BoxSelectionWidget::EndSelectAction);
   this->CallbackMapper->SetCallbackMethod(vtkCommand::MouseMoveEvent, vtkWidgetEvent::Move, this, BoxSelectionWidget::MoveAction);

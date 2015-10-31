@@ -31,8 +31,6 @@
 #include <vtkTexture.h>
 #include <vtkTextureMapToPlane.h>
 #include <vtkTransformTextureCoords.h>
-#include <vtkXGPUInfoList.h>
-#include <vtkGPUInfo.h>
 
 // project includes
 #include "DataManager.h"
@@ -153,12 +151,6 @@ void VoxelVolumeRender::computeGPURender()
 {
   double rgba[4];
 
-  auto info = vtkSmartPointer<vtkXGPUInfoList>::New();
-  info->Probe();
-
-	assert(0 != info->GetNumberOfGPUs());
-	auto gpuInfo = info->GetGPUInfo(0);
-
   auto lookupTable = m_dataManager->GetLookupTable();
 
   // GPU mapper created before, while instance init
@@ -217,7 +209,7 @@ void VoxelVolumeRender::computeGPURender()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void VoxelVolumeRender::computeMesh(const unsigned short label)
 {
-  struct VoxelVolumeRender::Pipeline* actorInfo;
+  std::shared_ptr<Pipeline> actorInfo;
 
   // delete previous actor if any exists and the actual object bounding box is bigger than the stored with the actor.
   if (m_actors.find(label) != m_actors.end())
@@ -496,7 +488,6 @@ void VoxelVolumeRender::colorDim(const unsigned short label, double alpha)
     {
       // actor MUST exist
       m_renderer->RemoveActor(m_actors[label]->mesh);
-      delete m_actors[label];
       m_actors.erase(label);
     }
     m_highlightedLabels.erase(label);

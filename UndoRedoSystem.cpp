@@ -17,7 +17,7 @@
 #include "UndoRedoSystem.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-UndoRedoSystem::UndoRedoSystem(std::shared_ptr<DataManager> dataManager)
+UndoRedoSystem::UndoRedoSystem(DataManager *dataManager)
 : m_current{nullptr}
 , m_size{150 * 1024 * 1024}
 , m_used{0}
@@ -76,7 +76,7 @@ void UndoRedoSystem::clear(const Type type)
         // delete dinamically allocated objects no longer needed by DataManager
         while (!it.objects.empty())
         {
-          delete it.objects.back().second;
+          it.objects.back().second = nullptr;
           it.objects.pop_back();
         }
       }
@@ -175,7 +175,7 @@ void UndoRedoSystem::storePoint(const Vector3ui &point, const unsigned short lab
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-void UndoRedoSystem::storeObject(std::pair<unsigned short, struct DataManager::ObjectInformation*> value)
+void UndoRedoSystem::storeObject(std::pair<unsigned short, std::shared_ptr<DataManager::ObjectInformation>> value)
 {
   // if buffer marked as full, just return. complete action doesn't fit into memory
   if (m_bufferFull) return;
@@ -262,7 +262,7 @@ void UndoRedoSystem::changeSize(const unsigned long int size)
     // delete dinamically allocated objects in redo
     while (!(*m_redo.begin()).objects.empty())
     {
-      delete (*m_redo.begin()).objects.back().second;
+      (*m_redo.begin()).objects.back().second = nullptr;
       (*m_redo.begin()).objects.pop_back();
     }
     m_redo.erase(m_redo.begin());
@@ -426,7 +426,7 @@ const std::string UndoRedoSystem::getActionString(const Type type) const
       break;
   }
 
-  return "";
+  return std::string();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -459,7 +459,7 @@ void UndoRedoSystem::signalCancelAction()
   {
     auto pair = (*m_current).objects.back();
     (*m_dataManager->GetObjectTablePointer()).erase(pair.first);
-    delete pair.second;
+    pair.second = nullptr;
     (*m_current).objects.pop_back();
   }
 

@@ -179,7 +179,7 @@ class Selection
      * \param[out] bounds lasso bounds.
      *
      */
-    void computeLassoBounds(unsigned int *bounds) const;
+    void computeLassoBounds(unsigned int *bounds);
 
     /** \brief Generates a rotated volume according to orientation (0 = axial, 1 = coronal, 2 = sagittal).
      * \param[in] bounds of the contour selection.

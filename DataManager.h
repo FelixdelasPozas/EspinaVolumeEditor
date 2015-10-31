@@ -37,6 +37,8 @@ using LabelMapType = itk::LabelMap<LabelObjectType>;
 // UndoRedoSystem forward declaration
 class UndoRedoSystem;
 
+class QColor;
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // DataManager class
 //
@@ -82,17 +84,17 @@ class DataManager
     /** \brief Returns current undo action name.
      *
      */
-    const std::string & GetUndoActionString() const;
+    const std::string GetUndoActionString() const;
 
     /** \brief Returns the current redo action name.
      *
      */
-    const std::string & GetRedoActionString() const;
+    const std::string GetRedoActionString() const;
 
     /** \brief Returns the current operation name.
      *
      */
-    const std::string & GetActualActionString() const;
+    const std::string GetActualActionString() const;
 
     /** \brief Returns true if the undo buffer is empty.
      *
@@ -238,7 +240,7 @@ class DataManager
      * \param[in] label label value.
      *
      */
-    unsigned short GetScalarForLabel(const unsigned short label) const;
+    unsigned short GetScalarForLabel(const unsigned short label);
 
     /** \brief Returns the label used for the given scalar.
      * \param[in] value scalar value.
@@ -249,7 +251,7 @@ class DataManager
     /** \brief Returns the centroid of the object with the given label.
      * \param[in] label label value.
      */
-    Vector3d GetCentroidForObject(const unsigned short int label) const;
+    Vector3d GetCentroidForObject(const unsigned short int label);
 
     /** \brief Returns the scalar value of the given position.
      * \param[in] point point coordinates.
@@ -277,19 +279,19 @@ class DataManager
      * \param[in] label label value.
      *
      */
-    unsigned long long int GetNumberOfVoxelsForLabel(unsigned short label) const;
+    unsigned long long int GetNumberOfVoxelsForLabel(unsigned short label);
 
     /** \brief Returns the bounding box minimum values for the givel label.
      * \param[in] label label value.
      *
      */
-    Vector3ui GetBoundingBoxMin(unsigned short label) const;
+    Vector3ui GetBoundingBoxMin(unsigned short label);
 
     /** \brief Returns the bounding box maximum values for the givel label.
      * \param[in] label label value.
      *
      */
-    Vector3ui GetBoundingBoxMax(unsigned short label) const;
+    Vector3ui GetBoundingBoxMax(unsigned short label);
 
     /** \brief Returns the number of labels used including the background label.
      *
@@ -326,7 +328,7 @@ class DataManager
     /** \brief Returns the table of objects.
      *
      */
-    std::map<unsigned short, struct DataManager::ObjectInformation*>* GetObjectTablePointer() const;
+    std::map<unsigned short, std::shared_ptr<DataManager::ObjectInformation>>* GetObjectTablePointer();
 
     /** \brief Replaces the lookuptable with the given one.
      * \param[inout] lookuptable color table to switch.
@@ -370,7 +372,7 @@ class DataManager
     unsigned short                       m_firstFreeValue;   /** first free value for new labels. */
     std::set<unsigned short>             m_selectedLabels;   /** set of selected labels.          */
 
-    std::map<unsigned short, struct ObjectInformation*> ObjectVector; /** object information vector. */
+    std::map<unsigned short, std::shared_ptr<ObjectInformation>> ObjectVector; /** object information vector. */
 
     struct ActionInformation
     {
@@ -383,7 +385,7 @@ class DataManager
         : size{0}, centroid{Vector3ll{0, 0, 0}}, min{Vector3ui{0, 0, 0}}, max{Vector3ui{0, 0, 0}} {};
     };
 
-    std::map<unsigned short, struct ActionInformation*> ActionInformationVector; /** action information vector. */
+    std::map<unsigned short, std::shared_ptr<ActionInformation>> ActionInformationVector; /** action information vector. */
 };
 
 #endif // _DATAMANAGER_H_

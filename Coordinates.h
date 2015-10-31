@@ -122,7 +122,7 @@ class Coordinates
     /** \brief Returns the direction cosine matrix that defines trasforms.
      *
      */
-    Matrix3d GetImageDirectionCosineMatrix() const;
+    Matrix3d GetImageDirectionCosineMatrix();
 
     /** \brief Returns the transformed image size
      *

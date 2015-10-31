@@ -35,6 +35,9 @@
 // forward declarations
 class BoxSelectionWidget;
 class vtkImageReslice;
+class vtkImageCast;
+class vtkImageDataGeometryFilter;
+class vtkIconGlyphFilter;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // SliceVisualization class
@@ -92,6 +95,11 @@ class SliceVisualization
      *
      */
     void updateSlice(const Vector3ui &point);
+
+    /** \brief Updates all the actors in the view.
+     *
+     */
+    void updateActors();
 
     /** \brief Returns the type of pick and the coordinates of the picking point by reference.
      * \param[out] X x coordinate of the pick point.
@@ -221,9 +229,16 @@ class SliceVisualization
     vtkSmartPointer<vtkImageMapToColors> m_referenceImageMapper; /** reference image color table. */
     vtkSmartPointer<vtkImageBlend>       m_imageBlender;         /** data and refernce images blender. */
 
-    vtkSmartPointer<vtkImageReslice>     m_segmentationReslice;     /** reslice filter. */
+    vtkSmartPointer<vtkImageReslice>     m_segmentationReslice;  /** reslice filter. */
     vtkSmartPointer<vtkImageMapToColors> m_segmentationsMapper;  /** segmentations' mapper. */
-    vtkSmartPointer<vtkImageActor>       m_segmentationsActor; /** segmentations' actor. */
+    vtkSmartPointer<vtkImageActor>       m_segmentationsActor;   /** segmentations' actor. */
+
+    vtkSmartPointer<vtkImageReslice>            m_selectionReslice; /** reslice filter. */
+    vtkSmartPointer<vtkImageCast>               m_caster;           /** image indexes caster. */
+    vtkSmartPointer<vtkImageDataGeometryFilter> m_geometryFilter;   /** geometry filter. */
+    vtkSmartPointer<vtkIconGlyphFilter>         m_iconFilter;       /** icon filter. */
+    vtkSmartPointer<vtkPolyDataMapper>          m_selectionMapper;  /** selection's mapper. */
+    vtkSmartPointer<vtkActor>                   m_selectionActor;   /** selection's actor. */
 
     double m_segmentationOpacity; /** segmentations' opacity value. */
     bool   m_segmentationHidden;  /** true if the segmentations are hidden and false otherwise. */

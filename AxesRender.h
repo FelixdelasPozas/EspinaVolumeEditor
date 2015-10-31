@@ -40,7 +40,7 @@ class AxesRender
      * \param[in] coords   axes coordinates.
      *
      */
-    explicit AxesRender(vtkSmartPointer<vtkRenderer> renderer, const Coordinates &coords);
+    explicit AxesRender(vtkSmartPointer<vtkRenderer> renderer, std::shared_ptr<Coordinates> coords);
 
     /** \brief AxesRender class virtual destructor.
      *

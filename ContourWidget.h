@@ -65,7 +65,7 @@ class ContourWidget
     /** \brief The state of the widget
      *
      */
-    enum class ContourWidgetState: char { Start = 0, Define, Manipulate };
+    enum ContourWidgetState { Start = 0, Define, Manipulate };
 
     /** \brief Convenient methods to change/get what state the widget is in.
      *

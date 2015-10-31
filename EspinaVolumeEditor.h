@@ -13,7 +13,7 @@
 // qt includes
 #include <QMutex>
 #include <QTimer>
-#include "ui_QtGui.h"
+#include "ui_EspinaVolumeEditor.h"
 
 // itk includes
 #include <itkImage.h>
@@ -105,12 +105,12 @@ class EspinaVolumeEditor
     /** \brief Callback to manage slice view's interactions.
      * \param[in] caller pointer of the caller object.
      * \param[in] event event id.
-     * \param[in] unused
-     * \param[in] unused
-     * \param[in] unused
+     * \param[in] unused1
+     * \param[in] unused2
+     * \param[in] unused3
      *
      */
-    virtual void sliceInteraction(vtkObject *caller, unsigned long event, void *unused, void *unused, vtkCommand *unused);
+    virtual void sliceInteraction(vtkObject *caller, unsigned long event, void *unused1, void *unused2, vtkCommand *unused3);
 
     /** \brief Toggles segmentation visibility.
      *
@@ -179,11 +179,11 @@ class EspinaVolumeEditor
     virtual void onSelectionChanged();
 
     /** \brief Updates the interface when the user interacts with the label widget.
-     * \param[in] unused
-     * \param[in] unused
+     * \param[in] unused1
+     * \param[in] unused2
      *
      */
-    virtual void onLabelSelectionInteraction(QListWidgetItem *unused, QListWidgetItem *unused);
+    virtual void onLabelSelectionInteraction(QListWidgetItem *unused1, QListWidgetItem *unused2);
 
     /** \brief Resets the view's cameras.
      *

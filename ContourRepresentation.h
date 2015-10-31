@@ -13,6 +13,9 @@
 // vtk includes
 #include <vtkContourRepresentation.h>
 
+// C++
+#include <memory>
+
 // forward declarations
 class vtkContourLineInterpolator;
 class vtkIncrementalOctreePointLocator;
@@ -192,7 +195,7 @@ class ContourRepresentation
 		/** \brief Get the points in this contour as a vtkPolyData.
 		 *
 		 */
-		virtual vtkPolyData* GetContourRepresentationAsPolyData() = 0;
+		virtual vtkPolyData *GetContourRepresentationAsPolyData() = 0;
 
 		void GetNodePolyData(vtkPolyData* poly);
 		vtkSetMacro(RebuildLocator,bool);

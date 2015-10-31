@@ -64,7 +64,7 @@ void CoordinatesTransform::ComputeAxesVectors()
 {
   // For this calculation we need the transpose of the matrix
   auto transpose3i = m_transform;
-  transpose3i.Transpose();
+  transpose3i.transpose();
 
   auto map3i = transpose3i * Vector3i(0, 1, 2);
   m_axesIndex.Set(abs(map3i[0]), abs(map3i[1]), abs(map3i[2]));
@@ -79,7 +79,7 @@ CoordinatesTransform CoordinatesTransform::Inverse() const
   // Compute the new transform's details
   CoordinatesTransform inverse;
   inverse.m_transform = m_transform;
-  inverse.m_transform.Inverse();
+  inverse.m_transform.inverse();
   inverse.m_offset = -inverse.m_transform * m_offset;
   inverse.ComputeAxesVectors();
 
@@ -179,17 +179,17 @@ Vector3i Coordinates::ConvertDirectionMatrixToClosestMappingVector(const Matrix3
 {
   Vector3i result;
 
-  for (auto i: {0,1,2})
+  for (int i: {0,1,2})
   {
     // Get the direction of the i-th voxel coordinate
-    auto row = matrix.GetColumn(i);
+    auto row = matrix.column(i);
 
     // Get the maximum angle with any axis
     auto maxabs_i = 0;
 
     for (auto k: {0,1,2})
     {
-      if (maxabs_i < fabs(row[k])) maxabs_i = fabs(row[k]);
+      if (maxabs_i < std::fabs(row[k])) maxabs_i = std::fabs(row[k]);
     }
 
     for (auto off: {0,1,2})
@@ -200,7 +200,7 @@ Vector3i Coordinates::ConvertDirectionMatrixToClosestMappingVector(const Matrix3
       auto j = (i + off) % 3;
 
       // Is j the best-matching direction?
-      if (fabs(row[j]) == maxabs_i)
+      if (std::fabs(row[j]) == maxabs_i)
       {
         result[i] = ((row[j] > 0) ? j + 1 : -(j + 1));
         break;
@@ -219,18 +219,23 @@ Vector3i Coordinates::InvertMappingVector(const Vector3i &mapvector)
   for (auto i: {0,1,2})
   {
     if (mapvector[i] > 0)
+    {
       inverse[mapvector[i] - 1] = i + 1;
+    }
     else
+    {
       inverse[-1 - mapvector[i]] = -i - 1;
+    }
   }
 
   return inverse;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-Matrix3d Coordinates::GetImageDirectionCosineMatrix() const
+Matrix3d Coordinates::GetImageDirectionCosineMatrix()
 {
-  return m_directionCosineMatrix;
+  Matrix3d matrix{m_directionCosineMatrix};
+  return matrix;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

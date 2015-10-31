@@ -114,112 +114,111 @@ void Selection::addSelectionPoint(const Vector3ui &point)
   double bounds[6];
 
   // how many points do we have?
-  switch (m_selectedPoints.size())
+  if(0 == m_selectedPoints.size())
   {
-    case 0:
-      m_selectionType = Type::CUBE;
-      m_selectedPoints.push_back(point);
-      computeSelectionBounds();
+    m_selectionType = Type::CUBE;
+    m_selectedPoints.push_back(point);
+    computeSelectionBounds();
 
-      // 3D representation of the box
-      m_boxRender = std::make_shared<BoxSelectionRepresentation3D>();
-      m_boxRender->SetRenderer(m_renderer);
+    // 3D representation of the box
+    m_boxRender = std::make_shared<BoxSelectionRepresentation3D>();
+    m_boxRender->SetRenderer(m_renderer);
 
-      bounds[0] = (static_cast<double>(m_min[0]) - 0.5) * m_spacing[0];
-      bounds[1] = (static_cast<double>(m_max[0]) + 0.5) * m_spacing[0];
-      bounds[2] = (static_cast<double>(m_min[1]) - 0.5) * m_spacing[1];
-      bounds[3] = (static_cast<double>(m_max[1]) + 0.5) * m_spacing[1];
-      bounds[4] = (static_cast<double>(m_min[2]) - 0.5) * m_spacing[2];
-      bounds[5] = (static_cast<double>(m_max[2]) + 0.5) * m_spacing[2];
-      m_boxRender->PlaceBox(bounds);
+    bounds[0] = (static_cast<double>(m_min[0]) - 0.5) * m_spacing[0];
+    bounds[1] = (static_cast<double>(m_max[0]) + 0.5) * m_spacing[0];
+    bounds[2] = (static_cast<double>(m_min[1]) - 0.5) * m_spacing[1];
+    bounds[3] = (static_cast<double>(m_max[1]) + 0.5) * m_spacing[1];
+    bounds[4] = (static_cast<double>(m_min[2]) - 0.5) * m_spacing[2];
+    bounds[5] = (static_cast<double>(m_max[2]) + 0.5) * m_spacing[2];
+    m_boxRender->PlaceBox(bounds);
 
-      // initialize 2D selection widgets
-      auto rep = vtkSmartPointer<BoxSelectionRepresentation2D>::New();
-      rep->Setm_minimumSelectionSize(-(m_spacing[0] / 2.0), -(m_spacing[1] / 2.0));
-      rep->Setm_maximumSelectionSize((static_cast<double>(m_size[0]) + 0.5) * m_spacing[0], (static_cast<double>(m_size[1]) + 0.5) * m_spacing[1]);
-      rep->Setm_minimumSize(m_spacing[0], m_spacing[1]);
-      rep->Setm_spacing(m_spacing[0], m_spacing[1]);
-      rep->SetBoxCoordinates(point[0], point[1], point[0], point[1]);
-      m_axialBoxWidget = vtkSmartPointer<BoxSelectionWidget>::New();
-      m_axialBoxWidget->SetInteractor(m_axial->GetViewRenderer()->GetRenderWindow()->GetInteractor());
-      m_axialBoxWidget->SetRepresentation(rep);
-      m_axialBoxWidget->SetEnabled(true);
+    // initialize 2D selection widgets
+    auto rep = vtkSmartPointer<BoxSelectionRepresentation2D>::New();
+    rep->Setm_minimumSelectionSize(-(m_spacing[0] / 2.0), -(m_spacing[1] / 2.0));
+    rep->Setm_maximumSelectionSize((static_cast<double>(m_size[0]) + 0.5) * m_spacing[0], (static_cast<double>(m_size[1]) + 0.5) * m_spacing[1]);
+    rep->Setm_minimumSize(m_spacing[0], m_spacing[1]);
+    rep->Setm_spacing(m_spacing[0], m_spacing[1]);
+    rep->SetBoxCoordinates(point[0], point[1], point[0], point[1]);
+    m_axialBoxWidget = vtkSmartPointer<BoxSelectionWidget>::New();
+    m_axialBoxWidget->SetInteractor(m_axial->renderer()->GetRenderWindow()->GetInteractor());
+    m_axialBoxWidget->SetRepresentation(rep);
+    m_axialBoxWidget->SetEnabled(true);
 
-      rep = vtkSmartPointer<BoxSelectionRepresentation2D>::New();
-      rep->Setm_minimumSelectionSize(-(m_spacing[0] / 2.0), -(m_spacing[2] / 2.0));
-      rep->Setm_maximumSelectionSize((static_cast<double>(m_size[0]) + 0.5) * m_spacing[0], (static_cast<double>(m_size[2]) + 0.5) * m_spacing[2]);
-      rep->Setm_minimumSize(m_spacing[0], m_spacing[2]);
-      rep->Setm_spacing(m_spacing[0], m_spacing[2]);
-      rep->SetBoxCoordinates(point[0], point[2], point[0], point[2]);
-      m_coronalBoxWidget = vtkSmartPointer<BoxSelectionWidget>::New();
-      m_coronalBoxWidget->SetInteractor(m_coronal->GetViewRenderer()->GetRenderWindow()->GetInteractor());
-      m_coronalBoxWidget->SetRepresentation(rep);
-      m_coronalBoxWidget->SetEnabled(true);
+    rep = vtkSmartPointer<BoxSelectionRepresentation2D>::New();
+    rep->Setm_minimumSelectionSize(-(m_spacing[0] / 2.0), -(m_spacing[2] / 2.0));
+    rep->Setm_maximumSelectionSize((static_cast<double>(m_size[0]) + 0.5) * m_spacing[0], (static_cast<double>(m_size[2]) + 0.5) * m_spacing[2]);
+    rep->Setm_minimumSize(m_spacing[0], m_spacing[2]);
+    rep->Setm_spacing(m_spacing[0], m_spacing[2]);
+    rep->SetBoxCoordinates(point[0], point[2], point[0], point[2]);
+    m_coronalBoxWidget = vtkSmartPointer<BoxSelectionWidget>::New();
+    m_coronalBoxWidget->SetInteractor(m_coronal->renderer()->GetRenderWindow()->GetInteractor());
+    m_coronalBoxWidget->SetRepresentation(rep);
+    m_coronalBoxWidget->SetEnabled(true);
 
-      rep = vtkSmartPointer<BoxSelectionRepresentation2D>::New();
-      rep->Setm_minimumSelectionSize(-(m_spacing[1] / 2.0), -(m_spacing[2] / 2.0));
-      rep->Setm_maximumSelectionSize((static_cast<double>(m_size[1]) + 0.5) * m_spacing[1], (static_cast<double>(m_size[2]) + 0.5) * m_spacing[2]);
-      rep->Setm_minimumSize(m_spacing[1], m_spacing[2]);
-      rep->Setm_spacing(m_spacing[1], m_spacing[2]);
-      rep->SetBoxCoordinates(point[1], point[2], point[1], point[2]);
-      m_sagittalBoxWidget = vtkSmartPointer<BoxSelectionWidget>::New();
-      m_sagittalBoxWidget->SetInteractor(m_sagittal->GetViewRenderer()->GetRenderWindow()->GetInteractor());
-      m_sagittalBoxWidget->SetRepresentation(rep);
-      m_sagittalBoxWidget->SetEnabled(true);
+    rep = vtkSmartPointer<BoxSelectionRepresentation2D>::New();
+    rep->Setm_minimumSelectionSize(-(m_spacing[1] / 2.0), -(m_spacing[2] / 2.0));
+    rep->Setm_maximumSelectionSize((static_cast<double>(m_size[1]) + 0.5) * m_spacing[1], (static_cast<double>(m_size[2]) + 0.5) * m_spacing[2]);
+    rep->Setm_minimumSize(m_spacing[1], m_spacing[2]);
+    rep->Setm_spacing(m_spacing[1], m_spacing[2]);
+    rep->SetBoxCoordinates(point[1], point[2], point[1], point[2]);
+    m_sagittalBoxWidget = vtkSmartPointer<BoxSelectionWidget>::New();
+    m_sagittalBoxWidget->SetInteractor(m_sagittal->renderer()->GetRenderWindow()->GetInteractor());
+    m_sagittalBoxWidget->SetRepresentation(rep);
+    m_sagittalBoxWidget->SetEnabled(true);
 
-      // set callbacks for widget interaction
-      m_widgetsCallbackCommand = vtkSmartPointer<vtkCallbackCommand>::New();
-      m_widgetsCallbackCommand->SetCallback(boxSelectionWidgetCallback);
-      m_widgetsCallbackCommand->SetClientData(this);
+    // set callbacks for widget interaction
+    m_widgetsCallbackCommand = vtkSmartPointer<vtkCallbackCommand>::New();
+    m_widgetsCallbackCommand->SetCallback(boxSelectionWidgetCallback);
+    m_widgetsCallbackCommand->SetClientData(this);
 
-      m_axialBoxWidget->AddObserver(vtkCommand::StartInteractionEvent, m_widgetsCallbackCommand);
-      m_axialBoxWidget->AddObserver(vtkCommand::EndInteractionEvent, m_widgetsCallbackCommand);
-      m_axialBoxWidget->AddObserver(vtkCommand::InteractionEvent, m_widgetsCallbackCommand);
+    m_axialBoxWidget->AddObserver(vtkCommand::StartInteractionEvent, m_widgetsCallbackCommand);
+    m_axialBoxWidget->AddObserver(vtkCommand::EndInteractionEvent, m_widgetsCallbackCommand);
+    m_axialBoxWidget->AddObserver(vtkCommand::InteractionEvent, m_widgetsCallbackCommand);
 
-      m_coronalBoxWidget->AddObserver(vtkCommand::StartInteractionEvent, m_widgetsCallbackCommand);
-      m_coronalBoxWidget->AddObserver(vtkCommand::EndInteractionEvent, m_widgetsCallbackCommand);
-      m_coronalBoxWidget->AddObserver(vtkCommand::InteractionEvent, m_widgetsCallbackCommand);
+    m_coronalBoxWidget->AddObserver(vtkCommand::StartInteractionEvent, m_widgetsCallbackCommand);
+    m_coronalBoxWidget->AddObserver(vtkCommand::EndInteractionEvent, m_widgetsCallbackCommand);
+    m_coronalBoxWidget->AddObserver(vtkCommand::InteractionEvent, m_widgetsCallbackCommand);
 
-      m_sagittalBoxWidget->AddObserver(vtkCommand::StartInteractionEvent, m_widgetsCallbackCommand);
-      m_sagittalBoxWidget->AddObserver(vtkCommand::EndInteractionEvent, m_widgetsCallbackCommand);
-      m_sagittalBoxWidget->AddObserver(vtkCommand::InteractionEvent, m_widgetsCallbackCommand);
+    m_sagittalBoxWidget->AddObserver(vtkCommand::StartInteractionEvent, m_widgetsCallbackCommand);
+    m_sagittalBoxWidget->AddObserver(vtkCommand::EndInteractionEvent, m_widgetsCallbackCommand);
+    m_sagittalBoxWidget->AddObserver(vtkCommand::InteractionEvent, m_widgetsCallbackCommand);
 
-      // make the slices aware of a selection box, so they could hide and show it accordingly when the slice changes
-      m_axial->SetSliceWidget(m_axialBoxWidget);
-      m_coronal->SetSliceWidget(m_coronalBoxWidget);
-      m_sagittal->SetSliceWidget(m_sagittalBoxWidget);
-      break;
-    default:
-      // cases for sizes 1 and 2, "nearly" identical except a pop_back() in case 2
-      if (m_selectedPoints.size() == 2) m_selectedPoints.pop_back();
+    // make the slices aware of a selection box, so they could hide and show it accordingly when the slice changes
+    m_axial->setSliceWidget(m_axialBoxWidget);
+    m_coronal->setSliceWidget(m_coronalBoxWidget);
+    m_sagittal->setSliceWidget(m_sagittalBoxWidget);
+  }
+  else
+  {
+    // cases for sizes 1 and 2, "nearly" identical except a pop_back() in case 2
+    if (m_selectedPoints.size() == 2) m_selectedPoints.pop_back();
 
-      m_selectedPoints.push_back(point);
-      computeSelectionBounds();
+    m_selectedPoints.push_back(point);
+    computeSelectionBounds();
 
-      bounds[0] = (static_cast<double>(m_min[0]) - 0.5) * m_spacing[0];
-      bounds[1] = (static_cast<double>(m_max[0]) + 0.5) * m_spacing[0];
-      bounds[2] = (static_cast<double>(m_min[1]) - 0.5) * m_spacing[1];
-      bounds[3] = (static_cast<double>(m_max[1]) + 0.5) * m_spacing[1];
-      bounds[4] = (static_cast<double>(m_min[2]) - 0.5) * m_spacing[2];
-      bounds[5] = (static_cast<double>(m_max[2]) + 0.5) * m_spacing[2];
-      m_boxRender->PlaceBox(bounds);
+    bounds[0] = (static_cast<double>(m_min[0]) - 0.5) * m_spacing[0];
+    bounds[1] = (static_cast<double>(m_max[0]) + 0.5) * m_spacing[0];
+    bounds[2] = (static_cast<double>(m_min[1]) - 0.5) * m_spacing[1];
+    bounds[3] = (static_cast<double>(m_max[1]) + 0.5) * m_spacing[1];
+    bounds[4] = (static_cast<double>(m_min[2]) - 0.5) * m_spacing[2];
+    bounds[5] = (static_cast<double>(m_max[2]) + 0.5) * m_spacing[2];
+    m_boxRender->PlaceBox(bounds);
 
-      // update widget representations
-      m_axialBoxWidget->SetEnabled(false);
-      m_coronalBoxWidget->SetEnabled(false);
-      m_sagittalBoxWidget->SetEnabled(false);
+    // update widget representations
+    m_axialBoxWidget->SetEnabled(false);
+    m_coronalBoxWidget->SetEnabled(false);
+    m_sagittalBoxWidget->SetEnabled(false);
 
-      auto repPointer = m_axialBoxWidget->GetBorderRepresentation();
-      repPointer->SetBoxCoordinates(m_min[0], m_min[1], m_max[0], m_max[1]);
-      repPointer = m_coronalBoxWidget->GetBorderRepresentation();
-      repPointer->SetBoxCoordinates(m_min[0], m_min[2], m_max[0], m_max[2]);
-      repPointer = m_sagittalBoxWidget->GetBorderRepresentation();
-      repPointer->SetBoxCoordinates(m_min[1], m_min[2], m_max[1], m_max[2]);
+    auto repPointer = m_axialBoxWidget->GetBorderRepresentation();
+    repPointer->SetBoxCoordinates(m_min[0], m_min[1], m_max[0], m_max[1]);
+    repPointer = m_coronalBoxWidget->GetBorderRepresentation();
+    repPointer->SetBoxCoordinates(m_min[0], m_min[2], m_max[0], m_max[2]);
+    repPointer = m_sagittalBoxWidget->GetBorderRepresentation();
+    repPointer->SetBoxCoordinates(m_min[1], m_min[2], m_max[1], m_max[2]);
 
-      m_axialBoxWidget->SetEnabled(true);
-      m_coronalBoxWidget->SetEnabled(true);
-      m_sagittalBoxWidget->SetEnabled(true);
-      break;
+    m_axialBoxWidget->SetEnabled(true);
+    m_coronalBoxWidget->SetEnabled(true);
+    m_sagittalBoxWidget->SetEnabled(true);
   }
 
   computeSelectionCube();
@@ -251,9 +250,9 @@ void Selection::computeSelectionCube()
   // clear previously selected data before creating a new selection cube, if there is any
   deleteSelectionActors();
   deleteSelectionVolumes();
-  m_axial->ClearSelections();
-  m_coronal->ClearSelections();
-  m_sagittal->ClearSelections();
+  m_axial->clearSelections();
+  m_coronal->clearSelections();
+  m_sagittal->clearSelections();
 
   // bounds can be negative so we need to avoid unsigned types
   auto minBounds = Vector3i(static_cast<int>(m_min[0]), static_cast<int>(m_min[1]), static_cast<int>(m_min[2]));
@@ -291,9 +290,9 @@ void Selection::computeSelectionCube()
   subvolume->Modified();
 
   // create textured actors for the slice views
-  m_axial->SetSelectionVolume(subvolume);
-  m_coronal->SetSelectionVolume(subvolume);
-  m_sagittal->SetSelectionVolume(subvolume);
+  m_axial->setSelectionVolume(subvolume);
+  m_coronal->setSelectionVolume(subvolume);
+  m_sagittal->setSelectionVolume(subvolume);
 
   // create render actor and add it to the list of actors (but there can only be one as this is a cube selection)
   computeActor(subvolume);
@@ -304,15 +303,15 @@ void Selection::clear()
 {
   deleteSelectionActors();
   deleteSelectionVolumes();
-  m_axial->ClearSelections();
-  m_coronal->ClearSelections();
-  m_sagittal->ClearSelections();
+  m_axial->clearSelections();
+  m_coronal->clearSelections();
+  m_sagittal->clearSelections();
 
   if (m_selectionType == Type::CUBE)
   {
-    m_axial->SetSliceWidget(nullptr);
-    m_coronal->SetSliceWidget(nullptr);
-    m_sagittal->SetSliceWidget(nullptr);
+    m_axial->setSliceWidget(nullptr);
+    m_coronal->setSliceWidget(nullptr);
+    m_sagittal->setSliceWidget(nullptr);
     m_axialBoxWidget = nullptr;
     m_coronalBoxWidget = nullptr;
     m_sagittalBoxWidget = nullptr;
@@ -323,9 +322,9 @@ void Selection::clear()
 
   if (m_selectionType == Type::CONTOUR)
   {
-    m_axial->SetSliceWidget(nullptr);
-    m_coronal->SetSliceWidget(nullptr);
-    m_sagittal->SetSliceWidget(nullptr);
+    m_axial->setSliceWidget(nullptr);
+    m_coronal->setSliceWidget(nullptr);
+    m_sagittal->setSliceWidget(nullptr);
     m_contourWidget = nullptr;
     m_rotatedImage = nullptr;
     m_widgetsCallbackCommand = nullptr;
@@ -434,9 +433,9 @@ void Selection::addArea(const Vector3ui &point)
   m_selectionVolumesList.push_back(subvolume);
 
   // generate textured slice actors
-  m_axial->SetSelectionVolume(subvolume);
-  m_coronal->SetSelectionVolume(subvolume);
-  m_sagittal->SetSelectionVolume(subvolume);
+  m_axial->setSelectionVolume(subvolume);
+  m_coronal->setSelectionVolume(subvolume);
+  m_sagittal->setSelectionVolume(subvolume);
 
   // generate render actor
   computeActor(subvolume);
@@ -740,7 +739,7 @@ void Selection::setSelectionDisc(const Vector3i &point, const unsigned int radiu
 {
   // static vars are used when the selection changes radius or orientation;
   static int selectionRadius = 0;
-  auto selectionOrientation = SliceVisualization::NoOrientation;
+  auto selectionOrientation = SliceVisualization::Orientation::None;
 
   // create volume if it doesn't exists
   if (m_selectionVolumesList.empty())
@@ -752,15 +751,15 @@ void Selection::setSelectionDisc(const Vector3i &point, const unsigned int radiu
     int extent[6] =
     { 0, 0, 0, 0, 0, 0 };
 
-    switch (view->GetOrientationType())
+    switch (view->orientationType())
     {
-      case SliceVisualization::Axial:
+      case SliceVisualization::Orientation::Axial:
         extent[1] = extent[3] = (radius * 2) - 2;
         break;
-      case SliceVisualization::Coronal:
+      case SliceVisualization::Orientation::Coronal:
         extent[1] = extent[5] = (radius * 2) - 2;
         break;
-      case SliceVisualization::Sagittal:
+      case SliceVisualization::Orientation::Sagittal:
         extent[3] = extent[5] = (radius * 2) - 2;
         break;
       default:
@@ -770,9 +769,9 @@ void Selection::setSelectionDisc(const Vector3i &point, const unsigned int radiu
     image->AllocateScalars(VTK_INT, 1);
 
     // after creating the image, fill it according to radius value
-    switch (view->GetOrientationType())
+    switch (view->orientationType())
     {
-      case SliceVisualization::Axial:
+      case SliceVisualization::Orientation::Axial:
         for (int a = 0; a <= extent[1]; a++)
         {
           for (int b = 0; b <= extent[3]; b++)
@@ -785,7 +784,7 @@ void Selection::setSelectionDisc(const Vector3i &point, const unsigned int radiu
           }
         }
         break;
-      case SliceVisualization::Coronal:
+      case SliceVisualization::Orientation::Coronal:
         for (int a = 0; a <= extent[1]; a++)
         {
           for (int b = 0; b <= extent[5]; b++)
@@ -798,7 +797,7 @@ void Selection::setSelectionDisc(const Vector3i &point, const unsigned int radiu
           }
         }
         break;
-      case SliceVisualization::Sagittal:
+      case SliceVisualization::Orientation::Sagittal:
         for (int a = 0; a <= extent[3]; a++)
         {
           for (int b = 0; b <= extent[5]; b++)
@@ -828,21 +827,21 @@ void Selection::setSelectionDisc(const Vector3i &point, const unsigned int radiu
 
     auto translatedVolume = m_changer->GetOutput();
     m_selectionVolumesList.push_back(translatedVolume);
-    m_axial->SetSelectionVolume(translatedVolume, false);
-    m_coronal->SetSelectionVolume(translatedVolume, false);
-    m_sagittal->SetSelectionVolume(translatedVolume, false);
+    m_axial->setSelectionVolume(translatedVolume, false);
+    m_coronal->setSelectionVolume(translatedVolume, false);
+    m_sagittal->setSelectionVolume(translatedVolume, false);
     selectionRadius = radius;
-    selectionOrientation = view->GetOrientationType();
+    selectionOrientation = view->orientationType();
     m_selectionType = Type::DISC;
   }
   else
   {
-    if ((selectionOrientation != view->GetOrientationType()) || (selectionRadius != radius))
+    if ((selectionOrientation != view->orientationType()) || (selectionRadius != radius))
     {
       // recompute volume when the user changes parameters or goes from one view to another
-      m_axial->ClearSelections();
-      m_coronal->ClearSelections();
-      m_sagittal->ClearSelections();
+      m_axial->clearSelections();
+      m_coronal->clearSelections();
+      m_sagittal->clearSelections();
       m_selectionVolumesList.pop_back();
       setSelectionDisc(point, radius, view);
     }
@@ -850,21 +849,21 @@ void Selection::setSelectionDisc(const Vector3i &point, const unsigned int radiu
 
   // update the disc representation according to parameters
   int clipperExtent[6] = { 0, 0, 0, 0, 0, 0 };
-  switch (view->GetOrientationType())
+  switch (view->orientationType())
   {
-    case SliceVisualization::Axial:
+    case SliceVisualization::Orientation::Axial:
       clipperExtent[0] = ((point[0] - radius) < 0) ? abs(point[0] - radius) : 0;
       clipperExtent[1] = ((point[0] + radius) > m_size[0]) ? (radius - point[0] + m_size[0]) : (radius * 2) - 2;
       clipperExtent[2] = ((point[1] - radius) < 0) ? abs(point[1] - radius) : 0;
       clipperExtent[3] = ((point[1] + radius) > m_size[1]) ? (radius - point[1] + m_size[1]) : (radius * 2) - 2;
       break;
-    case SliceVisualization::Coronal:
+    case SliceVisualization::Orientation::Coronal:
       clipperExtent[0] = ((point[0] - radius) < 0) ? abs(point[0] - radius) : 0;
       clipperExtent[1] = ((point[0] + radius) > m_size[0]) ? (radius - point[0] + m_size[0]) : (radius * 2) - 2;
       clipperExtent[4] = ((point[2] - radius) < 0) ? abs(point[2] - radius) : 0;
       clipperExtent[5] = ((point[2] + radius) > m_size[2]) ? (radius - point[2] + m_size[2]) : (radius * 2) - 2;
       break;
-    case SliceVisualization::Sagittal:
+    case SliceVisualization::Orientation::Sagittal:
       clipperExtent[2] = ((point[1] - radius) < 0) ? abs(point[1] - radius) : 0;
       clipperExtent[3] = ((point[1] + radius) > m_size[1]) ? (radius - point[1] + m_size[1]) : (radius * 2) - 2;
       clipperExtent[4] = ((point[2] - radius) < 0) ? abs(point[2] - radius) : 0;
@@ -876,21 +875,21 @@ void Selection::setSelectionDisc(const Vector3i &point, const unsigned int radiu
   m_clipper->SetOutputWholeExtent(clipperExtent);
   m_clipper->Update();
 
-  switch (view->GetOrientationType())
+  switch (view->orientationType())
   {
-    case SliceVisualization::Axial:
+    case SliceVisualization::Orientation::Axial:
       m_changer->SetOutputOrigin((point[0] - radius) * m_spacing[0], (point[1] - radius) * m_spacing[1], point[2] * m_spacing[2]);
-      m_min = Vector3ui(((point[0] - radius) > 0 ? (point[0] - radius) : 0), ((point[1] - radius) > 0 ? (point[1] - radius) : 0), point[2]);
+      m_min = Vector3ui(((point[0] - radius) > 0 ? (point[0] - radius) : 0), ((point[1] - radius) > 0 ? (point[1] - radius) : 0), static_cast<unsigned int>(point[2]));
       m_max = Vector3ui(((point[0] + radius) < m_size[0] ? (point[0] + radius) : m_size[0]), ((point[1] + radius) < m_size[1] ? (point[1] + radius) : m_size[1]), static_cast<unsigned int>(point[2]));
       break;
-    case SliceVisualization::Coronal:
+    case SliceVisualization::Orientation::Coronal:
       m_changer->SetOutputOrigin((point[0] - radius) * m_spacing[0], point[1] * m_spacing[1], (point[2] - radius) * m_spacing[2]);
-      m_min = Vector3ui(((point[0] - radius) > 0 ? (point[0] - radius) : 0), point[1], ((point[2] - radius) > 0 ? (point[2] - radius) : 0));
+      m_min = Vector3ui(((point[0] - radius) > 0 ? (point[0] - radius) : 0), static_cast<unsigned int>(point[1]), ((point[2] - radius) > 0 ? (point[2] - radius) : 0));
       m_max = Vector3ui(((point[0] + radius) < m_size[0] ? (point[0] + radius) : m_size[0]), static_cast<unsigned int>(point[1]), ((point[2] + radius) < m_size[2] ? (point[2] + radius) : m_size[2]));
       break;
-    case SliceVisualization::Sagittal:
+    case SliceVisualization::Orientation::Sagittal:
       m_changer->SetOutputOrigin(point[0] * m_spacing[0], (point[1] - radius) * m_spacing[1], (point[2] - radius) * m_spacing[2]);
-      m_min = Vector3ui(point[0], ((point[1] - radius) > 0 ? (point[1] - radius) : 0), ((point[2] - radius) > 0 ? (point[2] - radius) : 0));
+      m_min = Vector3ui(static_cast<unsigned int>(point[0]), ((point[1] - radius) > 0 ? (point[1] - radius) : 0), ((point[2] - radius) > 0 ? (point[2] - radius) : 0));
       m_max = Vector3ui(static_cast<unsigned int>(point[0]), ((point[1] + radius) < m_size[1] ? (point[1] + radius) : m_size[1]), ((point[2] + radius) < m_size[2] ? (point[2] + radius) : m_size[2]));
       break;
     default:
@@ -912,8 +911,8 @@ void Selection::boxSelectionWidgetCallback(vtkObject *caller, unsigned long even
   double *pos1 = callerRepresentation->GetPosition();
   double *pos2 = callerRepresentation->GetPosition2();
 
-  unsigned int pos1i[2] = { floor(pos1[0] / spacing[0]) + 1, floor(pos1[1] / spacing[1]) + 1 };
-  unsigned int pos2i[2] = { floor(pos2[0] / spacing[0]), floor(pos2[1] / spacing[1]) };
+  unsigned int pos1i[2] = { static_cast<unsigned int>(std::floor(pos1[0] / spacing[0]) + 1), static_cast<unsigned int>(floor(pos1[1] / spacing[1]) + 1) };
+  unsigned int pos2i[2] = { static_cast<unsigned int>(std::floor(pos2[0] / spacing[0])), static_cast<unsigned int>(floor(pos2[1] / spacing[1])) };
 
   if (self->m_axialBoxWidget == callerWidget)
   {
@@ -988,7 +987,7 @@ void Selection::boxSelectionWidgetCallback(vtkObject *caller, unsigned long even
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-void Selection::computeLassoBounds(unsigned int *iBounds) const
+void Selection::computeLassoBounds(unsigned int *iBounds)
 {
   auto rep = static_cast<ContourRepresentation*>(m_contourWidget->GetRepresentation());
   double *bounds = rep->GetBounds();
@@ -1111,27 +1110,27 @@ void Selection::addContourInitialPoint(const Vector3ui &point, std::shared_ptr<S
 
   // create widget and representation
   m_contourWidget = vtkSmartPointer<ContourWidget>::New();
-  m_contourWidget->SetInteractor(callerSlice->GetViewRenderer()->GetRenderWindow()->GetInteractor());
+  m_contourWidget->SetInteractor(callerSlice->renderer()->GetRenderWindow()->GetInteractor());
   m_contourWidget->SetContinuousDraw(true);
   m_contourWidget->SetFollowCursor(true);
 
-  switch (callerSlice->GetOrientationType())
+  switch (callerSlice->orientationType())
   {
-    case SliceVisualization::Axial:
+    case SliceVisualization::Orientation::Axial:
       m_contourWidget->SetOrientation(0);
       pointPlacer->SetSpacing(m_spacing[0], m_spacing[1]);
       representation->SetSpacing(m_spacing[0], m_spacing[1]);
       worldPos[0] = point[0] * m_spacing[0];
       worldPos[1] = point[1] * m_spacing[1];
       break;
-    case SliceVisualization::Coronal:
+    case SliceVisualization::Orientation::Coronal:
       m_contourWidget->SetOrientation(1);
       pointPlacer->SetSpacing(m_spacing[0], m_spacing[2]);
       representation->SetSpacing(m_spacing[0], m_spacing[2]);
       worldPos[0] = point[0] * m_spacing[0];
       worldPos[1] = point[2] * m_spacing[2];
       break;
-    case SliceVisualization::Sagittal:
+    case SliceVisualization::Orientation::Sagittal:
       m_contourWidget->SetOrientation(2);
       pointPlacer->SetSpacing(m_spacing[1], m_spacing[2]);
       representation->SetSpacing(m_spacing[1], m_spacing[2]);
@@ -1167,7 +1166,7 @@ void Selection::addContourInitialPoint(const Vector3ui &point, std::shared_ptr<S
   m_contourWidget->AddObserver(vtkCommand::KeyPressEvent, m_widgetsCallbackCommand);
 
   // make the slice aware of a contour selection
-  callerSlice->SetSliceWidget(m_contourWidget);
+  callerSlice->setSliceWidget(m_contourWidget);
 
   // create the volume that will represent user selected points. the spacing is 1 because we will not
   // use it's output directly, we will create our own volume instead with ComputeContourSelectionVolume()
@@ -1176,17 +1175,17 @@ void Selection::addContourInitialPoint(const Vector3ui &point, std::shared_ptr<S
   m_polyDataToStencil->SetOutputOrigin(0, 0, 0);
 
   // change stencil properties according to slice orientation
-  switch (callerSlice->GetOrientationType())
+  switch (callerSlice->orientationType())
   {
-    case SliceVisualization::Axial:
+    case SliceVisualization::Orientation::Axial:
       m_polyDataToStencil->SetOutputSpacing(m_spacing[0], m_spacing[1], m_spacing[2]);
       m_polyDataToStencil->SetOutputWholeExtent(0, m_size[0], 0, m_size[1], 0, 0);
       break;
-    case SliceVisualization::Coronal:
+    case SliceVisualization::Orientation::Coronal:
       m_polyDataToStencil->SetOutputSpacing(m_spacing[0], m_spacing[2], m_spacing[1]);
       m_polyDataToStencil->SetOutputWholeExtent(0, m_size[0], 0, m_size[2], 0, 0);
       break;
-    case SliceVisualization::Sagittal:
+    case SliceVisualization::Orientation::Sagittal:
       m_polyDataToStencil->SetOutputSpacing(m_spacing[1], m_spacing[2], m_spacing[0]);
       m_polyDataToStencil->SetOutputWholeExtent(0, m_size[1], 0, m_size[2], 0, 0);
       break;
@@ -1236,14 +1235,14 @@ void Selection::contourSelectionWidgetCallback(vtkObject *caller, unsigned long 
   {
     self->deleteSelectionActors();
     self->deleteSelectionVolumes();
-    self->m_axial->ClearSelections();
-    self->m_coronal->ClearSelections();
-    self->m_sagittal->ClearSelections();
+    self->m_axial->clearSelections();
+    self->m_coronal->clearSelections();
+    self->m_sagittal->clearSelections();
 
     self->m_selectionVolumesList.push_back(self->m_rotatedImage);
-    self->m_axial->SetSelectionVolume(self->m_rotatedImage, true);
-    self->m_coronal->SetSelectionVolume(self->m_rotatedImage, true);
-    self->m_sagittal->SetSelectionVolume(self->m_rotatedImage, true);
+    self->m_axial->setSelectionVolume(self->m_rotatedImage, true);
+    self->m_coronal->setSelectionVolume(self->m_rotatedImage, true);
+    self->m_sagittal->setSelectionVolume(self->m_rotatedImage, true);
   }
   else
   {
@@ -1251,9 +1250,9 @@ void Selection::contourSelectionWidgetCallback(vtkObject *caller, unsigned long 
   }
 
   // update renderers
-  self->m_axial->GetViewRenderer()->GetRenderWindow()->Render();
-  self->m_coronal->GetViewRenderer()->GetRenderWindow()->Render();
-  self->m_sagittal->GetViewRenderer()->GetRenderWindow()->Render();
+  self->m_axial->renderer()->GetRenderWindow()->Render();
+  self->m_coronal->renderer()->GetRenderWindow()->Render();
+  self->m_sagittal->renderer()->GetRenderWindow()->Render();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1362,12 +1361,12 @@ void Selection::updateContourSlice(const Vector3ui &point)
 
   deleteSelectionActors();
   deleteSelectionVolumes();
-  m_axial->ClearSelections();
-  m_coronal->ClearSelections();
-  m_sagittal->ClearSelections();
+  m_axial->clearSelections();
+  m_coronal->clearSelections();
+  m_sagittal->clearSelections();
 
   m_selectionVolumesList.push_back(m_changer->GetOutput());
-  m_axial->SetSelectionVolume(m_changer->GetOutput(), true);
-  m_coronal->SetSelectionVolume(m_changer->GetOutput(), true);
-  m_sagittal->SetSelectionVolume(m_changer->GetOutput(), true);
+  m_axial->setSelectionVolume(m_changer->GetOutput(), true);
+  m_coronal->setSelectionVolume(m_changer->GetOutput(), true);
+  m_sagittal->setSelectionVolume(m_changer->GetOutput(), true);
 }

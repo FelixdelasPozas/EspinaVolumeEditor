@@ -16,11 +16,15 @@
 // project includes
 #include "AxesRender.h"
 
+// Qt
+#include <QList>
+#include <QColor>
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-AxesRender::AxesRender(vtkSmartPointer<vtkRenderer> renderer, const Coordinates &coords)
+AxesRender::AxesRender(vtkSmartPointer<vtkRenderer> renderer, std::shared_ptr<Coordinates> coords)
 {
-  m_spacing = coords.GetImageSpacing();
-  auto size = coords.GetTransformedSize();
+  m_spacing = coords->GetImageSpacing();
+  auto size = coords->GetTransformedSize();
 
   for(auto i: {0,1,2})
   {
@@ -37,16 +41,16 @@ AxesRender::AxesRender(vtkSmartPointer<vtkRenderer> renderer, const Coordinates 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 AxesRender::~AxesRender()
 {
-  if(m_visible)
+  if(m_visible && m_renderer)
   {
     for(auto i: {0,1,2})
     {
       m_renderer->RemoveActor(m_planesActors[i]);
       m_renderer->RemoveActor(m_crossActors[i]);
     }
-  }
 
-  m_axesWidget->SetEnabled(false);
+    m_axesWidget->SetEnabled(false);
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -108,6 +112,7 @@ void AxesRender::UpdateVoxelCrosshair(const Vector3ui &crosshair)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void AxesRender::GenerateSlicePlanes(vtkSmartPointer<vtkRenderer> renderer)
 {
+  QList<QColor> colors = { Qt::blue, Qt::green, Qt::red };
   for (unsigned int idx: {0,1,2})
   {
     auto plane = vtkSmartPointer<vtkPlaneSource>::New();
@@ -117,10 +122,12 @@ void AxesRender::GenerateSlicePlanes(vtkSmartPointer<vtkRenderer> renderer)
     planemapper->SetInputConnection(0, plane->GetOutputPort(0));
     planemapper->Update();
 
+    auto color = colors[idx];
+
     auto planeactor = vtkSmartPointer<vtkActor>::New();
-    planeactor->GetProperty()->SetColor(0.5, 0.5, 0.5);
+    planeactor->GetProperty()->SetColor(color.redF(), color.greenF(), color.blueF());
     planeactor->GetProperty()->SetSpecular(0);
-    planeactor->GetProperty()->SetOpacity(0.3);
+    planeactor->GetProperty()->SetOpacity(0.35);
     planeactor->GetProperty()->ShadingOff();
     planeactor->GetProperty()->EdgeVisibilityOff();
     planeactor->GetProperty()->LightingOn();

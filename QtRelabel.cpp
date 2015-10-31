@@ -45,7 +45,7 @@ void QtRelabel::setInitialOptions(const std::set<unsigned short> labels, std::sh
     QPixmap icon(16, 16);
     auto color = dataManager->GetColorComponents(i);
     icon.fill(color);
-    auto text = QString("%1 %2").arg(QString(data->objectSegmentName(i))).arg(dataManager->GetScalarForLabel(i));
+    auto text = QString("%1 %2").arg(QString(data->objectSegmentName(i).c_str())).arg(dataManager->GetScalarForLabel(i));
     QListWidgetItem *item = new QListWidgetItem(QIcon(icon), text);
     newlabelbox->addItem(item);
 
@@ -75,7 +75,7 @@ void QtRelabel::setInitialOptions(const std::set<unsigned short> labels, std::sh
       QPixmap icon(16, 16);
       auto color = dataManager->GetColorComponents(tempLabel);
       icon.fill(color);
-      auto text = QString("%1 %2").arg(QString(data->objectSegmentName(tempLabel))).arg(dataManager->GetScalarForLabel(tempLabel));
+      auto text = QString("%1 %2").arg(QString(data->objectSegmentName(tempLabel).c_str())).arg(dataManager->GetScalarForLabel(tempLabel));
       colorlabel->setPixmap(icon);
       selectionlabel->setText(text);
       newlabelbox->item(tempLabel)->setHidden(true);
