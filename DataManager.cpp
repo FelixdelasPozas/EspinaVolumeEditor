@@ -22,6 +22,8 @@
 #include "UndoRedoSystem.h"
 #include "VectorSpaceAlgebra.h"
 
+#include <QDebug>
+
 using ChangeType = itk::ChangeLabelLabelMapFilter<LabelMapType>;
 using ImageRegionType = itk::ImageRegion<3>;
 
@@ -121,7 +123,16 @@ void DataManager::Initialize(itk::SmartPointer<LabelMapType> labelMap, std::shar
 //////////////////////////////////////////////////////////////////////////////////////////////////
 DataManager::~DataManager()
 {
+  for(auto it: ObjectVector)
+  {
+    it.second = nullptr;
+  }
   ObjectVector.clear();
+
+  for(auto it: ActionInformationVector)
+  {
+    it.second = nullptr;
+  }
   ActionInformationVector.clear();
 }
 
@@ -169,6 +180,14 @@ const unsigned short DataManager::GetVoxelScalar(const Vector3ui &point) const
 //////////////////////////////////////////////////////////////////////////////////////////////////
 void DataManager::SetVoxelScalar(const Vector3ui &point, const unsigned short scalar)
 {
+  int extent[6];
+  m_structuredPoints->GetExtent(extent);
+  if(extent[0] > point[0] || extent[1] < point[0] || extent[2] > point[1] || extent[3] < point[1] || extent[4] > point[2] || extent[5] < point[2])
+  {
+    qWarning() << "point out of range - point[" << point[0] << point[1] << point[2] << "] extent[" << extent[0] << extent[1] << extent[2] << extent[3] << extent[4] << extent[5] << "]";
+    return;
+  }
+
   auto x = point[0];
   auto y = point[1];
   auto z = point[2];
@@ -279,7 +298,7 @@ const unsigned short DataManager::SetLabel(const QColor &color)
     temptable->GetTableValue(index, rgba);
     m_lookupTable->SetTableValue(index, rgba);
   }
-  m_lookupTable->SetTableValue(newlabel, color.redF(), color.greenF(), color.blueF(), 0.4);
+  m_lookupTable->SetTableValue(newlabel, color.redF(), color.greenF(), color.blueF(), DIM_ALPHA);
   m_lookupTable->SetTableRange(0, newlabel);
   m_lookupTable->Modified();
 
@@ -308,8 +327,8 @@ void DataManager::CopyLookupTable(vtkSmartPointer<vtkLookupTable> from, vtkSmart
 void DataManager::GenerateLookupTable()
 {
   // compute vtkLookupTable colors for labels, first color is black for background
-  // rest are precalculated by _lookupTable->Build() based on the number of labels
-  double rgba[4]{ 0.05, 0.05, 0.05, 1.0 };
+  // rest are pre-calculated by Build() based on the number of labels
+  double rgba[4]{ 0.05, 0.05, 0.05, HIGHLIGHT_ALPHA };
   auto labels = m_labelMap->GetNumberOfLabelObjects();
   Q_ASSERT(0 != labels);
 
@@ -323,10 +342,10 @@ void DataManager::GenerateLookupTable()
   temporal_table->SetRange(1, labels);
   temporal_table->Build();
 
-  for (unsigned int index = 0; index != labels; index++)
+  for (unsigned int index = 0; index != labels; ++index)
   {
     temporal_table->GetTableValue(index, rgba);
-    m_lookupTable->SetTableValue(index + 1, rgba[0], rgba[1], rgba[2], 0.4);
+    m_lookupTable->SetTableValue(index + 1, rgba[0], rgba[1], rgba[2], DIM_ALPHA);
   }
 }
 
@@ -465,12 +484,14 @@ const unsigned short DataManager::GetLastUsedValue() const
 const QColor DataManager::GetRGBAColorForScalar(const unsigned short scalar) const
 {
   for (auto it: ObjectVector)
+  {
     if (it.second->scalar == scalar)
     {
       double rgba[4];
       m_lookupTable->GetTableValue(it.first, rgba);
       return QColor::fromRgbF(rgba[0],rgba[1],rgba[2],rgba[3]);
     }
+  }
 
   // not found
   return QColor{0,0,0,0};
@@ -600,7 +621,7 @@ void DataManager::ColorHighlight(const unsigned short label)
     double rgba[4];
 
     m_lookupTable->GetTableValue(label, rgba);
-    m_lookupTable->SetTableValue(label, rgba[0], rgba[1], rgba[2], 1);
+    m_lookupTable->SetTableValue(label, rgba[0], rgba[1], rgba[2], HIGHLIGHT_ALPHA);
 
     m_selectedLabels.insert(label);
     m_lookupTable->Modified();
@@ -615,7 +636,7 @@ void DataManager::ColorDim(const unsigned short label)
     double rgba[4];
 
     m_lookupTable->GetTableValue(label, rgba);
-    m_lookupTable->SetTableValue(label, rgba[0], rgba[1], rgba[2], 0.4);
+    m_lookupTable->SetTableValue(label, rgba[0], rgba[1], rgba[2], DIM_ALPHA);
 
     m_selectedLabels.erase(label);
     m_lookupTable->Modified();
@@ -625,14 +646,15 @@ void DataManager::ColorDim(const unsigned short label)
 //////////////////////////////////////////////////////////////////////////////////////////////////
 void DataManager::ColorHighlightExclusive(const unsigned short label)
 {
-  for (auto it: m_selectedLabels)
+  auto labels = m_selectedLabels;
+  for (auto it: labels)
   {
     if (it == label) continue;
 
     double rgba[4];
 
     m_lookupTable->GetTableValue(it, rgba);
-    m_lookupTable->SetTableValue(it, rgba[0], rgba[1], rgba[2], 0.4);
+    m_lookupTable->SetTableValue(it, rgba[0], rgba[1], rgba[2], DIM_ALPHA);
     m_selectedLabels.erase(it);
   }
 
@@ -644,12 +666,13 @@ void DataManager::ColorHighlightExclusive(const unsigned short label)
 //////////////////////////////////////////////////////////////////////////////////////////////////
 void DataManager::ColorDimAll()
 {
-  for (auto it: m_selectedLabels)
+  auto labels = m_selectedLabels;
+  for (auto it: labels)
   {
     double rgba[4];
 
     m_lookupTable->GetTableValue(it, rgba);
-    m_lookupTable->SetTableValue(it, rgba[0], rgba[1], rgba[2], 0.4);
+    m_lookupTable->SetTableValue(it, rgba[0], rgba[1], rgba[2], DIM_ALPHA);
 
     m_selectedLabels.erase(it);
   }
@@ -661,7 +684,7 @@ const bool DataManager::ColorIsInUse(const QColor &color) const
 {
   double rgba[4];
 
-  for (int i = 0; i < m_lookupTable->GetNumberOfTableValues(); i++)
+  for (int i = 0; i < m_lookupTable->GetNumberOfTableValues(); ++i)
   {
     m_lookupTable->GetTableValue(i, rgba);
     if ((rgba[0] == color.redF()) && (rgba[1] == color.greenF()) && (rgba[2] == color.blueF())) return true;
@@ -688,7 +711,7 @@ const QColor DataManager::GetColorComponents(const unsigned short label) const
 //////////////////////////////////////////////////////////////////////////////////////////////////
 void DataManager::SetColorComponents(unsigned short label, const QColor &color)
 {
-  m_lookupTable->SetTableValue(label, color.redF(), color.greenF(), color.blueF());
+  m_lookupTable->SetTableValue(label, color.redF(), color.greenF(), color.blueF(), color.alphaF());
   m_lookupTable->Modified();
 }
 

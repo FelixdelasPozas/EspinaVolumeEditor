@@ -93,20 +93,10 @@ class VoxelVolumeRender
      */
     void updateColorTable();
   private:
-    /** \brief Computes volumes using raycast and reconstruct highlighted labels set while doing it.
-     *
-     */
-    void computeCPURender();
-
     /** \brief Computes volumes using GPU assisted raycast.
      *
      */
     void computeGPURender();
-
-    /** \brief Computes the volumetric representations of the objects using CPU or GPU.
-     *
-     */
-    void computeVolumes();
 
     /** \brief Computes the mesh representation for a given segmentation label.
      * \param[in] label object label.
@@ -125,7 +115,6 @@ class VoxelVolumeRender
     vtkSmartPointer<vtkVolume> m_volume; /** volumetric actor. */
     vtkSmartPointer<vtkActor> m_mesh; /** mesh actor. */
 
-    vtkSmartPointer<vtkVolumeRayCastMapper> m_CPUmapper; /** software raycast volume mapper. */
     vtkSmartPointer<vtkGPUVolumeRayCastMapper> m_GPUmapper; /** GPU raycast volume mapper. */
 
     std::set<unsigned short> m_highlightedLabels; /** set of highlighted labels (selected labels). */

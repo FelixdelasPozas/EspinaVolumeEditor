@@ -44,6 +44,7 @@ void QtRelabel::setInitialOptions(const std::set<unsigned short> labels, std::sh
   {
     QPixmap icon(16, 16);
     auto color = dataManager->GetColorComponents(i);
+    color.setAlphaF(1.0);
     icon.fill(color);
     auto text = QString("%1 %2").arg(QString(data->objectSegmentName(i).c_str())).arg(dataManager->GetScalarForLabel(i));
     QListWidgetItem *item = new QListWidgetItem(QIcon(icon), text);
@@ -74,6 +75,7 @@ void QtRelabel::setInitialOptions(const std::set<unsigned short> labels, std::sh
 
       QPixmap icon(16, 16);
       auto color = dataManager->GetColorComponents(tempLabel);
+      color.setAlphaF(1.0);
       icon.fill(color);
       auto text = QString("%1 %2").arg(QString(data->objectSegmentName(tempLabel).c_str())).arg(dataManager->GetScalarForLabel(tempLabel));
       colorlabel->setPixmap(icon);

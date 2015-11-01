@@ -649,11 +649,11 @@ void SliceVisualization::setReferenceImage(vtkSmartPointer<vtkStructuredPoints> 
 
 	// remove actual actor and add the blended actor with both the segmentation and the stack
 	m_imageBlender = vtkSmartPointer<vtkImageBlend>::New();
-	m_imageBlender->SetInputConnection(0, m_referenceImageMapper->GetOutputPort());
+	m_imageBlender->AddInputConnection(0, m_referenceImageMapper->GetOutputPort());
 	m_imageBlender->AddInputConnection(0, m_segmentationsMapper->GetOutputPort());
+	m_imageBlender->SetOpacity(0, 1.0);
 	m_imageBlender->SetOpacity(1, m_segmentationOpacity);
 	m_imageBlender->SetBlendModeToNormal();
-	m_imageBlender->SetNumberOfThreads(1);
 	m_imageBlender->SetUpdateExtentToWholeExtent();
 	m_imageBlender->Update();
 
@@ -713,6 +713,8 @@ void SliceVisualization::toggleSegmentationView(void)
   {
     updateActorVisibility(actor);
   }
+
+  updateActors();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

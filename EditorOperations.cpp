@@ -624,9 +624,9 @@ std::set<unsigned short> EditorOperations::Watershed(const unsigned short label)
       }
     }
 
-    for (int j = 0; j < labelObject->GetNumberOfLines(); ++i)
+    for (int j = 0; j < labelObject->GetNumberOfLines(); ++j)
     {
-      auto line = labelObject->GetLine(i);
+      auto line = labelObject->GetLine(j);
       auto firstIdx = line.GetIndex();
       auto length = line.GetLength();
       auto endIdx0 = firstIdx[0] + length;

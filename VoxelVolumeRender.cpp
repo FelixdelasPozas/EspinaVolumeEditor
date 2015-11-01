@@ -47,14 +47,12 @@ VoxelVolumeRender::VoxelVolumeRender(std::shared_ptr<DataManager> dataManager, v
 , m_colorfunction{nullptr}
 , m_volume{nullptr}
 , m_mesh{nullptr}
-, m_CPUmapper{nullptr}
 , m_GPUmapper{nullptr}
 , m_min{Vector3ui{0,0,0}}
 , m_max{Vector3ui{0,0,0}}
 , m_renderingIsVolume{true}
 {
-
-  computeVolumes();
+  computeGPURender();
   updateFocusExtent();
 }
 
@@ -73,93 +71,18 @@ VoxelVolumeRender::~VoxelVolumeRender()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-void VoxelVolumeRender::computeVolumes()
-{
-  // fallback to CPU render if GPU is not available
-  m_GPUmapper = vtkSmartPointer<vtkGPUVolumeRayCastMapper>::New();
-
-  if (m_GPUmapper->IsRenderSupported(m_renderer->GetRenderWindow(), nullptr))
-  {
-    computeGPURender();
-  }
-  else
-  {
-    m_GPUmapper = NULL;
-    computeCPURender();
-  }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-void VoxelVolumeRender::computeCPURender()
-{
-  // model mapper
-  m_CPUmapper = vtkSmartPointer<vtkVolumeRayCastMapper>::New();
-  m_CPUmapper->SetInputData(m_dataManager->GetStructuredPoints());
-  m_CPUmapper->IntermixIntersectingGeometryOn();
-
-  // standard composite function
-  auto volumefunction = vtkSmartPointer<vtkVolumeRayCastCompositeFunction>::New();
-  m_CPUmapper->SetVolumeRayCastFunction(volumefunction);
-
-  // assign label colors
-  m_colorfunction = vtkSmartPointer<vtkColorTransferFunction>::New();
-  m_colorfunction->AllowDuplicateScalarsOff();
-  for (unsigned short int i = 0; i != m_dataManager->GetNumberOfColors(); i++)
-  {
-    auto color = m_dataManager->GetColorComponents(i);
-    m_colorfunction->AddRGBPoint(i, color.redF(), color.greenF(), color.blueF());
-
-    if ((1.0 == color.alphaF()) && (i != 0))
-    {
-      m_highlightedLabels.insert(i);
-    }
-  }
-
-  // set all labels to an opacity of 0.0 except the highlighted ones
-  m_opacityfunction = vtkSmartPointer<vtkPiecewiseFunction>::New();
-  for (unsigned int i = 0; i != m_dataManager->GetNumberOfColors(); i++)
-  {
-    if (m_highlightedLabels.find(i) != m_highlightedLabels.end())
-    {
-      m_opacityfunction->AddPoint(i, 1.0);
-    }
-    else
-    {
-      m_opacityfunction->AddPoint(i, 0.0);
-    }
-  }
-  m_opacityfunction->Modified();
-
-  // volume property
-  auto volumeproperty = vtkSmartPointer<vtkVolumeProperty>::New();
-  volumeproperty->SetColor(m_colorfunction);
-  volumeproperty->SetScalarOpacity(m_opacityfunction);
-  volumeproperty->DisableGradientOpacityOn();
-  volumeproperty->SetSpecular(0);
-  volumeproperty->ShadeOn();
-  volumeproperty->SetInterpolationTypeToNearest();
-
-  m_volume = vtkSmartPointer<vtkVolume>::New();
-  m_volume->SetMapper(m_CPUmapper);
-  m_volume->SetProperty(volumeproperty);
-
-  m_renderer->AddVolume(m_volume);
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 void VoxelVolumeRender::computeGPURender()
 {
   double rgba[4];
-
   auto lookupTable = m_dataManager->GetLookupTable();
 
-  // GPU mapper created before, while instance init
+  m_GPUmapper = vtkSmartPointer<vtkGPUVolumeRayCastMapper>::New();
   m_GPUmapper->SetInputData(m_dataManager->GetStructuredPoints());
   m_GPUmapper->SetScalarModeToUsePointData();
   m_GPUmapper->SetAutoAdjustSampleDistances(false);
   m_GPUmapper->SetMaximumImageSampleDistance(1.0); 		// this allows a much more defined volume when rotating, as it uses 1 ray per pixel
 
-  // at this point if the volume has been reduced (see _GPUmapper->GetReductionRatio(double *) ) it's because the volume is bigger
+  // at this point if the volume has been reduced (see m_GPUmapper->GetReductionRatio(double *) ) it's because the volume is bigger
   // than the memory of the card and doesn't fit, there is no workaround for this except get a better graphic card or use the software
   // solution (not really a solution after all, too slow)
 
@@ -175,6 +98,7 @@ void VoxelVolumeRender::computeGPURender()
   // we need to set all labels to an opacity of 0.0
   m_opacityfunction = vtkSmartPointer<vtkPiecewiseFunction>::New();
   m_opacityfunction->AddPoint(0, 0.0);
+
   for (int i = 1; i != lookupTable->GetNumberOfTableValues(); i++)
   {
     m_opacityfunction->AddPoint(i, 0.0);
@@ -188,17 +112,16 @@ void VoxelVolumeRender::computeGPURender()
   volumeproperty->ShadeOn();
   volumeproperty->SetInterpolationTypeToNearest();
 
-  // create volume and add to render
-  if (!m_volume)
-  {
-    m_renderer->RemoveActor(m_volume);
-  }
-
   m_volume = vtkSmartPointer<vtkVolume>::New();
   m_volume->SetMapper(m_GPUmapper);
   m_volume->SetProperty(volumeproperty);
 
   m_renderer->AddVolume(m_volume);
+
+  for(auto label: m_dataManager->GetSelectedLabelsSet())
+  {
+    colorHighlight(label);
+  }
 }
 
 // NOTE: some filters make use of SetGlobalWarningDisplay(false) because if we delete
@@ -227,6 +150,7 @@ void VoxelVolumeRender::computeMesh(const unsigned short label)
     }
 
     m_renderer->RemoveActor(m_actors[label]->mesh);
+    m_actors[label]->mesh = nullptr;
     m_actors[label] = nullptr;
     m_actors.erase(label);
   }
@@ -313,7 +237,7 @@ void VoxelVolumeRender::computeMesh(const unsigned short label)
   isoMapper->Update();
   m_progress->Ignore(isoMapper);
 
-  // create the actor a assign a color to it
+  // create the actor and assign a color to it
   actorInfo->mesh->SetMapper(isoMapper);
   auto color = m_dataManager->GetColorComponents(label);
   actorInfo->mesh->GetProperty()->SetColor(color.redF(), color.greenF(), color.blueF());
@@ -330,20 +254,10 @@ void VoxelVolumeRender::updateFocusExtent(void)
   // no labels case
   if (m_highlightedLabels.empty())
   {
-    if (m_GPUmapper)
-    {
-      m_GPUmapper->SetCroppingRegionPlanes(0, 0, 0, 0, 0, 0);
-      m_GPUmapper->CroppingOn();
-      m_GPUmapper->SetCroppingRegionFlagsToSubVolume();
-      m_GPUmapper->Update();
-    }
-    else
-    {
-      m_CPUmapper->SetCroppingRegionPlanes(0, 0, 0, 0, 0, 0);
-      m_CPUmapper->CroppingOn();
-      m_CPUmapper->SetCroppingRegionFlagsToSubVolume();
-      m_CPUmapper->Update();
-    }
+    m_GPUmapper->SetCroppingRegionPlanes(0, 0, 0, 0, 0, 0);
+    m_GPUmapper->CroppingOn();
+    m_GPUmapper->SetCroppingRegionFlagsToSubVolume();
+    m_GPUmapper->Update();
     return;
   }
 
@@ -377,24 +291,17 @@ void VoxelVolumeRender::updateFocusExtent(void)
   auto spacing = m_dataManager->GetOrientationData()->GetImageSpacing();
   m_renderer->GetActiveCamera()->SetFocalPoint(focuspoint[0] * spacing[0], focuspoint[1] * spacing[1], focuspoint[2] * spacing[2]);
 
-  double bounds[6] =
-  { (m_min[0] - 1.5) * spacing[0], (m_max[0] + 1.5) * spacing[0], (m_min[1] - 1.5) * spacing[1], (m_max[1] + 1.5) * spacing[1],
-      (m_min[2] - 1.5) * spacing[2], (m_max[2] + 1.5) * spacing[2] };
+  double bounds[6] = { (m_min[0] - 1.5) * spacing[0],
+                       (m_max[0] + 1.5) * spacing[0],
+                       (m_min[1] - 1.5) * spacing[1],
+                       (m_max[1] + 1.5) * spacing[1],
+                       (m_min[2] - 1.5) * spacing[2],
+                       (m_max[2] + 1.5) * spacing[2] };
 
-  if (NULL != m_GPUmapper)
-  {
-    m_GPUmapper->SetCroppingRegionPlanes(bounds);
-    m_GPUmapper->CroppingOn();
-    m_GPUmapper->SetCroppingRegionFlagsToSubVolume();
-    m_GPUmapper->Update();
-  }
-  else
-  {
-    m_CPUmapper->SetCroppingRegionPlanes(bounds);
-    m_CPUmapper->CroppingOn();
-    m_CPUmapper->SetCroppingRegionFlagsToSubVolume();
-    m_CPUmapper->Update();
-  }
+  m_GPUmapper->SetCroppingRegionPlanes(bounds);
+  m_GPUmapper->CroppingOn();
+  m_GPUmapper->SetCroppingRegionFlagsToSubVolume();
+  m_GPUmapper->Update();
 
   // if we are rendering as mesh then recompute mesh (if not, mesh will get clipped against
   // boundaries set at the time of creation if the object grows outside old bounding box)
@@ -411,22 +318,14 @@ void VoxelVolumeRender::viewAsMesh()
   if(!m_renderingIsVolume) return;
 
   // hide all highlighted volumes
-  for (auto it: m_highlightedLabels)
+  for (auto label: m_highlightedLabels)
   {
-    if (m_renderingIsVolume)
-    {
-      m_opacityfunction->AddPoint(it, 0.0);
-    }
-
-    computeMesh(it);
+    m_opacityfunction->AddPoint(label, 0.0);
+    computeMesh(label);
   }
   m_progress->Reset();
 
-  if (m_renderingIsVolume)
-  {
-    m_opacityfunction->Modified();
-  }
-
+  m_opacityfunction->Modified();
   m_renderingIsVolume = false;
 }
 
@@ -436,12 +335,19 @@ void VoxelVolumeRender::viewAsVolume(void)
   if (m_renderingIsVolume) return;
 
   // delete all actors and while we're at it modify opacity values for volume rendering
-  for (auto it: m_actors)
+  std::set<unsigned short> toDelete;
+  for (auto actor: m_actors)
   {
-    m_renderer->RemoveActor(it.second->mesh);
-    it.second->mesh = nullptr;
-    m_opacityfunction->AddPoint(it.first, 1.0);
-    m_actors.erase(it.first);
+    m_renderer->RemoveActor(actor.second->mesh);
+    actor.second->mesh = nullptr;
+    m_actors[actor.first] = nullptr;
+    m_opacityfunction->AddPoint(actor.first, 1.0);
+    toDelete.insert(actor.first);
+  }
+
+  for(auto it: toDelete)
+  {
+    m_actors.erase(it);
   }
 
   m_actors.clear();
@@ -449,7 +355,7 @@ void VoxelVolumeRender::viewAsVolume(void)
   m_renderingIsVolume = true;
 }
 
-// NOTE: _opacityfunction->Modified() not signaled. need to use UpdateColorTable() after
+// NOTE: m_opacityfunction->Modified() not signaled. need to use UpdateColorTable() after
 // calling this one to signal changes to pipeline
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void VoxelVolumeRender::colorHighlight(const unsigned short label)
@@ -468,10 +374,11 @@ void VoxelVolumeRender::colorHighlight(const unsigned short label)
       m_progress->Reset();
     }
     m_highlightedLabels.insert(label);
+    m_volume->Update();
   }
 }
 
-// NOTE: _opacityfunction->Modified() not signaled. need to use UpdateColorTable() after
+// NOTE: m_opacityfunction->Modified() not signaled. need to use UpdateColorTable() after
 // calling this one to signal changes to pipeline.
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void VoxelVolumeRender::colorDim(const unsigned short label, double alpha)
@@ -488,16 +395,19 @@ void VoxelVolumeRender::colorDim(const unsigned short label, double alpha)
     {
       // actor MUST exist
       m_renderer->RemoveActor(m_actors[label]->mesh);
+      m_actors[label]->mesh = nullptr;
       m_actors.erase(label);
     }
     m_highlightedLabels.erase(label);
+    m_volume->Update();
   }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void VoxelVolumeRender::colorHighlightExclusive(unsigned short label)
 {
-  for (auto it: m_highlightedLabels)
+  auto highlighted = m_highlightedLabels;
+  for (auto it: highlighted)
   {
     if(it == label) continue;
 
@@ -510,21 +420,25 @@ void VoxelVolumeRender::colorHighlightExclusive(unsigned short label)
   }
 
   m_opacityfunction->Modified();
+  m_volume->Update();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void VoxelVolumeRender::colorDimAll(void)
 {
-  for (auto it: m_highlightedLabels)
+  auto highlighted = m_highlightedLabels;
+  for (auto it: highlighted)
   {
     colorDim(it);
   }
 
   m_opacityfunction->Modified();
+  m_volume->Update();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void VoxelVolumeRender::updateColorTable(void)
 {
   m_opacityfunction->Modified();
+  m_volume->Update();
 }

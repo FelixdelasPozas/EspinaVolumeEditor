@@ -273,7 +273,8 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *parent)
 		detailedText += segmentationFilename;
 		infile.close();
 
-		QMessageBox msgBox;
+		QMessageBox msgBox(this);
+		msgBox.setWindowIcon(QIcon(":/newPrefix/icons/brain.png"));
 		msgBox.setIcon(QMessageBox::Information);
 		msgBox.setCaption("Previous session data detected");
 		msgBox.setText("Data from a previous Editor session exists (maybe the editor crashed or didn't exit cleanly).");
@@ -281,6 +282,11 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *parent)
 		msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
 		msgBox.setDefaultButton(QMessageBox::Yes);
 		msgBox.setDetailedText(detailedText);
+
+    auto msgSize = msgBox.sizeHint();
+    auto rect = this->rect();
+    msgBox.move(QPoint( rect.width()/2 - msgSize.width()/2, rect.height()/2 - msgSize.height()/2 ) );
+
 		int returnValue = msgBox.exec();
 
 	    switch (returnValue)
@@ -306,19 +312,22 @@ EspinaVolumeEditor::~EspinaVolumeEditor()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void EspinaVolumeEditor::open()
 {
-  QMessageBox msgBox;
-  msgBox.setCaption("Error loading segmentation file");
+  QFileDialog dialog(this, tr("Open Espina Segmentation Image"), QDir::currentPath(), QObject::tr("EspINA segmentation files (*.segmha)"));
+  dialog.setOption(QFileDialog::DontUseNativeDialog, false);
 
-  auto filename = QFileDialog::getOpenFileName(this, tr("Open Espina Segmentation Image"), QDir::currentPath(), QObject::tr("EspINA segmentation files (*.segmha)"));
+  auto dialogSize = dialog.sizeHint();
+  auto rect = this->rect();
+  dialog.move(QPoint( rect.width()/2 - dialogSize.width()/2, rect.height()/2 - dialogSize.height()/2 ) );
 
-  if (!filename.isNull())
-  {
-    filename.toAscii();
-  }
-  else
-  {
-    return;
-  }
+  QString filename;
+
+  if(!dialog.exec()) return;
+
+  filename = dialog.selectedFile();
+
+  if (filename.isNull()) return;
+
+  filename.toAscii();
 
   renderview  ->setEnabled(true);
   axialview   ->setEnabled(true);
@@ -346,11 +355,20 @@ void EspinaVolumeEditor::open()
   catch (itk::ExceptionObject & excp)
   {
     m_progress->ManualReset();
+
+    QMessageBox msgBox(this);
+    msgBox.setWindowIcon(QIcon(":/newPrefix/icons/brain.png"));
+    msgBox.setCaption("Error loading segmentation file");
     msgBox.setIcon(QMessageBox::Critical);
 
     std::string text = std::string("An error occurred loading the segmentation file.\nThe operation has been aborted.");
     msgBox.setText(text.c_str());
     msgBox.setDetailedText(excp.what());
+
+    auto msgSize = msgBox.sizeHint();
+    auto rect = this->rect();
+    msgBox.move(QPoint( rect.width()/2 - msgSize.width()/2, rect.height()/2 - msgSize.height()/2 ) );
+
     msgBox.exec();
     return;
   }
@@ -359,12 +377,21 @@ void EspinaVolumeEditor::open()
   if (!m_fileMetadata->read(filename))
   {
     m_progress->ManualReset();
+
+    QMessageBox msgBox(this);
+    msgBox.setWindowIcon(QIcon(":/newPrefix/icons/brain.png"));
+    msgBox.setCaption("Error loading segmentation file");
     msgBox.setIcon(QMessageBox::Critical);
 
     std::string text = std::string("An error occurred parsing the espina segmentation data from file \"");
     text += filename.toStdString();
     text += std::string("\".\nThe operation has been aborted.");
     msgBox.setText(text.c_str());
+
+    auto msgSize = msgBox.sizeHint();
+    auto rect = this->rect();
+    msgBox.move(QPoint( rect.width()/2 - msgSize.width()/2, rect.height()/2 - msgSize.height()/2 ) );
+
     msgBox.exec();
     return;
   }
@@ -464,9 +491,10 @@ void EspinaVolumeEditor::open()
   auto unusedLabels = m_fileMetadata->unusedLabels();
   if (0 != unusedLabels.size())
   {
+    QMessageBox msgBox(this);
+    msgBox.setWindowIcon(QIcon(":/newPrefix/icons/brain.png"));
     msgBox.setCaption("Unused objects detected");
     msgBox.setIcon(QMessageBox::Warning);
-    msgBox.setWindowIcon(QIcon(":/newPrefix/icons/brain.png"));
 
     QApplication::restoreOverrideCursor();
 
@@ -478,6 +506,11 @@ void EspinaVolumeEditor::open()
       details += QString("label %1").arg(label) + QString("\n");
     }
     msgBox.setDetailedText(details);
+
+    auto msgSize = msgBox.sizeHint();
+    auto rect = this->rect();
+    msgBox.move(QPoint( rect.width()/2 - msgSize.width()/2, rect.height()/2 - msgSize.height()/2 ) );
+
     msgBox.exec();
 
     QApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
@@ -572,20 +605,28 @@ void EspinaVolumeEditor::open()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void EspinaVolumeEditor::referenceOpen()
 {
-  auto filename = QFileDialog::getOpenFileName(this, tr("Open Reference Image"), QDir::currentPath(), QObject::tr("image files (*.mhd *.mha);;All files (*.*)"));
+  QFileDialog dialog(this, tr("Open Reference Image"), QDir::currentPath(), QObject::tr("image files (*.mhd *.mha);;All files (*.*)"));
+  dialog.setOption(QFileDialog::DontUseNativeDialog, false);
 
-  if (!filename.isNull())
-  {
-    filename.toAscii();
-    loadReferenceFile(filename);
-  }
+  auto dialogSize = dialog.sizeHint();
+  auto rect = this->rect();
+  dialog.move(QPoint( rect.width()/2 - dialogSize.width()/2, rect.height()/2 - dialogSize.height()/2 ) );
+
+  QString filename;
+
+  if(!dialog.exec()) return;
+
+  filename = dialog.selectedFile();
+
+  if (filename.isNull()) return;
+
+  filename.toAscii();
+  loadReferenceFile(filename);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void EspinaVolumeEditor::loadReferenceFile(const QString &filename)
 {
-  QMessageBox msgBox(this);
-
   // store reference filename
   m_referenceFileName = filename;
 
@@ -598,10 +639,18 @@ void EspinaVolumeEditor::loadReferenceFile(const QString &filename)
   }
   catch (...)
   {
+    QMessageBox msgBox(this);
+    msgBox.setWindowIcon(QIcon(":/newPrefix/icons/brain.png"));
+    msgBox.setCaption("Error loading reference file");
     msgBox.setIcon(QMessageBox::Critical);
 
     auto text = QString("An error occurred loading the segmentation reference file.\nThe operation has been aborted.");
     msgBox.setText(text);
+
+    auto msgSize = msgBox.sizeHint();
+    auto rect = this->rect();
+    msgBox.move(QPoint( rect.width()/2 - msgSize.width()/2, rect.height()/2 - msgSize.height()/2 ) );
+
     msgBox.exec();
     return;
   }
@@ -637,6 +686,8 @@ void EspinaVolumeEditor::loadReferenceFile(const QString &filename)
   if (segmentationsize != Vector3ui(size[0], size[1], size[2]))
   {
     m_progress->ManualReset();
+    QMessageBox msgBox(this);
+    msgBox.setWindowIcon(QIcon(":/newPrefix/icons/brain.png"));
     msgBox.setCaption("Segmentation size mismatch");
     msgBox.setIcon(QMessageBox::Critical);
 
@@ -645,6 +696,11 @@ void EspinaVolumeEditor::loadReferenceFile(const QString &filename)
     text += QString("Segmentation size is [%1, %2, %3]\n").arg(segmentationsize[0]).arg(segmentationsize[1]).arg(segmentationsize[2]);
     text += QString("The operation has been aborted.");
     msgBox.setText(text);
+
+    auto msgSize = msgBox.sizeHint();
+    auto rect = this->rect();
+    msgBox.move(QPoint( rect.width()/2 - msgSize.width()/2, rect.height()/2 - msgSize.height()/2 ) );
+
     msgBox.exec();
     return;
   }
@@ -656,14 +712,21 @@ void EspinaVolumeEditor::loadReferenceFile(const QString &filename)
   {
     QApplication::restoreOverrideCursor();
 
-    msgBox.setIcon(QMessageBox::Warning);
+    QMessageBox msgBox(this);
+    msgBox.setWindowIcon(QIcon(":/newPrefix/icons/brain.png"));
     msgBox.setCaption("Segmentation origin mismatch");
+    msgBox.setIcon(QMessageBox::Warning);
 
     auto text = QString("Reference and segmentation images have different origin of coordinates.\n");
     text += QString("Reference origin is [%1, %2, %3]\n").arg(origin[0]).arg(origin[1]).arg(origin[2]);
     text += QString("Segmentation origin is [%1, %2, %3]\n").arg(segmentationorigin[0]).arg(segmentationorigin[1]).arg(segmentationorigin[2]);
     text += QString("Editor will use segmentation origin.");
     msgBox.setText(text);
+
+    auto msgSize = msgBox.sizeHint();
+    auto rect = this->rect();
+    msgBox.move(QPoint( rect.width()/2 - msgSize.width()/2, rect.height()/2 - msgSize.height()/2 ) );
+
     msgBox.exec();
 
     QApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
@@ -676,14 +739,21 @@ void EspinaVolumeEditor::loadReferenceFile(const QString &filename)
   {
     QApplication::restoreOverrideCursor();
 
-    msgBox.setIcon(QMessageBox::Warning);
+    QMessageBox msgBox(this);
+    msgBox.setWindowIcon(QIcon(":/newPrefix/icons/brain.png"));
     msgBox.setCaption("Segmentation spacing mismatch");
+    msgBox.setIcon(QMessageBox::Warning);
 
     auto text = QString("Reference and segmentation images have different point spacing.\n");
     text += QString("Reference spacing is [%1, %2, %3]\n").arg(spacing[0]).arg(spacing[1]).arg(spacing[2]);
     text += QString("Segmentation spacing is [%1, %2, %3]\n").arg(segmentationspacing[0]).arg(segmentationspacing[1]).arg(segmentationspacing[2]);
     text += QString("Editor will use segmentation spacing for both.");
     msgBox.setText(text);
+
+    auto msgSize = msgBox.sizeHint();
+    auto rect = this->rect();
+    msgBox.move(QPoint( rect.width()/2 - msgSize.width()/2, rect.height()/2 - msgSize.height()/2 ) );
+
     msgBox.exec();
 
     QApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
@@ -715,7 +785,7 @@ void EspinaVolumeEditor::loadReferenceFile(const QString &filename)
   structuredPoints->Modified();
 
   // now that we have a reference image make the background of the segmentation completely transparent
-  auto color = QColor::fromRgbF(0,0,0,1);
+  auto color = QColor::fromRgbF(0,0,0,0);
   m_dataManager->SetColorComponents(0, color);
 
   // pass reference image to slice visualization
@@ -754,18 +824,23 @@ void EspinaVolumeEditor::loadReferenceFile(const QString &filename)
 void EspinaVolumeEditor::save()
 {
   QMutexLocker locker(&m_mutex);
-  QMessageBox msgBox;
-  auto filename = QFileDialog::getSaveFileName(this, tr("Save Segmentation Image"), QDir::currentPath(), QObject::tr("label image files (*.segmha)"));
 
-  if (!filename.isNull())
-  {
-    filename.toAscii();
-  }
-  else
-  {
-    return;
-  }
+  QFileDialog dialog(this, tr("Save Segmentation Image"), QDir::currentPath(), QObject::tr("label image files (*.segmha)"));
+  dialog.setOption(QFileDialog::DontUseNativeDialog, false);
 
+  auto dialogSize = dialog.sizeHint();
+  auto rect = this->rect();
+  dialog.move(QPoint( rect.width()/2 - dialogSize.width()/2, rect.height()/2 - dialogSize.height()/2 ) );
+
+  QString filename;
+
+  if(!dialog.exec()) return;
+
+  filename = dialog.selectedFile();
+
+  if (filename.isNull()) return;
+
+  filename.toAscii();
   auto filenameStd = filename.toStdString();
   std::size_t found;
 
@@ -781,6 +856,8 @@ void EspinaVolumeEditor::save()
 
   if (!m_fileMetadata->write(QString(filenameStd.c_str()), m_dataManager))
   {
+    QMessageBox msgBox(this);
+    msgBox.setWindowIcon(QIcon(":/newPrefix/icons/brain.png"));
     msgBox.setIcon(QMessageBox::Critical);
     msgBox.setCaption("Error saving segmentation file");
 
@@ -788,6 +865,11 @@ void EspinaVolumeEditor::save()
     text += QString(filenameStd.c_str());
     text += QString("\".\nThe segmentation data has been saved, but the metadata has not.\nThe file could be unusable.");
     msgBox.setText(text);
+
+    auto msgSize = msgBox.sizeHint();
+    auto rect = this->rect();
+    msgBox.move(QPoint( rect.width()/2 - msgSize.width()/2, rect.height()/2 - msgSize.height()/2 ) );
+
     msgBox.exec();
   }
 
@@ -1240,7 +1322,7 @@ void EspinaVolumeEditor::preferences()
                                  m_dataManager->GetUndoRedoBufferCapacity(),
                                  m_editorOperations->GetFiltersRadius(),
                                  m_editorOperations->GetWatershedLevel(),
-                                 m_axialView->segmentationOpacity(),
+                                 m_axialView->segmentationOpacity()*100,
                                  m_saveSessionTime,
                                  m_saveSessionEnabled,
                                  m_brushRadius);
@@ -1298,9 +1380,10 @@ void EspinaVolumeEditor::preferences()
 
   if (true == m_hasReferenceImage)
   {
-    m_axialView->setSegmentationOpacity(configdialog.opacity());
-    m_sagittalView->setSegmentationOpacity(configdialog.opacity());
-    m_coronalView->setSegmentationOpacity(configdialog.opacity());
+    auto opacity = configdialog.opacity()/100.0;
+    m_axialView->setSegmentationOpacity(opacity);
+    m_sagittalView->setSegmentationOpacity(opacity);
+    m_coronalView->setSegmentationOpacity(opacity);
 
     m_axialView->updateActors();
     m_coronalView->updateActors();
@@ -2022,8 +2105,9 @@ void EspinaVolumeEditor::sliceXYPick(const unsigned long event, std::shared_ptr<
     // this is to handle cases where the user clicks out of the slice and enters in the slice and releases the button,
     // it's a useless case (as the user doesn't do any operation) but crashed the editor as there is no operation
     // on course
-    if ((erasebutton->isChecked() || paintbutton->isChecked()) && (actualPick == SliceVisualization::PickType::Slice)
-        && !(m_dataManager->GetActualActionString() == std::string("")))
+    if ((erasebutton->isChecked() || paintbutton->isChecked()) &&
+        (actualPick == SliceVisualization::PickType::Slice)    &&
+        !(m_dataManager->GetActualActionString() == std::string("")))
     {
       m_dataManager->OperationEnd();
 
@@ -2460,11 +2544,16 @@ void EspinaVolumeEditor::restoreSavedSession(void)
   catch (itk::ExceptionObject & excp)
   {
     m_progress->ManualReset();
-    QMessageBox msgBox;
+    QMessageBox msgBox(this);
     msgBox.setIcon(QMessageBox::Critical);
     msgBox.setCaption("Error loading segmentation file");
     msgBox.setText("An error occurred loading the segmentation file.\nThe operation has been aborted.");
     msgBox.setDetailedText(excp.what());
+
+    auto msgSize = msgBox.sizeHint();
+    auto rect = this->rect();
+    msgBox.move(QPoint( rect.width()/2 - msgSize.width()/2, rect.height()/2 - msgSize.height()/2 ) );
+
     msgBox.exec();
     return;
   }
@@ -2656,20 +2745,30 @@ void EspinaVolumeEditor::removeSessionFiles(void)
   QFile file(temporalFilename);
   if (file.exists() && !file.remove())
   {
-    QMessageBox msgBox;
+    QMessageBox msgBox(this);
     msgBox.setCaption("Error trying to remove file");
     msgBox.setIcon(QMessageBox::Critical);
     msgBox.setText("An error occurred exiting the editor.\n.Editor session file couldn't be removed.");
+
+    auto msgSize = msgBox.sizeHint();
+    auto rect = this->rect();
+    msgBox.move(QPoint( rect.width()/2 - msgSize.width()/2, rect.height()/2 - msgSize.height()/2 ) );
+
     msgBox.exec();
   }
 
   QFile fileMHA(temporalFilenameMHA);
   if (fileMHA.exists() && !fileMHA.remove())
   {
-    QMessageBox msgBox;
+    QMessageBox msgBox(this);
     msgBox.setCaption("Error trying to remove file");
     msgBox.setIcon(QMessageBox::Critical);
     msgBox.setText("An error occurred exiting the editor.\n.Editor MHA session file couldn't be removed.");
+
+    auto msgSize = msgBox.sizeHint();
+    auto rect = this->rect();
+    msgBox.move(QPoint( rect.width()/2 - msgSize.width()/2, rect.height()/2 - msgSize.height()/2 ) );
+
     msgBox.exec();
   }
 
@@ -3286,9 +3385,9 @@ void EspinaVolumeEditor::loadSettings()
       opacity = 0.75;
       editorSettings.setValue("Segmentation Opacity", 75);
     }
-    m_sagittalView->setSegmentationOpacity(opacity);
-    m_axialView   ->setSegmentationOpacity(opacity);
-    m_coronalView ->setSegmentationOpacity(opacity);
+    m_sagittalView->setSegmentationOpacity(opacity/100.0);
+    m_axialView   ->setSegmentationOpacity(opacity/100.0);
+    m_coronalView ->setSegmentationOpacity(opacity/100.0);
 
     m_brushRadius = editorSettings.value("Paint-Erase Radius").toUInt(&returnValue);
     if (!returnValue)

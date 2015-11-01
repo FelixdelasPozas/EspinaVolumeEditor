@@ -341,6 +341,9 @@ class DataManager
      */
     void SignalDataAsModified();
 
+    const double HIGHLIGHT_ALPHA = 1.0;
+    const double DIM_ALPHA = 0.4;
+
     friend class SaveSessionThread;
     friend class EspinaVolumeEditor;
   private:
