@@ -291,7 +291,12 @@ void SliceVisualization::updateSlice(const Vector3ui &point)
   // change slice by changing reslice axes
   auto index = static_cast<int>(m_orientation);
 
-  m_point[index] = point[index];
+  auto dataPoint = point[index];
+
+  if(dataPoint < 0) dataPoint = 0;
+  if(dataPoint > m_size[index]) dataPoint = m_size[index];
+
+  m_point[index] = dataPoint;
   out << m_point[index] + 1 << " of " << m_size[index];
 
   auto slice_point = m_point[index] * m_spacing[index];

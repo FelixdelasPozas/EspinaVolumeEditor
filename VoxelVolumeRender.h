@@ -20,8 +20,6 @@
 #include <vtkPiecewiseFunction.h>
 #include <vtkColorTransferFunction.h>
 #include <vtkVolumeRayCastMapper.h>
-#include <vtkGPUVolumeRayCastMapper.h>
-//#include <vtkMultiBlockDataSet.h>
 
 // c++ includes
 #include <set>
@@ -93,10 +91,10 @@ class VoxelVolumeRender
      */
     void updateColorTable();
   private:
-    /** \brief Computes volumes using GPU assisted raycast.
+    /** \brief Computes volumes using plain CPU raycast.
      *
      */
-    void computeGPURender();
+    void computeVolumes();
 
     /** \brief Computes the mesh representation for a given segmentation label.
      * \param[in] label object label.
@@ -115,7 +113,7 @@ class VoxelVolumeRender
     vtkSmartPointer<vtkVolume> m_volume; /** volumetric actor. */
     vtkSmartPointer<vtkActor> m_mesh; /** mesh actor. */
 
-    vtkSmartPointer<vtkGPUVolumeRayCastMapper> m_GPUmapper; /** GPU raycast volume mapper. */
+    vtkSmartPointer<vtkVolumeRayCastMapper> m_volumeMapper; /** volume mapper. */
 
     std::set<unsigned short> m_highlightedLabels; /** set of highlighted labels (selected labels). */
 

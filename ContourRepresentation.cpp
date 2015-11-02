@@ -14,11 +14,13 @@
 #include <cmath>
 
 // vtk includes
+#include <vtkBezierContourLineInterpolator.h>
 #include <vtkBox.h>
 #include <vtkCamera.h>
 #include <vtkCellArray.h>
 #include <vtkContourLineInterpolator.h>
 #include <vtkCoordinate.h>
+#include <vtkFocalPlanePointPlacer.h>
 #include <vtkHandleRepresentation.h>
 #include <vtkIncrementalOctreePointLocator.h>
 #include <vtkIntArray.h>
@@ -30,6 +32,7 @@
 #include <vtkPointPlacer.h>
 #include <vtkPolyData.h>
 #include <vtkRenderer.h>
+#include <vtkSmartPointer.h>
 #include <vtkWindow.h>
 
 // C++
@@ -45,14 +48,14 @@ vtkCxxSetObjectMacro(ContourRepresentation, LineInterpolator, vtkContourLineInte
 ContourRepresentation::ContourRepresentation()
 : PixelTolerance   {15}
 , WorldTolerance   {0.004}
-, PointPlacer      {nullptr}
-, LineInterpolator {nullptr}
+, PointPlacer      {vtkFocalPlanePointPlacer::New()}
+, LineInterpolator {vtkBezierContourLineInterpolator::New()}
 , ActiveNode       {-1}
 , CurrentOperation {ContourRepresentation::Inactive}
 , ClosedLoop       {0}
 , ShowSelectedNodes{0}
 , Internal         {std::make_shared<ContourRepresentationInternals>()}
-, Locator          {nullptr}
+, Locator          {vtkIncrementalOctreePointLocator::New()}
 , RebuildLocator   {false}
 {
   this->ResetLocator();

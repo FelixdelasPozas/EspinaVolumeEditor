@@ -40,19 +40,19 @@
 // VoxelVolumeRender class
 //
 VoxelVolumeRender::VoxelVolumeRender(std::shared_ptr<DataManager> dataManager, vtkSmartPointer<vtkRenderer> renderer, std::shared_ptr<ProgressAccumulator> pa)
-: m_renderer{renderer}
-, m_progress{pa}
-, m_dataManager{dataManager}
-, m_opacityfunction{nullptr}
-, m_colorfunction{nullptr}
-, m_volume{nullptr}
-, m_mesh{nullptr}
-, m_GPUmapper{nullptr}
-, m_min{Vector3ui{0,0,0}}
-, m_max{Vector3ui{0,0,0}}
+: m_renderer         {renderer}
+, m_progress         {pa}
+, m_dataManager      {dataManager}
+, m_opacityfunction  {nullptr}
+, m_colorfunction    {nullptr}
+, m_volume           {nullptr}
+, m_mesh             {nullptr}
+, m_volumeMapper     {nullptr}
+, m_min              {Vector3ui{0,0,0}}
+, m_max              {Vector3ui{0,0,0}}
 , m_renderingIsVolume{true}
 {
-  computeGPURender();
+  computeVolumes();
   updateFocusExtent();
 }
 
@@ -71,16 +71,18 @@ VoxelVolumeRender::~VoxelVolumeRender()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-void VoxelVolumeRender::computeGPURender()
+void VoxelVolumeRender::computeVolumes()
 {
   double rgba[4];
   auto lookupTable = m_dataManager->GetLookupTable();
 
-  m_GPUmapper = vtkSmartPointer<vtkGPUVolumeRayCastMapper>::New();
-  m_GPUmapper->SetInputData(m_dataManager->GetStructuredPoints());
-  m_GPUmapper->SetScalarModeToUsePointData();
-  m_GPUmapper->SetAutoAdjustSampleDistances(false);
-  m_GPUmapper->SetMaximumImageSampleDistance(1.0); 		// this allows a much more defined volume when rotating, as it uses 1 ray per pixel
+  m_volumeMapper = vtkSmartPointer<vtkVolumeRayCastMapper>::New();
+  m_volumeMapper->SetInputData(m_dataManager->GetStructuredPoints());
+  m_volumeMapper->SetScalarModeToUsePointData();
+  m_volumeMapper->SetAutoAdjustSampleDistances(false);
+  m_volumeMapper->SetMaximumImageSampleDistance(1.0);
+  m_volumeMapper->IntermixIntersectingGeometryOn();
+  m_volumeMapper->SetVolumeRayCastFunction(vtkSmartPointer<vtkVolumeRayCastCompositeFunction>::New());
 
   // at this point if the volume has been reduced (see m_GPUmapper->GetReductionRatio(double *) ) it's because the volume is bigger
   // than the memory of the card and doesn't fit, there is no workaround for this except get a better graphic card or use the software
@@ -113,15 +115,10 @@ void VoxelVolumeRender::computeGPURender()
   volumeproperty->SetInterpolationTypeToNearest();
 
   m_volume = vtkSmartPointer<vtkVolume>::New();
-  m_volume->SetMapper(m_GPUmapper);
+  m_volume->SetMapper(m_volumeMapper);
   m_volume->SetProperty(volumeproperty);
 
   m_renderer->AddVolume(m_volume);
-
-  for(auto label: m_dataManager->GetSelectedLabelsSet())
-  {
-    colorHighlight(label);
-  }
 }
 
 // NOTE: some filters make use of SetGlobalWarningDisplay(false) because if we delete
@@ -254,10 +251,10 @@ void VoxelVolumeRender::updateFocusExtent(void)
   // no labels case
   if (m_highlightedLabels.empty())
   {
-    m_GPUmapper->SetCroppingRegionPlanes(0, 0, 0, 0, 0, 0);
-    m_GPUmapper->CroppingOn();
-    m_GPUmapper->SetCroppingRegionFlagsToSubVolume();
-    m_GPUmapper->Update();
+    m_volumeMapper->SetCroppingRegionPlanes(0, 0, 0, 0, 0, 0);
+    m_volumeMapper->CroppingOn();
+    m_volumeMapper->SetCroppingRegionFlagsToSubVolume();
+    m_volumeMapper->Update();
     return;
   }
 
@@ -298,10 +295,10 @@ void VoxelVolumeRender::updateFocusExtent(void)
                        (m_min[2] - 1.5) * spacing[2],
                        (m_max[2] + 1.5) * spacing[2] };
 
-  m_GPUmapper->SetCroppingRegionPlanes(bounds);
-  m_GPUmapper->CroppingOn();
-  m_GPUmapper->SetCroppingRegionFlagsToSubVolume();
-  m_GPUmapper->Update();
+  m_volumeMapper->SetCroppingRegionPlanes(bounds);
+  m_volumeMapper->CroppingOn();
+  m_volumeMapper->SetCroppingRegionFlagsToSubVolume();
+  m_volumeMapper->Update();
 
   // if we are rendering as mesh then recompute mesh (if not, mesh will get clipped against
   // boundaries set at the time of creation if the object grows outside old bounding box)

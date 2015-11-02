@@ -69,14 +69,12 @@ ContourRepresentationGlyph::ContourRepresentationGlyph()
 , Lines                   {vtkSmartPointer<vtkPolyData>::New()}
 , LinesMapper             {vtkSmartPointer<vtkPolyDataMapper>::New()}
 , LinesActor              {vtkSmartPointer<vtkActor>::New()}
-, Property                {vtkSmartPointer<vtkProperty>::New()}
-, ActiveProperty          {vtkSmartPointer<vtkProperty>::New()}
-, LinesProperty           {vtkSmartPointer<vtkProperty>::New()}
+, Property                {vtkProperty::New()}
+, ActiveProperty          {vtkProperty::New()}
+, LinesProperty           {vtkProperty::New()}
 , AlwaysOnTop             {0}
 {
   this->InteractionState = ContourRepresentation::Outside;
-  this->SetPointPlacer(vtkFocalPlanePointPlacer::New());
-  this->SetLineInterpolator(vtkBezierContourLineInterpolator::New());
   this->HandleSize = 0.01;
 
 	this->Spacing[0] = this->Spacing[1] = 1.0;
@@ -172,8 +170,8 @@ ContourRepresentationGlyph::ContourRepresentationGlyph()
 	this->ActiveMapper->ScalarVisibilityOff();
 	this->ActiveMapper->ImmediateModeRenderingOn();
 
-	// Set up the initial properties
-	this->SetDefaultProperties();
+  // Set up the initial properties
+  this->SetDefaultProperties();
 
 	this->Actor->SetMapper(this->Mapper);
 	this->Actor->SetProperty(this->Property);
@@ -519,6 +517,7 @@ void ContourRepresentationGlyph::SetDefaultProperties()
 	this->Property->SetColor(1.0, 1.0, 1.0);
 	this->Property->SetLineWidth(0.5);
 	this->Property->SetPointSize(4);
+	this->Property->Modified();
 
 	this->ActiveProperty->SetColor(1.0, 1.0, 1.0);
 	this->ActiveProperty->SetRepresentationToSurface();
@@ -526,12 +525,14 @@ void ContourRepresentationGlyph::SetDefaultProperties()
 	this->ActiveProperty->SetDiffuse(0.0);
 	this->ActiveProperty->SetSpecular(0.0);
 	this->ActiveProperty->SetLineWidth(1.0);
+	this->ActiveProperty->Modified();
 
 	this->LinesProperty->SetAmbient(1.0);
 	this->LinesProperty->SetDiffuse(0.0);
 	this->LinesProperty->SetSpecular(0.0);
 	this->LinesProperty->SetColor(1, 1, 1);
 	this->LinesProperty->SetLineWidth(1);
+	this->LinesProperty->Modified();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

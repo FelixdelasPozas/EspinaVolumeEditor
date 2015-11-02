@@ -1229,8 +1229,8 @@ void EspinaVolumeEditor::onSelectionChanged()
   {
     case 0:
     {
-      bool selectionCanRelabel = (selectbutton->isChecked() && (Selection::Type::CUBE == m_editorOperations->GetSelectionType()))
-          || (lassoButton->isChecked() && (Selection::Type::CONTOUR == m_editorOperations->GetSelectionType()));
+      bool selectionCanRelabel = (selectbutton->isChecked() && (Selection::Type::CUBE == m_editorOperations->GetSelectionType())) ||
+                                 (lassoButton->isChecked() && (Selection::Type::CONTOUR == m_editorOperations->GetSelectionType()));
 
       cutbutton->setEnabled(false);
       if (renderview->isEnabled()) rendertypebutton->setEnabled(false);
@@ -1272,9 +1272,10 @@ void EspinaVolumeEditor::onSelectionChanged()
       m_updatePointLabel     = false;
 
       // POI values start in 0, spinboxes start in 1
-      m_POI[0] = static_cast<unsigned int>(newPOI[0]);
-      m_POI[1] = static_cast<unsigned int>(newPOI[1]);
-      m_POI[2] = static_cast<unsigned int>(newPOI[2]);
+      m_POI[0] = static_cast<unsigned int>(std::fabs(newPOI[0]));
+      m_POI[1] = static_cast<unsigned int>(std::fabs(newPOI[1]));
+      m_POI[2] = static_cast<unsigned int>(std::fabs(newPOI[2]));
+
       ZspinBox->setValue(m_POI[2] + 1);
       YspinBox->setValue(m_POI[1] + 1);
       XspinBox->setValue(m_POI[0] + 1);
@@ -3088,7 +3089,10 @@ void EspinaVolumeEditor::selectLabels(std::set<unsigned short> labels)
 
   // scroll to the last one created label
   std::set<unsigned short>::reverse_iterator rit = labels.rbegin();
-  labelselector->scrollToItem(labelselector->item(*rit), QAbstractItemView::PositionAtCenter);
+  if(rit != labels.rend())
+  {
+    labelselector->scrollToItem(labelselector->item(*rit), QAbstractItemView::PositionAtCenter);
+  }
 
   // need to do this because we were blocking labelselector signals and want to update
   // the selected labels on one call
