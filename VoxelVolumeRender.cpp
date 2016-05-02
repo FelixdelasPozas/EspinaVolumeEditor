@@ -54,6 +54,9 @@ VoxelVolumeRender::VoxelVolumeRender(std::shared_ptr<DataManager> dataManager, v
 {
   computeVolumes();
   updateFocusExtent();
+
+  connect(dataManager.get(), SIGNAL(modified()),
+          this,              SLOT(onDataModified()));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -107,7 +110,7 @@ void VoxelVolumeRender::computeVolumes()
   }
 
   // volume property
-  vtkSmartPointer<vtkVolumeProperty> volumeproperty = vtkSmartPointer<vtkVolumeProperty>::New();
+  auto volumeproperty = vtkSmartPointer<vtkVolumeProperty>::New();
   volumeproperty->SetColor(m_colorfunction);
   volumeproperty->SetScalarOpacity(m_opacityfunction);
   volumeproperty->SetSpecular(0.0);
@@ -134,18 +137,6 @@ void VoxelVolumeRender::computeMesh(const unsigned short label)
   // delete previous actor if any exists and the actual object bounding box is bigger than the stored with the actor.
   if (m_actors.find(label) != m_actors.end())
   {
-    actorInfo = m_actors[label];
-
-    auto min = m_dataManager->GetBoundingBoxMin(label);
-    auto max = m_dataManager->GetBoundingBoxMax(label);
-
-    if ((actorInfo->min[0] <= min[0]) && (actorInfo->min[1] <= min[1]) && (actorInfo->min[2] <= min[2]) &&
-        (actorInfo->max[0] >= max[0]) && (actorInfo->max[1] >= max[1]) && (actorInfo->max[2] >= max[2]))
-    {
-      // actual actor is sufficient and is not being clipped by the bounding box imposed at creation
-      return;
-    }
-
     m_renderer->RemoveActor(m_actors[label]->mesh);
     m_actors[label]->mesh = nullptr;
     m_actors[label] = nullptr;
@@ -416,8 +407,7 @@ void VoxelVolumeRender::colorHighlightExclusive(unsigned short label)
     colorHighlight(label);
   }
 
-  m_opacityfunction->Modified();
-  m_volume->Update();
+  updateColorTable();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -429,8 +419,7 @@ void VoxelVolumeRender::colorDimAll(void)
     colorDim(it);
   }
 
-  m_opacityfunction->Modified();
-  m_volume->Update();
+  updateColorTable();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -438,4 +427,23 @@ void VoxelVolumeRender::updateColorTable(void)
 {
   m_opacityfunction->Modified();
   m_volume->Update();
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+void VoxelVolumeRender::onDataModified()
+{
+  if(m_renderingIsVolume)
+  {
+    updateColorTable();
+  }
+  else
+  {
+    for (auto label: m_highlightedLabels)
+    {
+      computeMesh(label);
+    }
+    m_progress->Reset();
+  }
+
+  m_renderer->Render();
 }

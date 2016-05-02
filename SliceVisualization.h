@@ -32,6 +32,9 @@
 #include "VectorSpaceAlgebra.h"
 #include "EditorOperations.h"
 
+// Qt
+#include <QObject>
+
 // forward declarations
 class BoxSelectionWidget;
 class vtkImageReslice;
@@ -43,7 +46,9 @@ class vtkIconGlyphFilter;
 // SliceVisualization class
 //
 class SliceVisualization
+: public QObject
 {
+    Q_OBJECT
   public:
     /** \class Orientation.
      * \brief Class to define orientation of the visualizations.
@@ -67,22 +72,14 @@ class SliceVisualization
     ~SliceVisualization();
 
     /** \brief Initializes the class with the required data.
-     * \param[in] data image data.
-     * \param[in] colorTable image color table.
+     * \param[in] data data manager.
      * \param[in] renderer renderer where the visualization is shown.
      * \param[in] coordinates image orientation data.
      *
      */
-    void initialize(vtkSmartPointer<vtkStructuredPoints> data,
-                    vtkSmartPointer<vtkLookupTable>      colorTable,
-                    vtkSmartPointer<vtkRenderer>         renderer,
-                    std::shared_ptr<Coordinates>         coordinates);
-
-    /** \brief Updates the position of the visualization.
-     * \param[in] point point coordinates.
-     *
-     */
-    void update(const Vector3ui &point);
+    void initialize(std::shared_ptr<DataManager>    data,
+                    vtkSmartPointer<vtkRenderer>    renderer,
+                    std::shared_ptr<Coordinates>    coordinates);
 
     /** \brief Updates the crosshair position.
      * \param[in] point crosshair point coordinates.
@@ -167,13 +164,17 @@ class SliceVisualization
      *
      */
     vtkSmartPointer<vtkImageActor> actor() const;
+
+  public slots:
+    void onCrosshairChange(const Vector3ui &crosshair);
+    void onDataModified();
+
   private:
     /** \brief Generate imageactor and adds it to renderer.
-     * \param[in] data data points.
-     * \param[in] colorTable data colors.
+     * \param[in] data data manager.
      *
      */
-    void generateSlice(vtkSmartPointer<vtkStructuredPoints> data, vtkSmartPointer<vtkLookupTable> colorTable);
+    void generateSlice(std::shared_ptr<DataManager> data);
 
     /** \brief Generate crosshairs actors and adds them to renderer.
      *

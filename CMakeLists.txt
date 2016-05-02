@@ -36,15 +36,73 @@ if(DEFINED ESPINAEDITOR_VERSION_MAJOR)
   enable_language(RC)
 endif(DEFINED ESPINAEDITOR_VERSION_MAJOR)
 
-SET(QtSrcs EspinaVolumeEditor.cpp QtPreferences.cpp QtRelabel.cpp QtAbout.cpp QtColorPicker.cpp SaveSession.cpp QtSessionInfo.cpp QtKeyboardHelp.cpp)
-SET(UIS QtPreferences.ui QtRelabel.ui QtAbout.ui QtColorPicker.ui QtSessionInfo.ui QtKeyboardHelp.ui EspinaVolumeEditor.ui)
-SET (QtHeaders EspinaVolumeEditor.h QtPreferences.h QtRelabel.h QtAbout.h QtColorPicker.h SaveSession.h QtSessionInfo.h QtKeyboardHelp.h)
-SET (QtResources editor.qrc about.qrc colorpicker.qrc keyboardhelp.qrc)
+SET(UIS 
+  QtPreferences.ui 
+  QtRelabel.ui 
+  QtAbout.ui 
+  QtColorPicker.ui 
+  QtSessionInfo.ui 
+  QtKeyboardHelp.ui 
+  EspinaVolumeEditor.ui
+)
+
+SET (MOCS 
+  EspinaVolumeEditor.h 
+  QtPreferences.h 
+  QtRelabel.h 
+  QtAbout.h 
+  QtColorPicker.h 
+  SaveSession.h 
+  QtSessionInfo.h 
+  QtKeyboardHelp.h
+  AxesRender.h
+  DataManager.h
+  SliceVisualization.h
+  VoxelVolumeRender.h
+)
+
+SET (QtResources 
+  editor.qrc 
+  about.qrc 
+  colorpicker.qrc 
+  keyboardhelp.qrc
+)
+
+SET(CurrentFiles 
+  Editor.cpp
+  SliceVisualization.cpp
+  UndoRedoSystem.cpp
+  EditorOperations.cpp
+  ProgressAccumulator.cpp
+  Coordinates.cpp
+  VoxelVolumeRender.cpp
+  DataManager.cpp
+  Metadata.cpp
+  SaveSession.cpp
+  Selection.cpp
+  BoxSelectionRepresentation2D.cpp
+  BoxSelectionWidget.cpp
+  BoxSelectionRepresentation3D.cpp
+  FocalPlanePointPlacer.cpp
+  ContourWidget.cpp
+  ContourRepresentation.cpp
+  ContourRepresentationGlyph.cpp
+  EspinaVolumeEditor.cpp 
+  QtPreferences.cpp 
+  QtRelabel.cpp 
+  QtAbout.cpp 
+  QtColorPicker.cpp 
+  SaveSession.cpp 
+  QtSessionInfo.cpp 
+  QtKeyboardHelp.cpp
+  AxesRender.cpp  
+)
+
 QT4_WRAP_UI(UIHeaders ${UIS})
-QT4_WRAP_CPP(MOCSrcs ${QtHeaders} )
+QT4_WRAP_CPP(MOCSrcs ${MOCS} )
 QT4_ADD_RESOURCES(QtResources_cpp ${QtResources})
 ADD_DEFINITIONS(-DQT_GUI_LIBS -DQT_CORE_LIB -DQT3_SUPPORT)
-SET_SOURCE_FILES_PROPERTIES(${QtSrcs} PROPERTIES OBJECT_DEPENDS "${UIHeaders}")
+SET_SOURCE_FILES_PROPERTIES(${CurrentFiles} PROPERTIES OBJECT_DEPENDS "${UIHeaders}")
 
 #Declare any external dependencies that your project may have here.
 SET(VTK_DIR "D:/Desarrollo/Bibliotecas/vtk-build")
@@ -61,29 +119,7 @@ SET(Libraries
   ${QT_LIBRARIES}
 )
 
-SET(CurrentFiles 
-	"Editor"
-	"SliceVisualization"
-	"UndoRedoSystem"
-	"EditorOperations"
-	"ProgressAccumulator"
-	"Coordinates"
-	"VoxelVolumeRender"
-	"DataManager"
-	"AxesRender"
-	"Metadata"
-	"SaveSession"
-	"Selection"
-	"BoxSelectionRepresentation2D"
-	"BoxSelectionWidget"
-	"BoxSelectionRepresentation3D"
-	"FocalPlanePointPlacer"
-	"ContourWidget"
-	"ContourRepresentation"
-	"ContourRepresentationGlyph"
-)
-
-ADD_EXECUTABLE(Editor ${CurrentFiles}.cpp ${QtSrcs} ${MOCSrcs} ${QtResources_cpp} ${RC_FILE})
+ADD_EXECUTABLE(Editor ${CurrentFiles} ${MOCSrcs} ${QtResources_cpp} ${RC_FILE})
 TARGET_LINK_LIBRARIES(Editor ${Libraries})
 SET_TARGET_PROPERTIES(Editor PROPERTIES OUTPUT_NAME EspinaEditor)
 

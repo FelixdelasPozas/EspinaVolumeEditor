@@ -268,11 +268,13 @@ const unsigned short DataManager::SetLabel(const QColor &color)
 
     // can't use find() as the value we're searching is the 'second' field
     for (auto it: ObjectVector)
+    {
       if (it.second->scalar == freevalue)
       {
         free = false;
         freevalue++;
       }
+    }
   }
 
   auto object = std::make_shared<ObjectInformation>();
@@ -290,7 +292,7 @@ const unsigned short DataManager::SetLabel(const QColor &color)
   CopyLookupTable(m_lookupTable, temptable);
 
   // this is a convoluted way of doing things, but SetNumberOfTableValues() seems to
-  // corrup the table (due to reallocation?) and all values must be copied again.
+  // corrupt the table (due to reallocation?) and all values must be copied again.
   m_lookupTable->SetNumberOfTableValues(newlabel + 1);
   double rgba[4];
   for (int index = 0; index != temptable->GetNumberOfTableValues(); index++)
@@ -345,7 +347,7 @@ void DataManager::GenerateLookupTable()
   for (unsigned int index = 0; index != labels; ++index)
   {
     temporal_table->GetTableValue(index, rgba);
-    m_lookupTable->SetTableValue(index + 1, rgba[0], rgba[1], rgba[2], DIM_ALPHA);
+    m_lookupTable->SetTableValue(index + 1, rgba[0], rgba[1], rgba[2], (index == 0 ? 0 : DIM_ALPHA));
   }
 }
 
@@ -468,6 +470,7 @@ const unsigned short DataManager::GetFirstFreeValue() const
   return m_firstFreeValue;
 }
 
+//////////////////////////////////////////////////////////////////////////////////////////////////
 const unsigned short DataManager::GetLastUsedValue() const
 {
   unsigned short value = 0;
@@ -588,7 +591,7 @@ unsigned short DataManager::GetLabelForScalar(const unsigned short scalar) const
 Vector3d DataManager::GetCentroidForObject(const unsigned short int label)
 {
   Q_ASSERT(label < ObjectVector.size());
-  return (ObjectVector[label])->centroid;
+  return ObjectVector[label]->centroid;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -649,7 +652,7 @@ void DataManager::ColorHighlightExclusive(const unsigned short label)
   auto labels = m_selectedLabels;
   for (auto it: labels)
   {
-    if (it == label) continue;
+    if ((it == label) || (it == 0)) continue;
 
     double rgba[4];
 
@@ -669,6 +672,8 @@ void DataManager::ColorDimAll()
   auto labels = m_selectedLabels;
   for (auto it: labels)
   {
+    if(it == 0) continue;
+
     double rgba[4];
 
     m_lookupTable->GetTableValue(it, rgba);
@@ -749,4 +754,6 @@ const int DataManager::GetSelectedLabelSetSize(void) const
 void DataManager::SignalDataAsModified(void)
 {
   m_structuredPoints->Modified();
+
+  emit modified();
 }

@@ -30,6 +30,9 @@
 #include "Metadata.h"
 #include "VectorSpaceAlgebra.h"
 
+// Qt
+#include <QObject>
+
 // defines & typedefs
 using LabelObjectType = itk::ShapeLabelObject<unsigned short, 3>;
 using LabelMapType = itk::LabelMap<LabelObjectType>;
@@ -43,7 +46,9 @@ class QColor;
 // DataManager class
 //
 class DataManager
+: public QObject
 {
+    Q_OBJECT
   public:
     /** \brief DataManager class constructor.
      *
@@ -346,6 +351,10 @@ class DataManager
 
     friend class SaveSessionThread;
     friend class EspinaVolumeEditor;
+
+  signals:
+    void modified();
+
   private:
     /** \brief Helper method to reset the lookuptable to initial state based on original labelmap, used during init too
      *

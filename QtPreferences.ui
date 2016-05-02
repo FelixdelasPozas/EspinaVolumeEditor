@@ -9,8 +9,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>426</width>
-    <height>589</height>
+    <width>415</width>
+    <height>478</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -21,8 +21,14 @@
   </property>
   <property name="minimumSize">
    <size>
-    <width>426</width>
-    <height>589</height>
+    <width>415</width>
+    <height>478</height>
+   </size>
+  </property>
+  <property name="maximumSize">
+   <size>
+    <width>415</width>
+    <height>478</height>
    </size>
   </property>
   <property name="contextMenuPolicy">
@@ -67,10 +73,13 @@ QGroupBox::title {
      <property name="title">
       <string>Undo/Redo System</string>
      </property>
+     <property name="alignment">
+      <set>Qt::AlignCenter</set>
+     </property>
      <layout class="QVBoxLayout" name="verticalLayout_2">
       <item>
-       <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,0,0">
-        <item>
+       <layout class="QGridLayout" name="gridLayout" rowstretch="0,0,0" columnstretch="1,0">
+        <item row="0" column="0">
          <widget class="QLabel" name="label_2">
           <property name="toolTip">
            <string>System capacity in Megabytes</string>
@@ -80,13 +89,16 @@ QGroupBox::title {
           </property>
          </widget>
         </item>
-        <item>
+        <item row="0" column="1">
          <widget class="QSpinBox" name="sizeBox">
           <property name="minimumSize">
            <size>
             <width>62</width>
             <height>27</height>
            </size>
+          </property>
+          <property name="suffix">
+           <string> megabytes</string>
           </property>
           <property name="maximum">
            <number>4000</number>
@@ -96,21 +108,7 @@ QGroupBox::title {
           </property>
          </widget>
         </item>
-        <item>
-         <widget class="QLabel" name="label_10">
-          <property name="text">
-           <string>megabytes</string>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </item>
-      <item>
-       <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="1,1">
-        <property name="sizeConstraint">
-         <enum>QLayout::SetMinAndMaxSize</enum>
-        </property>
-        <item>
+        <item row="1" column="0">
          <widget class="QLabel" name="label_3">
           <property name="toolTip">
            <string>System occupation</string>
@@ -120,7 +118,7 @@ QGroupBox::title {
           </property>
          </widget>
         </item>
-        <item>
+        <item row="1" column="1">
          <widget class="QProgressBar" name="capacityBar">
           <property name="minimumSize">
            <size>
@@ -136,6 +134,9 @@ QGroupBox::title {
           </property>
           <property name="value">
            <number>0</number>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
           </property>
          </widget>
         </item>
@@ -171,7 +172,7 @@ QGroupBox::title {
      </property>
      <layout class="QVBoxLayout" name="verticalLayout_3">
       <item>
-       <layout class="QHBoxLayout" stretch="1,0,0">
+       <layout class="QHBoxLayout" stretch="1,0">
         <property name="sizeConstraint">
          <enum>QLayout::SetDefaultConstraint</enum>
         </property>
@@ -208,6 +209,9 @@ QGroupBox::title {
           <property name="buttonSymbols">
            <enum>QAbstractSpinBox::UpDownArrows</enum>
           </property>
+          <property name="suffix">
+           <string> voxels</string>
+          </property>
           <property name="minimum">
            <number>1</number>
           </property>
@@ -216,13 +220,6 @@ QGroupBox::title {
           </property>
           <property name="value">
            <number>1</number>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QLabel" name="label_11">
-          <property name="text">
-           <string>voxels</string>
           </property>
          </widget>
         </item>
@@ -311,7 +308,7 @@ QGroupBox::title {
      </property>
      <layout class="QVBoxLayout" name="verticalLayout_6">
       <item>
-       <layout class="QHBoxLayout" name="horizontalLayout_6" stretch="1,0,0">
+       <layout class="QHBoxLayout" name="horizontalLayout_6" stretch="1,0">
         <item>
          <widget class="QLabel" name="label_8">
           <property name="text">
@@ -321,6 +318,9 @@ QGroupBox::title {
         </item>
         <item>
          <widget class="QSpinBox" name="paintRadiusBox">
+          <property name="suffix">
+           <string> voxels</string>
+          </property>
           <property name="minimum">
            <number>1</number>
           </property>
@@ -329,13 +329,6 @@ QGroupBox::title {
           </property>
           <property name="value">
            <number>1</number>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QLabel" name="label_12">
-          <property name="text">
-           <string>voxels</string>
           </property>
          </widget>
         </item>
@@ -431,18 +424,11 @@ QGroupBox::title {
      <layout class="QVBoxLayout" name="verticalLayout_7">
       <item>
        <widget class="QLabel" name="label_9">
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>60</height>
-         </size>
+        <property name="mouseTracking">
+         <bool>false</bool>
         </property>
         <property name="text">
-         <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
-&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
-p, li { white-space: pre-wrap; }
-&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Ubuntu'; font-size:11pt; font-weight:400; font-style:normal;&quot;&gt;
-&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;The editor will save the changes made during the session in a temporary file.&lt;span style=&quot; font-weight:600;&quot;&gt; It will not save in the original segmentation file.&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         <string>The editor will save the changes made during the session in a temporary file.&lt;b&gt; It will not save in the original segmentation file.&lt;/b&gt;</string>
         </property>
         <property name="textFormat">
          <enum>Qt::RichText</enum>
@@ -459,13 +445,13 @@ p, li { white-space: pre-wrap; }
         <property name="margin">
          <number>0</number>
         </property>
-        <property name="textInteractionFlags">
-         <set>Qt::NoTextInteraction</set>
+        <property name="indent">
+         <number>0</number>
         </property>
        </widget>
       </item>
       <item>
-       <layout class="QHBoxLayout" name="horizontalLayout_4" stretch="1,0,0">
+       <layout class="QHBoxLayout" name="horizontalLayout_4" stretch="1,0">
         <item>
          <widget class="QLabel" name="label_6">
           <property name="text">
@@ -478,6 +464,9 @@ p, li { white-space: pre-wrap; }
           <property name="frame">
            <bool>true</bool>
           </property>
+          <property name="suffix">
+           <string> minutes</string>
+          </property>
           <property name="minimum">
            <number>5</number>
           </property>
@@ -489,13 +478,6 @@ p, li { white-space: pre-wrap; }
           </property>
           <property name="value">
            <number>20</number>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QLabel" name="label_7">
-          <property name="text">
-           <string>minutes</string>
           </property>
          </widget>
         </item>

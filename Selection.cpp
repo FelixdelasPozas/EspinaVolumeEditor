@@ -1104,9 +1104,9 @@ void Selection::addContourInitialPoint(const Vector3ui &point, std::shared_ptr<S
   double worldPos[3] = { 0.0, 0.0, 0.0 };
 
   // interpolate points with lines
-  auto interpolator = vtkSmartPointer<vtkLinearContourLineInterpolator>::New();
-  auto pointPlacer = vtkSmartPointer<FocalPlanePointPlacer>::New();
-  auto representation = vtkSmartPointer<ContourRepresentationGlyph>::New();
+  auto interpolator = vtkLinearContourLineInterpolator::New();
+  auto pointPlacer = FocalPlanePointPlacer::New();
+  auto representation = ContourRepresentationGlyph::New();
 
   // create widget and representation
   m_contourWidget = vtkSmartPointer<ContourWidget>::New();
@@ -1150,20 +1150,17 @@ void Selection::addContourInitialPoint(const Vector3ui &point, std::shared_ptr<S
   m_contourWidget->SetEnabled(true);
   m_contourWidget->On();
 
-  representation->AddNodeAtWorldPosition(worldPos);
-  representation->AddNodeAtWorldPosition(worldPos);
   representation->SetVisibility(true);
-  representation->Modified();
 
   // set callbacks for widget interaction
   m_widgetsCallbackCommand = vtkSmartPointer<vtkCallbackCommand>::New();
   m_widgetsCallbackCommand->SetCallback(contourSelectionWidgetCallback);
   m_widgetsCallbackCommand->SetClientData(this);
 
-  m_contourWidget->AddObserver(vtkCommand::StartInteractionEvent, m_widgetsCallbackCommand);
-  m_contourWidget->AddObserver(vtkCommand::EndInteractionEvent, m_widgetsCallbackCommand);
-  m_contourWidget->AddObserver(vtkCommand::InteractionEvent, m_widgetsCallbackCommand);
-  m_contourWidget->AddObserver(vtkCommand::KeyPressEvent, m_widgetsCallbackCommand);
+  m_contourWidget->AddObserver(vtkCommand::StartInteractionEvent, m_widgetsCallbackCommand.Get());
+  m_contourWidget->AddObserver(vtkCommand::EndInteractionEvent, m_widgetsCallbackCommand.Get());
+  m_contourWidget->AddObserver(vtkCommand::InteractionEvent, m_widgetsCallbackCommand.Get());
+  m_contourWidget->AddObserver(vtkCommand::KeyPressEvent, m_widgetsCallbackCommand.Get());
 
   // make the slice aware of a contour selection
   callerSlice->setSliceWidget(m_contourWidget);

@@ -18,6 +18,9 @@
 #include <vtkPlaneSource.h>
 #include <vtkOrientationMarkerWidget.h>
 
+// Qt
+#include <QObject>
+
 // c++ includes
 #include <vector>
 
@@ -28,7 +31,9 @@
 // AxesRender class
 //
 class AxesRender
+: public QObject
 {
+    Q_OBJECT
   public:
     /** \brief Orientation enum class.
      *
@@ -47,12 +52,6 @@ class AxesRender
      */
     ~AxesRender();
 
-    /** \brief Update slice planes in 3d render view to the new point
-     * \param[in] crosshair crosshair point.
-     *
-     */
-    void Update(const Vector3ui &crosshair);
-
     /** \brief Returs true if the axes are visible in the renderer.
      *
      */
@@ -63,6 +62,14 @@ class AxesRender
      *
      */
     void setVisible(bool value);
+
+  public slots:
+    /** \brief Update slice planes in 3d render view to the new point
+     * \param[in] crosshair crosshair point.
+     *
+     */
+    void onCrosshairChange(const Vector3ui &crosshair);
+
   private:
     /** \brief Helper method to generate plane actors pointing to the center of the volume.
      * \param[in] renderer renderer to insert the actors.
@@ -100,10 +107,11 @@ class AxesRender
     std::vector<vtkSmartPointer<vtkActor>>       m_planesActors; /** plane actors. */
     std::vector<vtkSmartPointer<vtkActor>>       m_crossActors;  /** crosshairs actors. */
 
-    Vector3d m_spacing; /** spacing of the scene. */
+    Vector3d m_spacing; /** spacing of the scene.      */
     Vector3d m_max;     /** maximum size of the scene. */
 
-    bool m_visible; /** visibility value. */
+    bool m_visible;     /** visibility value.          */
+    Vector3ui m_crosshair;
 
     vtkSmartPointer<vtkOrientationMarkerWidget> m_axesWidget; /** orientation marker widget. */
 };

@@ -25,6 +25,9 @@
 #include <set>
 #include <map>
 
+// Qt
+#include <QObject>
+
 // project includes
 #include "ProgressAccumulator.h"
 #include "DataManager.h"
@@ -33,7 +36,9 @@
 // VoxelVolumeRender class
 //
 class VoxelVolumeRender
+: public QObject
 {
+    Q_OBJECT
   public:
     /** \brief VoxelVolumeRender class constructor.
      * \param[in] dataManager application data manager.
@@ -90,6 +95,10 @@ class VoxelVolumeRender
      *
      */
     void updateColorTable();
+
+  public slots:
+    void onDataModified();
+
   private:
     /** \brief Computes volumes using plain CPU raycast.
      *

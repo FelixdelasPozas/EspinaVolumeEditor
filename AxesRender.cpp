@@ -22,6 +22,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 AxesRender::AxesRender(vtkSmartPointer<vtkRenderer> renderer, std::shared_ptr<Coordinates> coords)
+: m_crosshair{-1,-1,-1}
 {
   m_spacing = coords->GetImageSpacing();
   auto size = coords->GetTransformedSize();
@@ -36,6 +37,7 @@ AxesRender::AxesRender(vtkSmartPointer<vtkRenderer> renderer, std::shared_ptr<Co
   GenerateSlicePlanes(renderer);
   GenerateVoxelCrosshair(renderer);
   CreateOrientationWidget(renderer);
+  onCrosshairChange(Vector3ui{0,0,0});
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -54,10 +56,18 @@ AxesRender::~AxesRender()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-void AxesRender::Update(const Vector3ui &crosshair)
+void AxesRender::onCrosshairChange(const Vector3ui &crosshair)
 {
-  UpdateVoxelCrosshair(crosshair);
-  UpdateSlicePlanes(crosshair);
+  if(m_crosshair != crosshair)
+  {
+    if(m_visible)
+    {
+      UpdateVoxelCrosshair(crosshair);
+      UpdateSlicePlanes(crosshair);
+    }
+
+    m_crosshair = crosshair;
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -190,13 +200,17 @@ bool AxesRender::isVisible() const
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void AxesRender::setVisible(bool value)
 {
-  if (m_visible == value) return;
-
-  m_visible = value;
-
-  for(auto i: {0,1,2})
+  if (m_visible != value)
   {
-    m_planesActors[i]->SetVisibility(value);
-    m_crossActors[i]->SetVisibility(value);
+    m_visible = value;
+
+    UpdateSlicePlanes(m_crosshair);
+    UpdateVoxelCrosshair(m_crosshair);
+
+    for(auto i: {0,1,2})
+    {
+      m_planesActors[i]->SetVisibility(value);
+      m_crossActors[i]->SetVisibility(value);
+    }
   }
 }

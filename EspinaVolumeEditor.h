@@ -18,6 +18,7 @@
 // itk includes
 #include <itkImage.h>
 #include <itkLabelMap.h>
+#include <itkMetaImageIO.h>
 #include <itkShapeLabelObject.h>
 #include <itkSmartPointer.h>
 
@@ -50,9 +51,11 @@ using LabelObjectType = itk::ShapeLabelObject<unsigned short, 3>;
 using LabelMapType    = itk::LabelMap<LabelObjectType>;
 
 class EspinaVolumeEditor
-: public QMainWindow, private Ui_MainWindow
+: public QMainWindow
+, private Ui_MainWindow
 {
-  Q_OBJECT
+    Q_OBJECT
+
   public:
   /** \brief EspinaVolumeEditor class constructor.
    * \param[in] app QApplication instance.
@@ -65,6 +68,9 @@ class EspinaVolumeEditor
      *
      */
     ~EspinaVolumeEditor();
+
+  signals:
+    void crosshairChanged(const Vector3ui &crosshair);
 
   protected slots:
     /** \brief Show the dialog to open a segmha file, and loads the file if the name is valid and exists.
@@ -378,6 +384,12 @@ class EspinaVolumeEditor
     void loadSettings();
 
     bool eventFilter(QObject *, QEvent*);
+
+    /** \brief Updates the brush actors in the views.
+     * \param[in] view view to update the brush actor.
+     *
+     */
+    void updateBrushActors(std::shared_ptr<SliceVisualization> view);
 
     bool m_updateVoxelRenderer;  /** bool to minimize drawing in render view. True to update and false otherwise. */
     bool m_updateSliceRenderers; /** bool to minimize drawing in slice views. True to update and false otherwise. */

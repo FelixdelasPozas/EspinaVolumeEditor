@@ -228,6 +228,7 @@ void EditorOperations::Cut(std::set<unsigned short> labels)
     default:
       break;
   }
+
   m_dataManager->SignalDataAsModified();
 
   m_progress->ManualReset();

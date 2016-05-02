@@ -93,11 +93,13 @@ SliceVisualization::SliceVisualization(Orientation type)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-void SliceVisualization::initialize(vtkSmartPointer<vtkStructuredPoints> data,
-                                    vtkSmartPointer<vtkLookupTable> colorTable,
-                                    vtkSmartPointer<vtkRenderer> renderer,
-                                    std::shared_ptr<Coordinates> coordinates)
+void SliceVisualization::initialize(std::shared_ptr<DataManager>    data,
+                                    vtkSmartPointer<vtkRenderer>    renderer,
+                                    std::shared_ptr<Coordinates>    coordinates)
 {
+  connect(data.get(), SIGNAL(modified()),
+          this,       SLOT(onDataModified()));
+
   // get data properties
   m_size    = coordinates->GetTransformedSize();
   m_spacing = coordinates->GetImageSpacing();
@@ -128,7 +130,7 @@ void SliceVisualization::initialize(vtkSmartPointer<vtkStructuredPoints> data,
   m_axesMatrix->DeepCopy(matrix);
 
   // generate all actors
-  generateSlice(data, colorTable);
+  generateSlice(data);
   generateCrosshair();
 
   // create text legend
@@ -186,18 +188,18 @@ SliceVisualization::~SliceVisualization()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-void SliceVisualization::generateSlice(vtkSmartPointer<vtkStructuredPoints> data, vtkSmartPointer<vtkLookupTable> colorTable)
+void SliceVisualization::generateSlice(std::shared_ptr<DataManager> data)
 {
   m_segmentationReslice = vtkSmartPointer<vtkImageReslice>::New();
   m_segmentationReslice->SetOptimization(true);
   m_segmentationReslice->BorderOn();
-  m_segmentationReslice->SetInputData(data);
+  m_segmentationReslice->SetInputData(data->GetStructuredPoints());
   m_segmentationReslice->SetOutputDimensionality(2);
   m_segmentationReslice->SetResliceAxes(m_axesMatrix);
   m_segmentationReslice->Update();
 
   m_segmentationsMapper = vtkSmartPointer<vtkImageMapToColors>::New();
-  m_segmentationsMapper->SetLookupTable(colorTable);
+  m_segmentationsMapper->SetLookupTable(data->GetLookupTable());
   m_segmentationsMapper->SetOutputFormatToRGBA();
   m_segmentationsMapper->SetInputConnection(m_segmentationReslice->GetOutputPort());
   m_segmentationsMapper->Update();
@@ -271,15 +273,14 @@ void SliceVisualization::generateCrosshair()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-void SliceVisualization::update(const Vector3ui &point)
+void SliceVisualization::onCrosshairChange(const Vector3ui &point)
 {
   if (m_point == point) return;
 
   updateSlice(point);
   updateCrosshair(point);
 
-  m_thumbRenderer->Render();
-  m_renderer->Render();
+  m_renderer->GetRenderWindow()->Render();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -727,7 +728,10 @@ void SliceVisualization::updateActorVisibility(std::shared_ptr<struct ActorData>
 {
   if (m_segmentationHidden == true)
   {
-    actorInformation->actor->SetVisibility(false);
+    if(actorInformation->actor->GetVisibility())
+    {
+      actorInformation->actor->SetVisibility(false);
+    }
 
     if (m_widget)
     {
@@ -742,7 +746,10 @@ void SliceVisualization::updateActorVisibility(std::shared_ptr<struct ActorData>
     auto maxSlice = actorInformation->maxSlice;
 
     auto enabled = (minSlice <= slice) && (maxSlice >= slice);
-    actorInformation->actor->SetVisibility(enabled);
+    if(enabled != static_cast<bool>(actorInformation->actor->GetVisibility()))
+    {
+      actorInformation->actor->SetVisibility(enabled);
+    }
 
     if (m_widget)
     {
@@ -755,13 +762,13 @@ void SliceVisualization::updateActorVisibility(std::shared_ptr<struct ActorData>
       m_widget->SetEnabled(enabled);
     }
   }
-  actorInformation->actor->GetMapper()->Update();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void SliceVisualization::setSelectionVolume(const vtkSmartPointer<vtkImageData> selectionBuffer, bool useActorBounds)
 {
   m_selectionReslice = vtkSmartPointer<vtkImageReslice>::New();
+  m_selectionReslice->GlobalWarningDisplayOff();
   m_selectionReslice->SetOptimization(true);
   m_selectionReslice->BorderOn();
   m_selectionReslice->SetInputData(selectionBuffer);
@@ -771,12 +778,14 @@ void SliceVisualization::setSelectionVolume(const vtkSmartPointer<vtkImageData> 
 
   // we need integer indexes, must cast first
   m_caster = vtkSmartPointer<vtkImageCast>::New();
+  m_caster->GlobalWarningDisplayOff();
   m_caster->SetInputData(m_selectionReslice->GetOutput());
   m_caster->SetOutputScalarTypeToInt();
   m_caster->Update();
 
   // transform the vtkImageData to vtkPolyData
   m_geometryFilter = vtkSmartPointer<vtkImageDataGeometryFilter>::New();
+  m_geometryFilter->GlobalWarningDisplayOff();
   m_geometryFilter->SetInputData(m_caster->GetOutput());
   m_geometryFilter->SetGlobalWarningDisplay(false);
   m_geometryFilter->SetThresholdCells(true);
@@ -785,6 +794,7 @@ void SliceVisualization::setSelectionVolume(const vtkSmartPointer<vtkImageData> 
 
   // create filter to apply the same texture to every point in the set
   m_iconFilter = vtkSmartPointer<vtkIconGlyphFilter>::New();
+  m_iconFilter->GlobalWarningDisplayOff();
   m_iconFilter->SetInputData(m_geometryFilter->GetOutput());
   m_iconFilter->SetIconSize(8, 8);
   m_iconFilter->SetUseIconSize(false);
@@ -808,13 +818,21 @@ void SliceVisualization::setSelectionVolume(const vtkSmartPointer<vtkImageData> 
   m_iconFilter->SetGravityToCenterCenter();
 
   m_selectionMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+  m_selectionMapper->GlobalWarningDisplayOff();
   m_selectionMapper->SetInputConnection(m_iconFilter->GetOutputPort());
 
   m_selectionActor = vtkSmartPointer<vtkActor>::New();
+  m_selectionActor->GlobalWarningDisplayOff();
   m_selectionActor->SetMapper(m_selectionMapper);
   m_selectionActor->SetTexture(m_texture);
   m_selectionActor->SetDragable(false);
   m_selectionActor->UseBoundsOff();
+  m_selectionActor->GetProperty()->SetOpacity(0.99);
+
+  double pos[3];
+  m_selectionActor->GetPosition(pos);
+  pos[2] += 0.25;
+  m_selectionActor->SetPosition(pos);
 
   m_renderer->AddActor(m_selectionActor);
 
@@ -892,4 +910,11 @@ void SliceVisualization::setSliceWidget(vtkSmartPointer<vtkAbstractWidget> widge
 vtkSmartPointer<vtkImageActor> SliceVisualization::actor() const
 {
   return m_segmentationsActor;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+void SliceVisualization::onDataModified()
+{
+  updateSlice(m_point);
+  m_renderer->GetRenderWindow()->Render();
 }

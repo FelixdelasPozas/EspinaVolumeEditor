@@ -416,6 +416,9 @@ void EspinaVolumeEditor::open()
     auto opacity = m_sagittalView->segmentationOpacity();
     m_sagittalView = std::make_shared<SliceVisualization>(SliceVisualization::Orientation::Sagittal);
     m_sagittalView->setSegmentationOpacity(opacity);
+
+    connect(this,                 SIGNAL(crosshairChanged(const Vector3ui &)),
+            m_sagittalView.get(), SLOT(onCrosshairChange(const Vector3ui &)));
   }
 
   if (m_coronalView)
@@ -423,6 +426,9 @@ void EspinaVolumeEditor::open()
     auto opacity = m_coronalView->segmentationOpacity();
     m_coronalView = std::make_shared<SliceVisualization>(SliceVisualization::Orientation::Coronal);
     m_coronalView->setSegmentationOpacity(opacity);
+
+    connect(this,                SIGNAL(crosshairChanged(const Vector3ui &)),
+            m_coronalView.get(), SLOT(onCrosshairChange(const Vector3ui &)));
   }
 
   if (m_axialView)
@@ -430,6 +436,9 @@ void EspinaVolumeEditor::open()
     auto opacity = m_axialView->segmentationOpacity();
     m_axialView = std::make_shared<SliceVisualization>(SliceVisualization::Orientation::Axial);
     m_axialView->setSegmentationOpacity(opacity);
+
+    connect(this,              SIGNAL(crosshairChanged(const Vector3ui &)),
+            m_axialView.get(), SLOT(onCrosshairChange(const Vector3ui &)));
   }
 
   m_axesRender = nullptr;
@@ -951,6 +960,11 @@ void EspinaVolumeEditor::onAxialSliderModified(int value)
   m_POI[2] = value;
   if (m_updatePointLabel) updatePointLabel();
 
+  if(m_updateVoxelRenderer)
+  {
+    emit crosshairChanged(m_POI);
+  }
+
   m_sagittalView->updateCrosshair(m_POI);
   m_coronalView->updateCrosshair(m_POI);
   m_axialView->updateSlice(m_POI);
@@ -961,13 +975,9 @@ void EspinaVolumeEditor::onAxialSliderModified(int value)
     updateViewports(ViewPorts::Slices);
   }
 
-  if (m_updateVoxelRenderer)
+  if (m_updateVoxelRenderer && m_axesRender->isVisible())
   {
-    m_axesRender->Update(m_POI);
-    if (m_axesRender->isVisible())
-    {
-      updateViewports(ViewPorts::Render);
-    }
+    updateViewports(ViewPorts::Render);
   }
 }
 
@@ -983,6 +993,11 @@ void EspinaVolumeEditor::onCoronalSliderModified(int value)
   m_POI[1] = value;
   if (m_updatePointLabel) updatePointLabel();
 
+  if(m_updateVoxelRenderer)
+  {
+    emit crosshairChanged(m_POI);
+  }
+
   m_sagittalView->updateCrosshair(m_POI);
   m_coronalView->updateSlice(m_POI);
   m_axialView->updateCrosshair(m_POI);
@@ -993,13 +1008,9 @@ void EspinaVolumeEditor::onCoronalSliderModified(int value)
     updateViewports(ViewPorts::Slices);
   }
 
-  if (m_updateVoxelRenderer)
+  if (m_updateVoxelRenderer && m_axesRender->isVisible())
   {
-    m_axesRender->Update(m_POI);
-    if (m_axesRender->isVisible())
-    {
-      updateViewports(ViewPorts::Render);
-    }
+    updateViewports(ViewPorts::Render);
   }
 }
 
@@ -1015,6 +1026,11 @@ void EspinaVolumeEditor::onSagittalSliderModified(int value)
   m_POI[0] = value;
   if (m_updatePointLabel) updatePointLabel();
 
+  if(m_updateVoxelRenderer)
+  {
+    emit crosshairChanged(m_POI);
+  }
+
   m_sagittalView->updateSlice(m_POI);
   m_coronalView->updateCrosshair(m_POI);
   m_axialView->updateCrosshair(m_POI);
@@ -1025,13 +1041,9 @@ void EspinaVolumeEditor::onSagittalSliderModified(int value)
     updateViewports(ViewPorts::Slices);
   }
 
-  if (m_updateVoxelRenderer)
+  if (m_updateVoxelRenderer && m_axesRender->isVisible())
   {
-    m_axesRender->Update(m_POI);
-    if (m_axesRender->isVisible())
-    {
-      updateViewports(ViewPorts::Render);
-    }
+    updateViewports(ViewPorts::Render);
   }
 }
 
@@ -1047,8 +1059,9 @@ void EspinaVolumeEditor::onSliderPressed(void)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void EspinaVolumeEditor::onSliderReleased(void)
 {
+  emit crosshairChanged(m_POI);
   m_updateVoxelRenderer = true;
-  m_axesRender->Update(m_POI);
+
   updateViewports(ViewPorts::Render);
 }
 
@@ -1280,10 +1293,8 @@ void EspinaVolumeEditor::onSelectionChanged()
       YspinBox->setValue(m_POI[1] + 1);
       XspinBox->setValue(m_POI[0] + 1);
 
-      m_sagittalView->update(m_POI);
-      m_coronalView->update(m_POI);
-      m_axialView->update(m_POI);
-      m_axesRender->Update(m_POI);
+      emit crosshairChanged(m_POI);
+
       updatePointLabel();
 
       // change slice view to the new label
@@ -1461,7 +1472,6 @@ void EspinaVolumeEditor::axesViewToggle()
   }
   else
   {
-    m_axesRender->Update(m_POI);
     m_axesRender->setVisible(true);
     axestypebutton->setIcon(QIcon(":newPrefix/icons/noaxes.png"));
     axestypebutton->setToolTip(tr("Turn off axes planes rendering"));
@@ -1489,7 +1499,7 @@ void EspinaVolumeEditor::cut()
     }
   }
 
-  // check if we must select background label becase other labels have been deleted
+  // check if we must select background label because other labels have been deleted
   if (labels.empty())
   {
     labelselector->item(0)->setSelected(true);
@@ -1986,7 +1996,6 @@ void EspinaVolumeEditor::sliceXYPick(const unsigned long event, std::shared_ptr<
   }
 
   // NOTE: from now on previousPick = actualPick
-
   // handle mouse movements when the user is painting or erasing
   if (((vtkCommand::MouseWheelBackwardEvent == event) || (vtkCommand::MouseWheelForwardEvent == event) || (vtkCommand::MouseMoveEvent == event)))
   {
@@ -2127,7 +2136,6 @@ void EspinaVolumeEditor::sliceXYPick(const unsigned long event, std::shared_ptr<
       updateUndoRedoMenu();
     }
 
-    m_axesRender->Update(m_POI);
     updateViewports(ViewPorts::All);
 
     previousPick = SliceVisualization::PickType::None;
@@ -2453,23 +2461,25 @@ void EspinaVolumeEditor::segmentationViewToggle(void)
 
   if (!m_segmentationsVisible)
   {
+    auto message = tr("Hide all segmentations");
     eyebutton->setIcon(QPixmap(":/newPrefix/icons/eyeoff.svg"));
-    eyebutton->setToolTip(tr("Hide all segmentations"));
-    eyebutton->setStatusTip(tr("Hide all segmentations"));
+    eyebutton->setToolTip(message);
+    eyebutton->setStatusTip(message);
     eyelabel->setText(tr("Hide"));
-    eyelabel->setToolTip(tr("Hide all segmentations"));
-    eyelabel->setStatusTip(tr("Hide all segmentations"));
+    eyelabel->setToolTip(message);
+    eyelabel->setStatusTip(message);
     a_hide_segmentations->setText(tr("Hide Segmentations"));
     a_hide_segmentations->setIcon(QPixmap(":/newPrefix/icons/eyeoff.svg"));
   }
   else
   {
+    auto message = tr("Show all segmentations");
     eyebutton->setIcon(QPixmap(":/newPrefix/icons/eyeon.svg"));
-    eyebutton->setToolTip(tr("Show all segmentations"));
-    eyebutton->setStatusTip(tr("Show all segmentations"));
+    eyebutton->setToolTip(message);
+    eyebutton->setStatusTip(message);
     eyelabel->setText(tr("Show"));
-    eyelabel->setToolTip(tr("Show all segmentations"));
-    eyelabel->setStatusTip(tr("Show all segmentations"));
+    eyelabel->setToolTip(message);
+    eyelabel->setStatusTip(message);
     a_hide_segmentations->setText(tr("Show Segmentations"));
     a_hide_segmentations->setIcon(QPixmap(":/newPrefix/icons/eyeon.svg"));
   }
@@ -2489,9 +2499,9 @@ void EspinaVolumeEditor::restoreSavedSession(void)
   // from session generated data.
   m_progress->ManualSet("Restore Session", 0);
 
-  auto homedir = QDir::tempPath();
-  auto baseFilename = homedir + QString("/espinaeditor");
-  auto temporalFilename = baseFilename + QString(".session");
+  auto tempDir             = QDir::tempPath();
+  auto baseFilename        = tempDir + QString("/espinaeditor");
+  auto temporalFilename    = baseFilename + QString(".session");
   auto temporalFilenameMHA = baseFilename + QString(".mha");
 
   char *buffer;
@@ -2693,7 +2703,7 @@ void EspinaVolumeEditor::restoreSavedSession(void)
   // get working set of labels for this file and apply it, if it exists
   if ((editorSettings.value(filename).isValid()) && (true == editorSettings.contains(filename)))
   {
-    QList<QVariant> labelList = editorSettings.value(filename).toList();
+    auto labelList = editorSettings.value(filename).toList();
 
     std::set<unsigned short> labelScalars;
     for (auto label: labelList)
@@ -2738,9 +2748,9 @@ void EspinaVolumeEditor::restoreSavedSession(void)
 void EspinaVolumeEditor::removeSessionFiles(void)
 {
   // delete the temporal session files, if they exists
-  auto homedir = QDir::tempPath();
-  auto baseFilename = homedir + QString("/espinaeditor");
-  auto temporalFilename = baseFilename + QString(".session");
+  auto tempDir             = QDir::tempPath();
+  auto baseFilename        = tempDir + QString("/espinaeditor");
+  auto temporalFilename    = baseFilename + QString(".session");
   auto temporalFilenameMHA = baseFilename + QString(".mha");
 
   QFile file(temporalFilename);
@@ -2796,12 +2806,9 @@ void EspinaVolumeEditor::initializeGUI(void)
   m_volumeView = std::make_shared<VoxelVolumeRender>(m_dataManager, m_volumeRenderer, m_progress);
 
   // visualize slices in all planes
-  m_sagittalView->initialize(m_dataManager->GetStructuredPoints(), m_dataManager->GetLookupTable(), m_sagittalRenderer, m_orientationData);
-  m_coronalView->initialize(m_dataManager->GetStructuredPoints(), m_dataManager->GetLookupTable(), m_coronalRenderer, m_orientationData);
-  m_axialView->initialize(m_dataManager->GetStructuredPoints(), m_dataManager->GetLookupTable(), m_axialRenderer, m_orientationData);
-  m_axialView->update(m_POI);
-  m_coronalView->update(m_POI);
-  m_sagittalView->update(m_POI);
+  m_sagittalView->initialize(m_dataManager, m_sagittalRenderer, m_orientationData);
+  m_coronalView->initialize(m_dataManager, m_coronalRenderer, m_orientationData);
+  m_axialView->initialize(m_dataManager, m_axialRenderer, m_orientationData);
 
   // we don't initialize slider position because thats what the spinBoxes will do on init with POI+1 because sliders go 1-max and POI is 0-(max-1)
   axialslider->setEnabled(false);
@@ -2880,7 +2887,11 @@ void EspinaVolumeEditor::initializeGUI(void)
 
   // set axes initial state
   m_axesRender = std::make_shared<AxesRender>(m_volumeRenderer, m_orientationData);
-  m_axesRender->Update(m_POI);
+
+  connect(this,               SIGNAL(crosshairChanged(const Vector3ui &)),
+          m_axesRender.get(), SLOT(onCrosshairChange(const Vector3ui &)));
+
+  emit crosshairChanged(m_POI);
 
   // update all renderers
   m_axialRenderer->ResetCamera();
@@ -2901,6 +2912,7 @@ void EspinaVolumeEditor::initializeGUI(void)
   m_updateVoxelRenderer = true;
   m_updateSliceRenderers = true;
   m_renderIsAVolume = true;
+
   updateViewports(ViewPorts::All);
 }
 
@@ -2965,58 +2977,22 @@ void EspinaVolumeEditor::eraseOrPaintButtonToggle(bool value)
 
     if (axialview->underMouse())
     {
-      auto widgetPos = axialview->mapFromGlobal(QCursor::pos());
-      auto widgetRect = axialview->rect();
-
-      m_axialRenderer->SetDisplayPoint(widgetPos.x() - widgetRect.left(), widgetRect.bottom() - widgetPos.y(), 0);
-      m_axialRenderer->DisplayToWorld();
-      m_axialRenderer->GetWorldPoint(dPoint);
-
-      iPoint[0] = floor(dPoint[0] / spacing[0]) + ((fmod(dPoint[0], spacing[0]) > (0.5 * spacing[0])) ? 1 : 0) + 1;
-      iPoint[1] = floor(dPoint[1] / spacing[1]) + ((fmod(dPoint[1], spacing[1]) > (0.5 * spacing[1])) ? 1 : 0) + 1;
-      iPoint[2] = axialslider->value() - 1;
-
-      m_editorOperations->UpdatePaintEraseActors(Vector3i{iPoint[0], iPoint[1], iPoint[2]}, m_brushRadius, m_axialView);
-
+      updateBrushActors(m_axialView);
     }
     else
     {
       if (coronalview->underMouse())
       {
-        auto widgetPos = coronalview->mapFromGlobal(QCursor::pos());
-        auto widgetRect = coronalview->rect();
-
-        m_coronalRenderer->SetDisplayPoint(widgetPos.x() - widgetRect.left(), widgetRect.bottom() - widgetPos.y(), 0);
-        m_coronalRenderer->DisplayToWorld();
-        m_coronalRenderer->GetWorldPoint(dPoint);
-
-        iPoint[0] = floor(dPoint[0] / spacing[0]) + ((fmod(dPoint[0], spacing[0]) > (0.5 * spacing[0])) ? 1 : 0) + 1;
-        iPoint[1] = coronalslider->value() - 1;
-        iPoint[2] = floor(dPoint[1] / spacing[2]) + ((fmod(dPoint[1], spacing[2]) > (0.5 * spacing[2])) ? 1 : 0) + 1;
-
-        m_editorOperations->UpdatePaintEraseActors(Vector3i{iPoint[0], iPoint[1], iPoint[2]}, m_brushRadius, m_coronalView);
+        updateBrushActors(m_coronalView);
       }
       else
       {
         if (sagittalview->underMouse())
         {
-          QPoint widgetPos = sagittalview->mapFromGlobal(QCursor::pos());
-          QRect widgetRect = sagittalview->rect();
-
-          m_sagittalRenderer->SetDisplayPoint(widgetPos.x() - widgetRect.left(), widgetRect.bottom() - widgetPos.y(), 0);
-          m_sagittalRenderer->DisplayToWorld();
-          m_sagittalRenderer->GetWorldPoint(dPoint);
-
-          iPoint[0] = sagittalslider->value() - 1;
-          iPoint[1] = floor(dPoint[0] / spacing[1]) + ((fmod(dPoint[0], spacing[1]) > (0.5 * spacing[1])) ? 1 : 0) + 1;
-          iPoint[2] = floor(dPoint[1] / spacing[2]) + ((fmod(dPoint[1], spacing[2]) > (0.5 * spacing[2])) ? 1 : 0) + 1;
-
-          m_editorOperations->UpdatePaintEraseActors(Vector3i{iPoint[0], iPoint[1], iPoint[2]}, m_brushRadius, m_sagittalView);
+          updateBrushActors(m_sagittalView);
         }
       }
     }
-
-    updateViewports(ViewPorts::All);
   }
   else
   {
@@ -3229,13 +3205,19 @@ bool EspinaVolumeEditor::eventFilter(QObject *object, QEvent *event)
   {
     case QEvent::Enter:
       if (object == axialview) axialview->setFocus();
-
       if (object == coronalview) coronalview->setFocus();
-
       if (object == sagittalview) sagittalview->setFocus();
       break;
     case QEvent::Leave:
       window()->setFocus();
+      break;
+    case QEvent::MouseMove:
+      if(paintbutton->isChecked() || erasebutton->isChecked())
+      {
+        if (object == axialview)    updateBrushActors(m_axialView);
+        if (object == coronalview)  updateBrushActors(m_coronalView);
+        if (object == sagittalview) updateBrushActors(m_sagittalView);
+      }
       break;
     default:
       break;
@@ -3402,4 +3384,60 @@ void EspinaVolumeEditor::loadSettings()
   }
 
   editorSettings.sync();
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+void EspinaVolumeEditor::updateBrushActors(std::shared_ptr<SliceVisualization> view)
+{
+  auto spacing = m_dataManager->GetOrientationData()->GetImageSpacing();
+  double dPoint[3] = { 0, 0, 0 };
+  int iPoint[3];
+  QPoint widgetPos;
+  QRect widgetRect;
+
+  switch(view->orientationType())
+  {
+    case SliceVisualization::Orientation::Axial:
+      widgetPos = axialview->mapFromGlobal(QCursor::pos());
+      widgetRect = axialview->rect();
+
+      m_axialRenderer->SetDisplayPoint(widgetPos.x() - widgetRect.left(), widgetRect.bottom() - widgetPos.y(), 0);
+      m_axialRenderer->DisplayToWorld();
+      m_axialRenderer->GetWorldPoint(dPoint);
+
+      iPoint[0] = floor(dPoint[0] / spacing[0]) + ((fmod(dPoint[0], spacing[0]) > (0.5 * spacing[0])) ? 1 : 0) + 1;
+      iPoint[1] = floor(dPoint[1] / spacing[1]) + ((fmod(dPoint[1], spacing[1]) > (0.5 * spacing[1])) ? 1 : 0) + 1;
+      iPoint[2] = axialslider->value() - 1;
+      break;
+    case SliceVisualization::Orientation::Coronal:
+      widgetPos = coronalview->mapFromGlobal(QCursor::pos());
+      widgetRect = coronalview->rect();
+
+      m_coronalRenderer->SetDisplayPoint(widgetPos.x() - widgetRect.left(), widgetRect.bottom() - widgetPos.y(), 0);
+      m_coronalRenderer->DisplayToWorld();
+      m_coronalRenderer->GetWorldPoint(dPoint);
+
+      iPoint[0] = floor(dPoint[0] / spacing[0]) + ((fmod(dPoint[0], spacing[0]) > (0.5 * spacing[0])) ? 1 : 0) + 1;
+      iPoint[1] = coronalslider->value() - 1;
+      iPoint[2] = floor(dPoint[1] / spacing[2]) + ((fmod(dPoint[1], spacing[2]) > (0.5 * spacing[2])) ? 1 : 0) + 1;
+      break;
+    case SliceVisualization::Orientation::Sagittal:
+      widgetPos = sagittalview->mapFromGlobal(QCursor::pos());
+      widgetRect = sagittalview->rect();
+
+      m_sagittalRenderer->SetDisplayPoint(widgetPos.x() - widgetRect.left(), widgetRect.bottom() - widgetPos.y(), 0);
+      m_sagittalRenderer->DisplayToWorld();
+      m_sagittalRenderer->GetWorldPoint(dPoint);
+
+      iPoint[0] = sagittalslider->value() - 1;
+      iPoint[1] = floor(dPoint[0] / spacing[1]) + ((fmod(dPoint[0], spacing[1]) > (0.5 * spacing[1])) ? 1 : 0) + 1;
+      iPoint[2] = floor(dPoint[1] / spacing[2]) + ((fmod(dPoint[1], spacing[2]) > (0.5 * spacing[2])) ? 1 : 0) + 1;
+      break;
+    default:
+      break;
+  }
+
+  m_editorOperations->UpdatePaintEraseActors(Vector3i{iPoint[0], iPoint[1], iPoint[2]}, m_brushRadius, view);
+  view->updateActors();
+  updateViewports(ViewPorts::Slices);
 }
