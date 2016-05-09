@@ -29,6 +29,7 @@
 #include <vtkSmartPointer.h>
 #include <vtkEventQtSlotConnect.h>
 #include <vtkCommand.h>
+#include <vtkOrientationMarkerWidget.h>
 
 // c++ includes
 #include <map>
@@ -391,6 +392,13 @@ class EspinaVolumeEditor
      */
     void updateBrushActors(std::shared_ptr<SliceVisualization> view);
 
+    /** \brief Helper method that creates and maintains a pointer to the orientation marker
+     * widget (axes orientation).
+     * \param[in] renderer renderer to insert the widget.
+     *
+     */
+    void CreateOrientationWidget(vtkSmartPointer<vtkRenderer> renderer);
+
     bool m_updateVoxelRenderer;  /** bool to minimize drawing in render view. True to update and false otherwise. */
     bool m_updateSliceRenderers; /** bool to minimize drawing in slice views. True to update and false otherwise. */
     bool m_updatePointLabel;     /** bool to minimize point label updating. */
@@ -402,6 +410,8 @@ class EspinaVolumeEditor
     vtkSmartPointer<vtkRenderer> m_coronalRenderer;  /** coronal view renderer.  */
     vtkSmartPointer<vtkRenderer> m_sagittalRenderer; /** sagittal view renderer. */
     vtkSmartPointer<vtkRenderer> m_volumeRenderer;   /** volume view renderer.   */
+
+    vtkSmartPointer<vtkOrientationMarkerWidget> m_axesWidget; /** orientation marker widget. */
 
     std::shared_ptr<SliceVisualization> m_axialView;    /** axial   view.  */
     std::shared_ptr<SliceVisualization> m_coronalView;  /** coronal view   */

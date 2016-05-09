@@ -41,7 +41,8 @@ vtkStandardNewMacro(ContourWidget);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ContourWidget::ContourWidget()
-: WidgetState     {ContourWidgetState::Start}
+: vtkAbstractWidget()
+, WidgetState     {State::Start}
 , CurrentHandle   {0}
 , AllowNodePicking{0}
 , FollowCursor    {0}
@@ -107,9 +108,9 @@ void ContourWidget::CreateDefaultRepresentation()
 void ContourWidget::CloseLoop()
 {
 	auto rep = dynamic_cast<ContourRepresentation*>(this->WidgetRep);
-	if(rep && !rep->GetClosedLoop() && rep->GetNumberOfNodes() > 1)
+	if(rep && !rep->GetClosedLoop() && rep->GetNumberOfNodes() > 2)
   {
-    this->WidgetState = ContourWidgetState::Manipulate;
+    this->WidgetState = Manipulate;
     rep->ClosedLoopOn();
     this->Render();
   }
@@ -120,20 +121,20 @@ void ContourWidget::SetEnabled(int enabling)
 {
 	// The handle widgets are not actually enabled until they are placed.
 	// The handle widgets take their representation from the ContourRepresentation.
-  auto rep = dynamic_cast<ContourRepresentation*>(this->WidgetRep);
-  Q_ASSERT(rep);
-
-	if (enabling)
-	{
-		if (this->WidgetState == ContourWidgetState::Start)
-		{
-			rep->VisibilityOff();
-		}
-		else
-		{
-			rep->VisibilityOn();
-		}
-	}
+  if(this->WidgetRep)
+  {
+    if (enabling)
+    {
+      if (this->WidgetState == Start)
+      {
+        this->WidgetRep->VisibilityOff();
+      }
+      else
+      {
+        this->WidgetRep->VisibilityOn();
+      }
+    }
+  }
 
 	this->Superclass::SetEnabled(enabling);
 }
@@ -154,7 +155,7 @@ void ContourWidget::SelectAction(vtkAbstractWidget *widget)
 	auto state = self->WidgetRep->GetInteractionState();
 	self->SetCursor(state);
 
-	double pos[2] { static_cast<double>(X), static_cast<double>(Y) };
+	double pos[2]{static_cast<double>(X), static_cast<double>(Y)};
 
 	if (self->ContinuousDraw)
 	{
@@ -163,8 +164,8 @@ void ContourWidget::SelectAction(vtkAbstractWidget *widget)
 
 	switch (self->WidgetState)
 	{
-		case ContourWidgetState::Start:
-		case ContourWidgetState::Define:
+		case Start:
+		case Define:
 		{
 			// If we are following the cursor, let's add 2 nodes rightaway, on the
 			// first click. The second node is the one that follows the cursor
@@ -195,7 +196,7 @@ void ContourWidget::SelectAction(vtkAbstractWidget *widget)
 				// set the closed loop now
 				rep->ClosedLoopOn();
 
-				self->WidgetState = ContourWidgetState::Manipulate;
+				self->WidgetState = Manipulate;
 				self->EventCallbackCommand->SetAbortFlag(1);
 				self->InvokeEvent(vtkCommand::EndInteractionEvent, nullptr);
 			}
@@ -210,7 +211,7 @@ void ContourWidget::SelectAction(vtkAbstractWidget *widget)
 			break;
 		}
 
-		case ContourWidgetState::Manipulate:
+		case Manipulate:
 		{
 			// NOTE: the 'reset' action is in ContourWidget::KeyPressAction() as it happens when
 			//       the user presses the backspace or delete key
@@ -248,13 +249,6 @@ void ContourWidget::SelectAction(vtkAbstractWidget *widget)
 					}
 					self->EventCallbackCommand->SetAbortFlag(1);
 				}
-				else
-				{
-					if (!rep->GetNeedToRender())
-					{
-						rep->SetRebuildLocator(true);
-					}
-				}
 			}
 			break;
 		}
@@ -274,7 +268,7 @@ void ContourWidget::AddFinalPointAction(vtkAbstractWidget *widget)
 	auto rep = dynamic_cast<ContourRepresentation*>(self->WidgetRep);
 	Q_ASSERT(self && rep);
 
-	if (self->WidgetState == ContourWidgetState::Manipulate)
+	if (self->WidgetState == Manipulate)
 	{
 		// pass the event forward
 		auto style = dynamic_cast<vtkInteractorStyle*>(self->GetInteractor()->GetInteractorStyle());
@@ -288,12 +282,16 @@ void ContourWidget::AddFinalPointAction(vtkAbstractWidget *widget)
 	// the last node is the cursor so we need to check if there are really that amount of unique points in the representation
 	if (rep->CheckNodesForDuplicates(numnodes-1, numnodes-2))
 	{
+	  rep->DeleteNthNode(numnodes-2);
 		numnodes--;
 	}
 
-	if (numnodes < 3) return;
+	if (numnodes < 3)
+	{
+	  return;
+	}
 
-	if ((self->WidgetState != ContourWidgetState::Manipulate) && (rep->GetNumberOfNodes() >= 1))
+	if ((self->WidgetState != Manipulate) && (rep->GetNumberOfNodes() >= 1))
 	{
 		// In follow cursor and continuous draw mode, the "extra" node
 		// has already been added for us.
@@ -320,7 +318,7 @@ void ContourWidget::AddFinalPointAction(vtkAbstractWidget *widget)
 		// set the closed loop now
 		rep->ClosedLoopOn();
 
-		self->WidgetState = ContourWidgetState::Manipulate;
+		self->WidgetState = Manipulate;
 		self->EventCallbackCommand->SetAbortFlag(1);
 		self->InvokeEvent(vtkCommand::EndInteractionEvent, nullptr);
 
@@ -362,14 +360,12 @@ void ContourWidget::AddNode()
 			return;
 		}
 
-		// if in continuous draw mode, we don't want to close the loop until we are at least
-		// numNodes > pixelTolerance away
 		auto distance2 = static_cast<int>((X - displayPos[0]) * (X - displayPos[0]) + (Y - displayPos[1]) * (Y - displayPos[1]));
 
-		if ((distance2 < pixelTolerance2 && numNodes > 2) || (this->ContinuousDraw && numNodes > pixelTolerance && distance2 < pixelTolerance2))
+		if ((distance2 < pixelTolerance2) && (numNodes > 2))
 		{
 			// yes - we have made a loop. Stop defining and switch to manipulate mode
-			this->WidgetState = ContourWidgetState::Manipulate;
+			this->WidgetState = Manipulate;
 			rep->ClosedLoopOn();
 			this->Render();
 			this->EventCallbackCommand->SetAbortFlag(1);
@@ -380,12 +376,12 @@ void ContourWidget::AddNode()
 
 	if (rep->AddNodeAtDisplayPosition(X, Y))
 	{
-		if (this->WidgetState == ContourWidgetState::Start)
+		if (this->WidgetState == Start)
 		{
 			this->InvokeEvent(vtkCommand::StartInteractionEvent, nullptr);
 		}
 
-		this->WidgetState = ContourWidgetState::Define;
+		this->WidgetState = Define;
 		rep->VisibilityOn();
 		this->EventCallbackCommand->SetAbortFlag(1);
 		this->InvokeEvent(vtkCommand::InteractionEvent, nullptr);
@@ -398,14 +394,14 @@ void ContourWidget::TranslateContourAction(vtkAbstractWidget *widget)
 	auto self = dynamic_cast<ContourWidget*>(widget);
 	Q_ASSERT(self);
 
-	if (self->WidgetState != ContourWidgetState::Manipulate) return;
+	if (self->WidgetState != Manipulate) return;
 
 	auto rep = dynamic_cast<ContourRepresentation*>(self->WidgetRep);
 	Q_ASSERT(rep);
 
 	auto X = self->Interactor->GetEventPosition()[0];
 	auto Y = self->Interactor->GetEventPosition()[1];
-	double pos[2]{ static_cast<double>(X), static_cast<double>(Y) };
+	double pos[2]{static_cast<double>(X), static_cast<double>(Y)};
 
 	self->Superclass::StartInteraction();
 	self->InvokeEvent(vtkCommand::StartInteractionEvent, nullptr);
@@ -422,60 +418,15 @@ void ContourWidget::TranslateContourAction(vtkAbstractWidget *widget)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-void ContourWidget::ScaleContourAction(vtkAbstractWidget *w)
-{
-	auto self = dynamic_cast<ContourWidget*>(w);
-	Q_ASSERT(self);
-
-	if (self->WidgetState != ContourWidgetState::Manipulate) return;
-
-	auto rep = dynamic_cast<ContourRepresentation*>(self->WidgetRep);
-	Q_ASSERT(rep);
-
-	auto X = self->Interactor->GetEventPosition()[0];
-	auto Y = self->Interactor->GetEventPosition()[1];
-	double pos[2]{ static_cast<double>(X), static_cast<double>(Y) };
-
-	if (rep->ActivateNode(X, Y))
-	{
-		self->Superclass::StartInteraction();
-		self->InvokeEvent(vtkCommand::StartInteractionEvent, nullptr);
-		self->StartInteraction();
-		rep->SetCurrentOperationToScale(); // Here
-		rep->StartWidgetInteraction(pos);
-		self->EventCallbackCommand->SetAbortFlag(1);
-	}
-	else
-	{
-		double p[3];
-		int idx;
-		if (rep->FindClosestPointOnContour(X, Y, p, &idx))
-		{
-			rep->GetNthNodeDisplayPosition(idx, pos);
-			rep->ActivateNode(pos);
-			self->Superclass::StartInteraction();
-			self->InvokeEvent(vtkCommand::StartInteractionEvent, nullptr);
-			self->StartInteraction();
-			rep->SetCurrentOperationToScale(); // Here
-			rep->StartWidgetInteraction(pos);
-			self->EventCallbackCommand->SetAbortFlag(1);
-		}
-	}
-
-	if (rep->GetNeedToRender())
-	{
-		self->Render();
-		rep->NeedToRenderOff();
-	}
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 void ContourWidget::DeleteAction(vtkAbstractWidget *widget)
 {
 	auto self = dynamic_cast<ContourWidget*>(widget);
 	Q_ASSERT(self);
 
-	if (self->WidgetState == ContourWidgetState::Start)	return;
+	if (self->WidgetState == Start)
+	{
+	  return;
+	}
 
 	auto rep = dynamic_cast<ContourRepresentation*>(self->WidgetRep);
 	Q_ASSERT(rep);
@@ -483,7 +434,7 @@ void ContourWidget::DeleteAction(vtkAbstractWidget *widget)
   auto X = self->Interactor->GetEventPosition()[0];
   auto Y = self->Interactor->GetEventPosition()[1];
 
-	if (self->WidgetState == ContourWidgetState::Define)
+	if (self->WidgetState == Define)
 	{
 		if (rep->DeleteLastNode())
 		{
@@ -495,7 +446,10 @@ void ContourWidget::DeleteAction(vtkAbstractWidget *widget)
 		// do not allow less than three nodes, i don't want to use the old (original vtkContourWidget)
 		// solution of opening the contour if we have less than three nodes and put the widget into
 		// ::Define state if we have just one node
-		if (rep->GetNumberOfNodes() <= 3)	return;
+		if (rep->GetNumberOfNodes() <= 3)
+		{
+		  return;
+		}
 
 		rep->ActivateNode(X, Y);
 		if (rep->DeleteActiveNode())
@@ -524,7 +478,10 @@ void ContourWidget::MoveAction(vtkAbstractWidget *widget)
 	auto rep = dynamic_cast<ContourRepresentation*>(self->WidgetRep);
 	Q_ASSERT(self && rep);
 
-	if (self->WidgetState == ContourWidgetState::Start) return;
+	if (self->WidgetState == Start)
+	{
+	  return;
+	}
 
 	auto X = self->Interactor->GetEventPosition()[0];
 	auto Y = self->Interactor->GetEventPosition()[1];
@@ -533,7 +490,7 @@ void ContourWidget::MoveAction(vtkAbstractWidget *widget)
 	auto state = self->WidgetRep->GetInteractionState();
 	self->SetCursor(state);
 
-	if (self->WidgetState == ContourWidgetState::Define)
+	if (self->WidgetState == Define)
 	{
 		if (self->FollowCursor || self->ContinuousDraw)
 		{
@@ -602,7 +559,7 @@ void ContourWidget::MoveAction(vtkAbstractWidget *widget)
 								// set the closed loop now
 								rep->ClosedLoopOn();
 
-								self->WidgetState = ContourWidgetState::Manipulate;
+								self->WidgetState = Manipulate;
 								self->EventCallbackCommand->SetAbortFlag(1);
 								self->InvokeEvent(vtkCommand::EndInteractionEvent, nullptr);
 								return;
@@ -658,7 +615,6 @@ void ContourWidget::EndSelectAction(vtkAbstractWidget *widget)
 	// Do nothing if inactive
 	if (rep->GetCurrentOperation() == ContourRepresentation::Inactive)
 	{
-		rep->SetRebuildLocator(true);
 		return;
 	}
 
@@ -674,7 +630,7 @@ void ContourWidget::EndSelectAction(vtkAbstractWidget *widget)
 	self->InvokeEvent(vtkCommand::EndInteractionEvent, nullptr);
 
 	// Node picking
-	if (self->AllowNodePicking && self->Interactor->GetControlKey() && self->WidgetState == ContourWidgetState::Manipulate)
+	if (self->AllowNodePicking && self->Interactor->GetControlKey() && self->WidgetState == Manipulate)
 	{
 		rep->ToggleActiveNodeSelected();
 	}
@@ -725,12 +681,12 @@ void ContourWidget::Initialize(vtkPolyData *polydata, const int state)
 			this->Render();
 			rep->NeedToRenderOff();
 			rep->VisibilityOff();
-			this->WidgetState = ContourWidgetState::Start;
+			this->WidgetState = Start;
 		}
 		else
 		{
 			rep->Initialize(polydata);
-			this->WidgetState = (rep->GetClosedLoop() || state == 1) ? ContourWidgetState::Manipulate : ContourWidgetState::Define;
+			this->WidgetState = (rep->GetClosedLoop() || state == 1) ? Manipulate : Define;
 		}
 	}
 }
@@ -768,7 +724,10 @@ void ContourWidget::PrintSelf(ostream& os, vtkIndent indent)
 void ContourWidget::SetCursor(int cState)
 {
 	// cursor will only change in manipulate or start mode only
-	if ((this->WidgetState != ContourWidgetState::Manipulate) && (this->WidgetState != ContourWidgetState::Start)) return;
+	if ((this->WidgetState != Manipulate) && (this->WidgetState != Start))
+	{
+	  return;
+	}
 
 	// using vtk keypress/keyrelease events is useless when the interactor loses it's focus
 	auto pressedKeys = QApplication::keyboardModifiers();
@@ -795,7 +754,7 @@ void ContourWidget::SetCursor(int cState)
 				QApplication::changeOverrideCursor(crossPlusCursor);
 			break;
 		case ContourRepresentation::Inside:
-			this->RequestCursorShape(VTK_CURSOR_SIZEALL);
+		  QApplication::changeOverrideCursor(Qt::SizeAllCursor);
 			break;
 		default:
 			if (this->ManagesCursor)

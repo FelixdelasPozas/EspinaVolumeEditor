@@ -179,13 +179,13 @@ class Selection
      * \param[out] bounds lasso bounds.
      *
      */
-    void computeLassoBounds(unsigned int *bounds);
+    void computeLassoBounds(int *bounds);
 
     /** \brief Generates a rotated volume according to orientation (0 = axial, 1 = coronal, 2 = sagittal).
      * \param[in] bounds of the contour selection.
      *
      */
-    void computeContourSelectionVolume(const unsigned int *bounds);
+    void computeContourSelectionVolume(const int *bounds);
 
     /** \brief Computes actor from selected volume.
      *

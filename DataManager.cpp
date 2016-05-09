@@ -22,6 +22,7 @@
 #include "UndoRedoSystem.h"
 #include "VectorSpaceAlgebra.h"
 
+// Qt
 #include <QDebug>
 
 using ChangeType = itk::ChangeLabelLabelMapFilter<LabelMapType>;
@@ -336,18 +337,18 @@ void DataManager::GenerateLookupTable()
 
   m_lookupTable->Allocate();
   m_lookupTable->SetNumberOfTableValues(labels + 1);
-  m_lookupTable->SetTableRange(0, labels + 1);
+  m_lookupTable->SetTableRange(0, labels);
   m_lookupTable->SetTableValue(0, rgba);
 
   auto temporal_table = vtkSmartPointer<vtkLookupTable>::New();
   temporal_table->SetNumberOfTableValues(labels);
-  temporal_table->SetRange(1, labels);
+  temporal_table->SetRange(0, labels-1);
   temporal_table->Build();
 
-  for (unsigned int index = 0; index != labels; ++index)
+  for (unsigned int index = 0; index < labels; ++index)
   {
     temporal_table->GetTableValue(index, rgba);
-    m_lookupTable->SetTableValue(index + 1, rgba[0], rgba[1], rgba[2], (index == 0 ? 0 : DIM_ALPHA));
+    m_lookupTable->SetTableValue(index + 1, rgba[0], rgba[1], rgba[2], DIM_ALPHA);
   }
 }
 

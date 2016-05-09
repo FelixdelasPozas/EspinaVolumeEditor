@@ -10,7 +10,6 @@
 // vtk includes
 #include <vtkPolyDataMapper.h>
 #include <vtkProperty.h>
-#include <vtkAxesActor.h>
 #include <vtkRenderWindow.h>
 
 // project includes
@@ -36,7 +35,6 @@ AxesRender::AxesRender(vtkSmartPointer<vtkRenderer> renderer, std::shared_ptr<Co
 
   GenerateSlicePlanes(renderer);
   GenerateVoxelCrosshair(renderer);
-  CreateOrientationWidget(renderer);
   onCrosshairChange(Vector3ui{0,0,0});
 }
 
@@ -50,8 +48,6 @@ AxesRender::~AxesRender()
       m_renderer->RemoveActor(m_planesActors[i]);
       m_renderer->RemoveActor(m_crossActors[i]);
     }
-
-    m_axesWidget->SetEnabled(false);
   }
 }
 
@@ -174,21 +170,6 @@ void AxesRender::UpdateSlicePlanes(const Vector3ui &point)
   (*iter)->SetPoint2(point3d[0], 0, m_max[2]);
   (*iter)->SetNormal(1, 0, 0);
   (*iter)->Update();
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-void AxesRender::CreateOrientationWidget(vtkSmartPointer<vtkRenderer> renderer)
-{
-  auto axes = vtkSmartPointer<vtkAxesActor>::New();
-  axes->DragableOff();
-  axes->PickableOff();
-
-  m_axesWidget = vtkSmartPointer<vtkOrientationMarkerWidget>::New();
-  m_axesWidget->SetOrientationMarker(axes);
-  m_axesWidget->SetInteractor(renderer->GetRenderWindow()->GetInteractor());
-  m_axesWidget->SetViewport(0.0, 0.0, 0.3, 0.3);
-  m_axesWidget->SetEnabled(true);
-  m_axesWidget->InteractiveOff();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

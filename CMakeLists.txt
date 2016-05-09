@@ -12,6 +12,7 @@ add_definitions(
   -std=c++11
   -mwindows
   )
+  
 # use what QVTK built with
 FIND_PACKAGE(Qt4 REQUIRED)
 INCLUDE(${QT_USE_FILE})
@@ -95,7 +96,7 @@ SET(CurrentFiles
   SaveSession.cpp 
   QtSessionInfo.cpp 
   QtKeyboardHelp.cpp
-  AxesRender.cpp  
+  AxesRender.cpp
 )
 
 QT4_WRAP_UI(UIHeaders ${UIS})

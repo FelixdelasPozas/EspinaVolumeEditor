@@ -41,6 +41,7 @@
 #include <vtkImageToStructuredPoints.h>
 #include <vtkImageImport.h>
 #include <vtkInformation.h>
+#include <vtkAxesActor.h>
 #include <vtkImageChangeInformation.h>
 
 // project includes
@@ -97,7 +98,7 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *parent)
 , m_referenceFileName   {QString()}
 , m_brushRadius         {1}
 {
-  setupUi(this); // this sets up GUI
+  setupUi(this);
 
   showMaximized();
 
@@ -151,6 +152,8 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *parent)
   m_volumeRenderer->SetBackground(0, 0, 0);
   renderview->GetRenderWindow()->AddRenderer(m_volumeRenderer);
   renderview->GetRenderWindow()->GetInteractor()->SetInteractorStyle(voxelinteractorstyle);
+
+  CreateOrientationWidget(m_volumeRenderer);
 
   // we need to go deeper than window interactor to get mouse release events, so instead connecting the
   // interactor we must connect the interactor-style because once the interactor gets a left click it
@@ -442,7 +445,11 @@ void EspinaVolumeEditor::open()
   }
 
   m_axesRender = nullptr;
-  m_volumeView = nullptr;
+  if(m_volumeView)
+  {
+    m_volumeRenderer->RemoveAllViewProps();
+    m_volumeView = nullptr;
+  }
 
   if (m_dataManager)
   {
@@ -960,14 +967,8 @@ void EspinaVolumeEditor::onAxialSliderModified(int value)
   m_POI[2] = value;
   if (m_updatePointLabel) updatePointLabel();
 
-  if(m_updateVoxelRenderer)
-  {
-    emit crosshairChanged(m_POI);
-  }
+  emit crosshairChanged(m_POI);
 
-  m_sagittalView->updateCrosshair(m_POI);
-  m_coronalView->updateCrosshair(m_POI);
-  m_axialView->updateSlice(m_POI);
   m_editorOperations->UpdateContourSlice(m_POI);
 
   if (m_updateSliceRenderers)
@@ -993,14 +994,8 @@ void EspinaVolumeEditor::onCoronalSliderModified(int value)
   m_POI[1] = value;
   if (m_updatePointLabel) updatePointLabel();
 
-  if(m_updateVoxelRenderer)
-  {
-    emit crosshairChanged(m_POI);
-  }
+  emit crosshairChanged(m_POI);
 
-  m_sagittalView->updateCrosshair(m_POI);
-  m_coronalView->updateSlice(m_POI);
-  m_axialView->updateCrosshair(m_POI);
   m_editorOperations->UpdateContourSlice(m_POI);
 
   if (m_updateSliceRenderers)
@@ -1026,14 +1021,8 @@ void EspinaVolumeEditor::onSagittalSliderModified(int value)
   m_POI[0] = value;
   if (m_updatePointLabel) updatePointLabel();
 
-  if(m_updateVoxelRenderer)
-  {
-    emit crosshairChanged(m_POI);
-  }
+  emit crosshairChanged(m_POI);
 
-  m_sagittalView->updateSlice(m_POI);
-  m_coronalView->updateCrosshair(m_POI);
-  m_axialView->updateCrosshair(m_POI);
   m_editorOperations->UpdateContourSlice(m_POI);
 
   if (m_updateSliceRenderers)
@@ -3440,4 +3429,19 @@ void EspinaVolumeEditor::updateBrushActors(std::shared_ptr<SliceVisualization> v
   m_editorOperations->UpdatePaintEraseActors(Vector3i{iPoint[0], iPoint[1], iPoint[2]}, m_brushRadius, view);
   view->updateActors();
   updateViewports(ViewPorts::Slices);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+void EspinaVolumeEditor::CreateOrientationWidget(vtkSmartPointer<vtkRenderer> renderer)
+{
+  auto axes = vtkSmartPointer<vtkAxesActor>::New();
+  axes->DragableOff();
+  axes->PickableOff();
+
+  m_axesWidget = vtkSmartPointer<vtkOrientationMarkerWidget>::New();
+  m_axesWidget->SetOrientationMarker(axes);
+  m_axesWidget->SetInteractor(renderer->GetRenderWindow()->GetInteractor());
+  m_axesWidget->SetViewport(0.0, 0.0, 0.3, 0.3);
+  m_axesWidget->SetEnabled(true);
+  m_axesWidget->InteractiveOff();
 }

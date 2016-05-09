@@ -18,7 +18,6 @@
 
 // forward declarations
 class vtkContourLineInterpolator;
-class vtkIncrementalOctreePointLocator;
 class vtkPointPlacer;
 class vtkPolyData;
 
@@ -39,7 +38,6 @@ class ContourRepresentationNode
 		double WorldOrientation[9];                      /** orientation of the world coordinates. */
 		double NormalizedDisplayPosition[2];             /** node's position in normalized display coordinates. */
 		int Selected;                                    /** 0 to select, other value otherwise. */
-		std::vector<ContourRepresentationPoint*> Points; /** list of intermediate points of the node. */
 };
 
 class ContourRepresentationInternals
@@ -54,12 +52,6 @@ class ContourRepresentationInternals
 		{
 			for (unsigned int i = 0; i < this->Nodes.size(); i++)
 			{
-				for (unsigned int j = 0; j < this->Nodes[i]->Points.size(); j++)
-				{
-					delete this->Nodes[i]->Points[j];
-				}
-
-				this->Nodes[i]->Points.clear();
 				delete this->Nodes[i];
 			}
 			this->Nodes.clear();
@@ -67,7 +59,7 @@ class ContourRepresentationInternals
 };
 
 class ContourRepresentation
-: public vtkContourRepresentation
+: public vtkWidgetRepresentation
 {
 		friend class ContourWidget;
 
@@ -119,11 +111,6 @@ class ContourRepresentation
 
 		virtual int GetNthNodeSlope(int idx, double slope[3]);
 
-		virtual int GetNumberOfIntermediatePoints(int n);
-
-		virtual int GetIntermediatePointWorldPosition(int n, int idx, double point[3]);
-		virtual int AddIntermediatePointWorldPosition(int n, double point[3]);
-
 		virtual int DeleteLastNode();
 		virtual int DeleteActiveNode();
 		virtual int DeleteNthNode(int n);
@@ -147,26 +134,26 @@ class ContourRepresentation
 
 		void SetCurrentOperationToInactive()
 		{
-			this->SetCurrentOperation(ContourRepresentation::Inactive);
+			this->SetCurrentOperation(Inactive);
 		}
 		void SetCurrentOperationToTranslate()
 		{
-			this->SetCurrentOperation(ContourRepresentation::Translate);
+			this->SetCurrentOperation(Translate);
 		}
 		void SetCurrentOperationToShift()
 		{
-			this->SetCurrentOperation(ContourRepresentation::Shift);
+			this->SetCurrentOperation(Shift);
 		}
 		void SetCurrentOperationToScale()
 		{
-			this->SetCurrentOperation(ContourRepresentation::Scale);
+			this->SetCurrentOperation(Scale);
 		}
 
 		void SetPointPlacer(vtkPointPlacer *);
-		vtkGetObjectMacro(PointPlacer, vtkPointPlacer);
+		vtkPointPlacer *GetPointPlacer();
 
 		void SetLineInterpolator(vtkContourLineInterpolator *);
-		vtkGetObjectMacro(LineInterpolator, vtkContourLineInterpolator);
+		vtkContourLineInterpolator *GetLineInterpolator();
 
 		/** \brief These are methods that satisfy vtkWidgetRepresentation's API.
 		 *
@@ -198,7 +185,6 @@ class ContourRepresentation
 		virtual vtkPolyData *GetContourRepresentationAsPolyData() = 0;
 
 		void GetNodePolyData(vtkPolyData* poly);
-		vtkSetMacro(RebuildLocator,bool);
 
 		/** \brief Put all points to the correct places after a shift operations
 		 * (shift is done in continuous coords, but final coords depend on voxel centers).
@@ -237,9 +223,8 @@ class ContourRepresentation
 
 		void GetRendererComputedDisplayPositionFromWorldPosition(double worldPos[3], double worldOrient[9],	int displayPos[2]);
 		void GetRendererComputedDisplayPositionFromWorldPosition(double worldPos[3], double worldOrient[9],	double displayPos[2]);
-
-		virtual void UpdateLines(int index);
-		void UpdateLine(int idx1, int idx2);
+		void GetRendererComputedWorldPositionFromDisplayPosition(double displayPos[2], double worldOrient[9], double worldPos[3]);
+		void GetRendererComputedWorldPositionFromDisplayPosition(int displayPos[2], double worldOrient[9], double worldPos[3]);
 
 		virtual int FindClosestPointOnContour(int X, int Y, double worldPos[3], int *idx);
 
@@ -265,13 +250,6 @@ class ContourRepresentation
 		}
 
 		virtual void Initialize(vtkPolyData *polydata);
-
-		vtkIncrementalOctreePointLocator *Locator; /** point locator to speed up lookup of the active node when dealing with large datasets (100k+) */
-
-		void ResetLocator();
-		void BuildLocator();
-
-		bool RebuildLocator; /** flag to test if the locator needs to rebuild it's data. */
 
 		/** \brief Iterates over the contour lines to check if line segments intersect, if so then deletes useless points
 		 * and closes the contour in the intersection point. checks for intersection with segment (n-2, n-1)

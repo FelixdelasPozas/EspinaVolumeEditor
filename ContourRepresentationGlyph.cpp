@@ -48,7 +48,8 @@ vtkStandardNewMacro(ContourRepresentationGlyph);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ContourRepresentationGlyph::ContourRepresentationGlyph()
-: Glypher                 {vtkSmartPointer<vtkGlyph3D>::New()}
+: ContourRepresentation()
+, Glypher                 {vtkSmartPointer<vtkGlyph3D>::New()}
 , Mapper                  {vtkSmartPointer<vtkPolyDataMapper>::New()}
 , Actor                   {vtkSmartPointer<vtkActor>::New()}
 , ActiveGlypher           {vtkSmartPointer<vtkGlyph3D>::New()}
@@ -83,35 +84,29 @@ ContourRepresentationGlyph::ContourRepresentationGlyph()
 	this->InteractionOffset[0] = this->InteractionOffset[1] = 0;
 
 	// Represent the position of the cursor
-	this->FocalPoint->SetNumberOfPoints(100);
 	this->FocalPoint->SetNumberOfPoints(1);
 	this->FocalPoint->SetPoint(0, 0.0, 0.0, 0.0);
 
-	auto normals = vtkDoubleArray::New();
+	auto normals = vtkSmartPointer<vtkDoubleArray>::New();
 	normals->SetNumberOfComponents(3);
-	normals->SetNumberOfTuples(100);
 	normals->SetNumberOfTuples(1);
 	double n[3]{ 0, 0, 0 };
 	normals->SetTuple(0, n);
 
 	// Represent the position of the cursor
-	this->ActiveFocalPoint->SetNumberOfPoints(100);
 	this->ActiveFocalPoint->SetNumberOfPoints(1);
 	this->ActiveFocalPoint->SetPoint(0, 0.0, 0.0, 0.0);
 
-	auto activeNormals = vtkDoubleArray::New();
+	auto activeNormals = vtkSmartPointer<vtkDoubleArray>::New();
 	activeNormals->SetNumberOfComponents(3);
-	activeNormals->SetNumberOfTuples(100);
 	activeNormals->SetNumberOfTuples(1);
 	activeNormals->SetTuple(0, n);
 
 	this->FocalData->SetPoints(this->FocalPoint);
 	this->FocalData->GetPointData()->SetNormals(normals);
-	normals->Delete();
 
 	this->ActiveFocalData->SetPoints(this->ActiveFocalPoint);
 	this->ActiveFocalData->GetPointData()->SetNormals(activeNormals);
-	activeNormals->Delete();
 
 	this->Glypher->SetInputData(this->FocalData);
 	this->Glypher->SetVectorModeToUseNormal();
@@ -197,11 +192,6 @@ void ContourRepresentationGlyph::SetCursorShape(vtkSmartPointer<vtkPolyData> sha
 
 		if (this->CursorShape)
 		{
-			this->CursorShape->Register(this);
-		}
-
-		if (this->CursorShape)
-		{
 			this->Glypher->SetSourceData(this->CursorShape);
 		}
 
@@ -221,11 +211,6 @@ void ContourRepresentationGlyph::SetActiveCursorShape(vtkSmartPointer<vtkPolyDat
 	if (shape != this->ActiveCursorShape)
 	{
 		this->ActiveCursorShape = shape;
-
-		if (this->ActiveCursorShape)
-		{
-			this->ActiveCursorShape->Register(this);
-		}
 
 		if (this->ActiveCursorShape)
 		{
@@ -258,7 +243,7 @@ int ContourRepresentationGlyph::ComputeInteractionState(int X, int Y, int vtkNot
 	this->Renderer->WorldToDisplay();
 	this->Renderer->GetDisplayPoint(pos);
 
-	double xyz[3]{ static_cast<double>(X), static_cast<double>(Y), pos[2]};
+	double xyz[3]{static_cast<double>(X), static_cast<double>(Y), pos[2]};
 
 	this->VisibilityOn();
 	auto tolerance2 = this->PixelTolerance * this->PixelTolerance;
@@ -371,7 +356,6 @@ void ContourRepresentationGlyph::WidgetInteraction(double eventPos[2])
       break;
   }
 
-	// Book keeping
 	this->LastEventPosition[0] = eventPos[0];
 	this->LastEventPosition[1] = eventPos[1];
 }
@@ -538,59 +522,33 @@ void ContourRepresentationGlyph::SetDefaultProperties()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void ContourRepresentationGlyph::BuildLines()
 {
-	auto points = vtkPoints::New();
-	auto lines = vtkCellArray::New();
+	auto nodesNum = this->GetNumberOfNodes();
 
-	vtkIdType index = 0;
+	auto points = vtkSmartPointer<vtkPoints>::New();
+	points->SetNumberOfPoints(nodesNum);
+	auto lines = vtkSmartPointer<vtkCellArray>::New();
+	lines->SetNumberOfCells(1);
 
-	auto count = this->GetNumberOfNodes();
-	for (int i = 0; i < this->GetNumberOfNodes(); i++)
+  auto lineIndices = new vtkIdType[nodesNum + 1];
+
+	for(int i = 0; i < nodesNum; ++i)
 	{
-		count += this->GetNumberOfIntermediatePoints(i);
+	  double pos[3];
+	  this->GetNthNodeWorldPosition(i, pos);
+
+	  points->InsertPoint(i, pos);
+	  lineIndices[i] = i;
 	}
+	lineIndices[nodesNum] = 0;
 
-	points->SetNumberOfPoints(count);
-	vtkIdType numLines;
+  lines->InsertNextCell(nodesNum + 1, lineIndices);
+  delete[] lineIndices;
 
-	numLines = count + 1;
-
-	if (numLines > 0)
-	{
-		auto lineIndices = new vtkIdType[numLines];
-
-		double pos[3];
-		for (int i = 0; i < this->GetNumberOfNodes(); i++)
-		{
-			// Add the node
-			this->GetNthNodeWorldPosition(i, pos);
-			pos[2] = 0.0;
-			points->InsertPoint(index, pos);
-			lineIndices[index] = index;
-			index++;
-
-			auto numIntermediatePoints = this->GetNumberOfIntermediatePoints(i);
-
-			for (int j = 0; j < numIntermediatePoints; j++)
-			{
-				this->GetIntermediatePointWorldPosition(i, j, pos);
-				pos[2] = 0.0;
-				points->InsertPoint(index, pos);
-				lineIndices[index] = index;
-				index++;
-			}
-		}
-
-		lineIndices[index] = 0;
-
-		lines->InsertNextCell(numLines, lineIndices);
-		delete[] lineIndices;
-	}
-
+	points->Modified();
+	lines->Modified();
 	this->Lines->SetPoints(points);
 	this->Lines->SetLines(lines);
-
-	points->Delete();
-	lines->Delete();
+	this->Lines->Modified();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -734,6 +692,20 @@ void ContourRepresentationGlyph::BuildRepresentation()
 	{
 		this->ActiveActor->VisibilityOff();
 	}
+
+  this->FocalPoint->Modified();
+  this->ActiveFocalPoint->Modified();
+  this->Glypher->Update();
+  this->ActiveGlypher->Update();
+  this->FocalData->Modified();
+  this->ActiveFocalData->Modified();
+  this->Lines->Modified();
+  this->Mapper->Update();
+  this->ActiveMapper->Update();
+  this->LinesMapper->Update();
+  this->Actor->Modified();
+  this->LinesActor->Modified();
+  this->ActiveActor->Modified();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -741,7 +713,12 @@ void ContourRepresentationGlyph::GetActors(vtkPropCollection *pc)
 {
 	this->Actor->GetActors(pc);
 	this->ActiveActor->GetActors(pc);
-	this->LinesActor->GetActors(pc);
+
+	if (this->GetNumberOfNodes() > 1)
+	{
+	  this->LinesActor->GetActors(pc);
+	}
+
 	if (this->ShowSelectedNodes && this->SelectedNodesActor)
 	{
 		this->SelectedNodesActor->GetActors(pc);
@@ -753,14 +730,26 @@ void ContourRepresentationGlyph::ReleaseGraphicsResources(vtkWindow *win)
 {
 	this->Actor->ReleaseGraphicsResources(win);
 	this->ActiveActor->ReleaseGraphicsResources(win);
-	this->LinesActor->ReleaseGraphicsResources(win);
+
+	if(this->GetNumberOfNodes() > 1)
+	{
+	  this->LinesActor->ReleaseGraphicsResources(win);
+	}
+
+	if(this->ShowSelectedNodes && this->SelectedNodesActor)
+	{
+	  this->SelectedNodesActor->ReleaseGraphicsResources(win);
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 int ContourRepresentationGlyph::RenderOverlay(vtkViewport *viewport)
 {
 	auto count = 0;
-	count += this->LinesActor->RenderOverlay(viewport);
+	if(this->LinesActor->GetVisibility() && (this->Lines->GetNumberOfPoints() > 1))
+	{
+	  count += this->LinesActor->RenderOverlay(viewport);
+	}
 
 	if (this->Actor->GetVisibility())
 	{
@@ -772,14 +761,18 @@ int ContourRepresentationGlyph::RenderOverlay(vtkViewport *viewport)
 		count += this->ActiveActor->RenderOverlay(viewport);
 	}
 
+	if(this->ShowSelectedNodes && this->SelectedNodesActor && this->SelectedNodesActor->GetVisibility())
+	{
+	  count += this->SelectedNodesActor->RenderOverlay(viewport);
+	}
+
 	return count;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 int ContourRepresentationGlyph::RenderOpaqueGeometry(vtkViewport *viewport)
 {
-	// Since we know RenderOpaqueGeometry gets called first, will do the
-	// build here
+	// Since we know RenderOpaqueGeometry gets called first, will do the build here
 	this->BuildRepresentation();
 
 	GLboolean flag = GL_FALSE;
@@ -787,11 +780,17 @@ int ContourRepresentationGlyph::RenderOpaqueGeometry(vtkViewport *viewport)
 	{
 		glGetBooleanv(GL_DEPTH_TEST, &flag);
 		if (flag)
+		{
 			glDisable(GL_DEPTH_TEST);
+		}
 	}
 
 	auto count = 0;
-	count += this->LinesActor->RenderOpaqueGeometry(viewport);
+
+	if(this->LinesActor->GetVisibility() && (this->Lines->GetNumberOfPoints() > 1))
+	{
+	  count += this->LinesActor->RenderOpaqueGeometry(viewport);
+	}
 
 	if (this->Actor->GetVisibility())
 	{
@@ -808,7 +807,7 @@ int ContourRepresentationGlyph::RenderOpaqueGeometry(vtkViewport *viewport)
 		count += this->SelectedNodesActor->RenderOpaqueGeometry(viewport);
 	}
 
-	if (flag && this->AlwaysOnTop && (this->ActiveActor->GetVisibility() || this->LinesActor->GetVisibility()))
+	if (flag)
 	{
 		glEnable(GL_DEPTH_TEST);
 	}
@@ -820,7 +819,11 @@ int ContourRepresentationGlyph::RenderOpaqueGeometry(vtkViewport *viewport)
 int ContourRepresentationGlyph::RenderTranslucentPolygonalGeometry(vtkViewport *viewport)
 {
 	auto count = 0;
-	count += this->LinesActor->RenderTranslucentPolygonalGeometry(viewport);
+
+	if(this->LinesActor->GetVisibility() && (this->Lines->GetNumberOfPoints() > 1))
+	{
+	  count += this->LinesActor->RenderTranslucentPolygonalGeometry(viewport);
+	}
 
 	if (this->Actor->GetVisibility())
 	{
@@ -832,6 +835,11 @@ int ContourRepresentationGlyph::RenderTranslucentPolygonalGeometry(vtkViewport *
 		count += this->ActiveActor->RenderTranslucentPolygonalGeometry(viewport);
 	}
 
+  if (this->ShowSelectedNodes && this->SelectedNodesActor && this->SelectedNodesActor->GetVisibility())
+  {
+    count += this->SelectedNodesActor->RenderTranslucentPolygonalGeometry(viewport);
+  }
+
 	return count;
 }
 
@@ -839,7 +847,11 @@ int ContourRepresentationGlyph::RenderTranslucentPolygonalGeometry(vtkViewport *
 int ContourRepresentationGlyph::HasTranslucentPolygonalGeometry()
 {
 	auto result = 0;
-	result |= this->LinesActor->HasTranslucentPolygonalGeometry();
+
+	if(this->LinesActor->GetVisibility() && (this->Lines->GetNumberOfPoints() > 1))
+	{
+	  result |= this->LinesActor->HasTranslucentPolygonalGeometry();
+	}
 
 	if (this->Actor->GetVisibility())
 	{
@@ -850,6 +862,11 @@ int ContourRepresentationGlyph::HasTranslucentPolygonalGeometry()
 	{
 		result |= this->ActiveActor->HasTranslucentPolygonalGeometry();
 	}
+
+  if (this->ShowSelectedNodes && this->SelectedNodesActor && this->SelectedNodesActor->GetVisibility())
+  {
+    result |= this->SelectedNodesActor->HasTranslucentPolygonalGeometry();
+  }
 
 	return result;
 }
@@ -896,24 +913,23 @@ void ContourRepresentationGlyph::SetShowSelectedNodes(int flag)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 double* ContourRepresentationGlyph::GetBounds() const
 {
-	return this->Lines->GetPoints() ? this->Lines->GetPoints()->GetBounds() : nullptr;
+	return (this->Lines && this->Lines->GetPoints()) ? this->Lines->GetPoints()->GetBounds() : nullptr;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void ContourRepresentationGlyph::CreateSelectedNodesRepresentation()
 {
-	auto sphere = vtkSphereSource::New();
+	auto sphere = vtkSmartPointer<vtkSphereSource>::New();
 	sphere->SetThetaResolution(12);
 	sphere->SetRadius(0.3);
 	this->SelectedNodesCursorShape = sphere->GetOutput();
 	this->SelectedNodesCursorShape->Register(this);
-	sphere->Delete();
 
 	// Represent the position of the cursor
-	this->SelectedNodesPoints = vtkPoints::New();
+	this->SelectedNodesPoints = vtkSmartPointer<vtkPoints>::New();
 	this->SelectedNodesPoints->SetNumberOfPoints(100);
 
-	auto normals = vtkDoubleArray::New();
+	auto normals = vtkSmartPointer<vtkDoubleArray>::New();
 	normals->SetNumberOfComponents(3);
 	normals->SetNumberOfTuples(100);
 	normals->SetNumberOfTuples(1);
@@ -923,7 +939,6 @@ void ContourRepresentationGlyph::CreateSelectedNodesRepresentation()
 	this->SelectedNodesData = vtkSmartPointer<vtkPolyData>::New();
 	this->SelectedNodesData->SetPoints(this->SelectedNodesPoints);
 	this->SelectedNodesData->GetPointData()->SetNormals(normals);
-	normals->Delete();
 
 	this->SelectedNodesGlypher = vtkSmartPointer<vtkGlyph3D>::New();
 	this->SelectedNodesGlypher->SetInputData(this->SelectedNodesData);
@@ -940,7 +955,7 @@ void ContourRepresentationGlyph::CreateSelectedNodesRepresentation()
 	this->SelectedNodesMapper->ScalarVisibilityOff();
 	this->SelectedNodesMapper->ImmediateModeRenderingOn();
 
-	auto selectionProperty = vtkProperty::New();
+	auto selectionProperty = vtkSmartPointer<vtkProperty>::New();
 	selectionProperty->SetColor(0.0, 1.0, 0.0);
 	selectionProperty->SetLineWidth(0.5);
 	selectionProperty->SetPointSize(3);
@@ -948,7 +963,6 @@ void ContourRepresentationGlyph::CreateSelectedNodesRepresentation()
 	this->SelectedNodesActor = vtkSmartPointer<vtkActor>::New();
 	this->SelectedNodesActor->SetMapper(this->SelectedNodesMapper);
 	this->SelectedNodesActor->SetProperty(selectionProperty);
-	selectionProperty->Delete();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

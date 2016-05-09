@@ -927,7 +927,10 @@ void EditorOperations::UpdatePaintEraseActors(const Vector3i &point, int radius,
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void EditorOperations::UpdateContourSlice(const Vector3ui &point)
 {
-  if (m_selection) m_selection->updateContourSlice(point);
+  if (m_selection && (m_selection->type() == Selection::Type::CONTOUR))
+  {
+    m_selection->updateContourSlice(point);
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

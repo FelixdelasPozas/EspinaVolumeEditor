@@ -16,7 +16,6 @@
 #include <vtkLineSource.h>
 #include <vtkPoints.h>
 #include <vtkPlaneSource.h>
-#include <vtkOrientationMarkerWidget.h>
 
 // Qt
 #include <QObject>
@@ -94,13 +93,6 @@ class AxesRender
      */
     void UpdateVoxelCrosshair(const Vector3ui &crosshair);
 
-    /** \brief Helper method that creates and maintains a pointer to the orientation marker
-     * widget (axes orientation).
-     * \param[in] renderer renderer to insert the widget.
-     *
-     */
-    void CreateOrientationWidget(vtkSmartPointer<vtkRenderer> renderer);
-
     vtkSmartPointer<vtkRenderer>                 m_renderer;     /** renderer to show the actors. */
     std::vector<vtkSmartPointer<vtkLineSource>>  m_POILines;     /** 3d crosshair lines. */
     std::vector<vtkSmartPointer<vtkPlaneSource>> m_planes;       /** 3d slice planes. */
@@ -112,8 +104,6 @@ class AxesRender
 
     bool m_visible;     /** visibility value.          */
     Vector3ui m_crosshair;
-
-    vtkSmartPointer<vtkOrientationMarkerWidget> m_axesWidget; /** orientation marker widget. */
 };
 
 #endif

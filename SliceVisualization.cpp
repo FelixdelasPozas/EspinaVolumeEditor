@@ -831,7 +831,7 @@ void SliceVisualization::setSelectionVolume(const vtkSmartPointer<vtkImageData> 
 
   double pos[3];
   m_selectionActor->GetPosition(pos);
-  pos[2] += 0.25;
+  pos[2] += 1;
   m_selectionActor->SetPosition(pos);
 
   m_renderer->AddActor(m_selectionActor);

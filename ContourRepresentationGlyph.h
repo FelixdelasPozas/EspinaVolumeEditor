@@ -83,21 +83,21 @@ class ContourRepresentationGlyph
 		 * communicate with each other.
 		 *
 		 */
-		virtual void SetRenderer(vtkRenderer *ren);
+		virtual void SetRenderer(vtkRenderer *ren) override;
 		virtual void BuildRepresentation();
-		virtual void StartWidgetInteraction(double eventPos[2]);
-		virtual void WidgetInteraction(double eventPos[2]);
-		virtual int ComputeInteractionState(int X, int Y, int modified = 0);
+		virtual void StartWidgetInteraction(double eventPos[2]) override;
+		virtual void WidgetInteraction(double eventPos[2]) override;
+		virtual int ComputeInteractionState(int X, int Y, int modified = 0) override;
 
 		/** \brief Methods to make this class behave as a vtkProp.
 		 *
 		 */
-		virtual void GetActors(vtkPropCollection *);
-		virtual void ReleaseGraphicsResources(vtkWindow *);
-		virtual int RenderOverlay(vtkViewport *viewport);
-		virtual int RenderOpaqueGeometry(vtkViewport *viewport);
-		virtual int RenderTranslucentPolygonalGeometry(vtkViewport *viewport);
-		virtual int HasTranslucentPolygonalGeometry();
+		virtual void GetActors(vtkPropCollection *) override;
+		virtual void ReleaseGraphicsResources(vtkWindow *) override;
+		virtual int RenderOverlay(vtkViewport *viewport) override;
+		virtual int RenderOpaqueGeometry(vtkViewport *viewport) override;
+		virtual int RenderTranslucentPolygonalGeometry(vtkViewport *viewport) override;
+		virtual int HasTranslucentPolygonalGeometry() override;
 
 		/** \brief Returns the contour as a polydata.
 		 *
@@ -126,7 +126,7 @@ class ContourRepresentationGlyph
 		 * \parma[in] value 0 for false and other value for otherwise.
 		 *
 		 */
-		virtual void SetShowSelectedNodes(int value);
+		virtual void SetShowSelectedNodes(int value) override;
 
 		/** \brief Returns the bounds of the representation.
 		 *
@@ -167,7 +167,7 @@ class ContourRepresentationGlyph
 		vtkSmartPointer<vtkGlyph3D>        SelectedNodesGlypher;
 		vtkSmartPointer<vtkPolyData>       SelectedNodesCursorShape;
 
-		/** \brief Creates the representation for the selectend contour points.
+		/** \brief Creates the representation for the selected contour points.
 		 *
 		 */
 		void CreateSelectedNodesRepresentation();

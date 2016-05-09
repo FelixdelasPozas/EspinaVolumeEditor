@@ -987,14 +987,14 @@ void Selection::boxSelectionWidgetCallback(vtkObject *caller, unsigned long even
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-void Selection::computeLassoBounds(unsigned int *iBounds)
+void Selection::computeLassoBounds(int *iBounds)
 {
-  auto rep = static_cast<ContourRepresentation*>(m_contourWidget->GetRepresentation());
-  double *bounds = rep->GetBounds();
+  auto rep = static_cast<ContourRepresentationGlyph *>(m_contourWidget->GetRepresentation());
+  auto bounds = rep->GetBounds();
 
   // this copy is needed because we want to change the values and we mustn't do it in the original pointer or we will mess
   // with the rep
-  double dBounds[6] = { bounds[0], bounds[1], bounds[2], bounds[3], bounds[4], bounds[5] };
+  double dBounds[6] = {bounds[0], bounds[1], bounds[2], bounds[3], bounds[4], bounds[5]};
 
   switch (m_contourWidget->GetOrientation())
   {
@@ -1206,23 +1206,25 @@ void Selection::contourSelectionWidgetCallback(vtkObject *caller, unsigned long 
 {
   auto self = static_cast<Selection *>(clientdata);
   auto widget = static_cast<ContourWidget*>(caller);
-  auto rep = static_cast<ContourRepresentation *>(widget->GetRepresentation());
+  auto rep = static_cast<ContourRepresentationGlyph *>(widget->GetRepresentation());
 
-  // if bounds are not defined means that the rep is not valid
-  double *dBounds = rep->GetBounds();
-  if (dBounds == nullptr) return;
+  // if bounds are not defined or are invalid means that the rep is not valid
+  auto bounds = rep->GetBounds();
+  if (!bounds || (bounds[1] < bounds[0]) || (bounds[3] < bounds[2]) || (bounds[5] < bounds[4])) return;
 
   // calculate correct bounds for min/max vectors and for correctly cutting the selection volume
-  unsigned int iBounds[6];
+  int iBounds[6];
   self->computeLassoBounds(iBounds);
 
   self->m_min = Vector3ui(iBounds[0], iBounds[2], iBounds[4]);
   self->m_max = Vector3ui(iBounds[1], iBounds[3], iBounds[5]);
 
+  auto repre = rep->GetContourRepresentationAsPolyData();
+  if(!repre || repre->GetNumberOfPoints() < 3) return;
+
   if (vtkCommand::EndInteractionEvent == event) rep->PlaceFinalPoints();
 
   // update the representation volume (update the pipeline)
-  self->m_polyDataToStencil->SetInputData(rep->GetContourRepresentationAsPolyData());
   self->m_polyDataToStencil->Modified();
 
   // adquire new rotated and clipped image
@@ -1240,21 +1242,19 @@ void Selection::contourSelectionWidgetCallback(vtkObject *caller, unsigned long 
     self->m_axial->setSelectionVolume(self->m_rotatedImage, true);
     self->m_coronal->setSelectionVolume(self->m_rotatedImage, true);
     self->m_sagittal->setSelectionVolume(self->m_rotatedImage, true);
-  }
-  else
-  {
-    return;
-  }
 
-  // update renderers
-  self->m_axial->renderer()->GetRenderWindow()->Render();
-  self->m_coronal->renderer()->GetRenderWindow()->Render();
-  self->m_sagittal->renderer()->GetRenderWindow()->Render();
+    // update renderers
+    self->m_axial->renderer()->GetRenderWindow()->Render();
+    self->m_coronal->renderer()->GetRenderWindow()->Render();
+    self->m_sagittal->renderer()->GetRenderWindow()->Render();
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-void Selection::computeContourSelectionVolume(const unsigned int *bounds)
+void Selection::computeContourSelectionVolume(const int *bounds)
 {
+  if((bounds[1] < bounds[0]) || (bounds[3] < bounds[2]) || (bounds[5] < bounds[4])) return;
+
   auto image = m_stencilToImage->GetOutput();
   image->Modified();
 
@@ -1266,7 +1266,7 @@ void Selection::computeContourSelectionVolume(const unsigned int *bounds)
   // do not operate on empty/uninitialized images
   if ((extent[1] < extent[0]) || (extent[3] < extent[2]) || extent[5] < extent[4]) return;
 
-  if (m_rotatedImage != nullptr)
+  if (m_rotatedImage)
   {
     m_rotatedImage = nullptr;
   }
@@ -1279,43 +1279,46 @@ void Selection::computeContourSelectionVolume(const unsigned int *bounds)
   m_rotatedImage->AllocateScalars(VTK_INT, 1);
   memset(m_rotatedImage->GetScalarPointer(), 0, m_rotatedImage->GetScalarSize() * (bounds[1] - bounds[0] + 3) * (bounds[3] - bounds[2] + 3) * (bounds[5] - bounds[4] + 3));
 
-  if (m_selectionIsValid) switch (m_contourWidget->GetOrientation())
+  if (m_selectionIsValid)
   {
-    case 0: // axial
-      for (unsigned int i = bounds[0]; i <= bounds[1]; i++)
-      {
-        for (unsigned int j = bounds[2]; j <= bounds[3]; j++)
+    switch (m_contourWidget->GetOrientation())
+    {
+      case 0: // axial
+        for (unsigned int i = bounds[0]; i <= bounds[1]; i++)
         {
-          auto pixel = static_cast<int*>(image->GetScalarPointer(i, j, 0));
-          auto rotatedPixel = static_cast<int*>(m_rotatedImage->GetScalarPointer(i - bounds[0] + 1, j - bounds[2] + 1, 1));
-          *rotatedPixel = *pixel;
+          for (unsigned int j = bounds[2]; j <= bounds[3]; j++)
+          {
+            auto pixel = static_cast<int*>(image->GetScalarPointer(i, j, 0));
+            auto rotatedPixel = static_cast<int*>(m_rotatedImage->GetScalarPointer(i - bounds[0] + 1, j - bounds[2] + 1, 1));
+            *rotatedPixel = *pixel;
+          }
         }
-      }
-      break;
-    case 1: // coronal
-      for (unsigned int i = bounds[0]; i <= bounds[1]; i++)
-      {
-        for (unsigned int j = bounds[4]; j <= bounds[5]; j++)
+        break;
+      case 1: // coronal
+        for (unsigned int i = bounds[0]; i <= bounds[1]; i++)
         {
-          auto pixel = static_cast<int*>(image->GetScalarPointer(i, j, 0));
-          auto rotatedPixel = static_cast<int*>(m_rotatedImage->GetScalarPointer(i - bounds[0] + 1, 1, j - bounds[4] + 1));
-          *rotatedPixel = *pixel;
+          for (unsigned int j = bounds[4]; j <= bounds[5]; j++)
+          {
+            auto pixel = static_cast<int*>(image->GetScalarPointer(i, j, 0));
+            auto rotatedPixel = static_cast<int*>(m_rotatedImage->GetScalarPointer(i - bounds[0] + 1, 1, j - bounds[4] + 1));
+            *rotatedPixel = *pixel;
+          }
         }
-      }
-      break;
-    case 2: // sagittal
-      for (unsigned int i = bounds[2]; i <= bounds[3]; i++)
-      {
-        for (unsigned int j = bounds[4]; j <= bounds[5]; j++)
+        break;
+      case 2: // sagittal
+        for (unsigned int i = bounds[2]; i <= bounds[3]; i++)
         {
-          auto pixel = static_cast<int*>(image->GetScalarPointer(i, j, 0));
-          auto rotatedPixel = static_cast<int*>(m_rotatedImage->GetScalarPointer(1, i - bounds[2] + 1, j - bounds[4] + 1));
-          *rotatedPixel = *pixel;
+          for (unsigned int j = bounds[4]; j <= bounds[5]; j++)
+          {
+            auto pixel = static_cast<int*>(image->GetScalarPointer(i, j, 0));
+            auto rotatedPixel = static_cast<int*>(m_rotatedImage->GetScalarPointer(1, i - bounds[2] + 1, j - bounds[4] + 1));
+            *rotatedPixel = *pixel;
+          }
         }
-      }
-      break;
-    default: // can't happen
-      break;
+        break;
+      default: // can't happen
+        break;
+    }
   }
 }
 
@@ -1324,46 +1327,49 @@ void Selection::updateContourSlice(const Vector3ui &point)
 {
   if (m_selectionType != Type::CONTOUR) return;
 
-  double origin[3];
-  m_rotatedImage->GetOrigin(origin);
-
-  switch (m_contourWidget->GetOrientation())
+  if(m_rotatedImage)
   {
-    case 0: // axial
-      if (point[2] == m_min[2]) return;
+    double origin[3];
+    m_rotatedImage->GetOrigin(origin);
 
-      m_min[2] = m_max[2] = point[2];
-      origin[2] = (static_cast<int>(point[2]) - 1) * m_spacing[2];
-      break;
-    case 1: // coronal
-      if (point[1] == m_min[1]) return;
+    switch (m_contourWidget->GetOrientation())
+    {
+      case 0: // axial
+        if (point[2] == m_min[2]) return;
 
-      m_min[1] = m_max[1] = point[1];
-      origin[1] = (static_cast<int>(point[1]) - 1) * m_spacing[1];
-      break;
-    case 2: // sagittal
-      if (point[0] == m_min[0]) return;
+        m_min[2] = m_max[2] = point[2];
+        origin[2] = (static_cast<int>(point[2]) - 1) * m_spacing[2];
+        break;
+      case 1: // coronal
+        if (point[1] == m_min[1]) return;
 
-      m_min[0] = m_max[0] = point[0];
-      origin[0] = (static_cast<int>(point[0]) - 1) * m_spacing[0];
-      break;
-    default:
-      break;
+        m_min[1] = m_max[1] = point[1];
+        origin[1] = (static_cast<int>(point[1]) - 1) * m_spacing[1];
+        break;
+      case 2: // sagittal
+        if (point[0] == m_min[0]) return;
+
+        m_min[0] = m_max[0] = point[0];
+        origin[0] = (static_cast<int>(point[0]) - 1) * m_spacing[0];
+        break;
+      default:
+        break;
+    }
+
+    m_changer = vtkSmartPointer<vtkImageChangeInformation>::New();
+    m_changer->SetInputData(m_rotatedImage);
+    m_changer->SetOutputOrigin(origin);
+    m_changer->Update();
+
+    deleteSelectionActors();
+    deleteSelectionVolumes();
+    m_axial->clearSelections();
+    m_coronal->clearSelections();
+    m_sagittal->clearSelections();
+
+    m_selectionVolumesList.push_back(m_changer->GetOutput());
+    m_axial->setSelectionVolume(m_changer->GetOutput(), true);
+    m_coronal->setSelectionVolume(m_changer->GetOutput(), true);
+    m_sagittal->setSelectionVolume(m_changer->GetOutput(), true);
   }
-
-  m_changer = vtkSmartPointer<vtkImageChangeInformation>::New();
-  m_changer->SetInputData(m_rotatedImage);
-  m_changer->SetOutputOrigin(origin);
-  m_changer->Update();
-
-  deleteSelectionActors();
-  deleteSelectionVolumes();
-  m_axial->clearSelections();
-  m_coronal->clearSelections();
-  m_sagittal->clearSelections();
-
-  m_selectionVolumesList.push_back(m_changer->GetOutput());
-  m_axial->setSelectionVolume(m_changer->GetOutput(), true);
-  m_coronal->setSelectionVolume(m_changer->GetOutput(), true);
-  m_sagittal->setSelectionVolume(m_changer->GetOutput(), true);
 }

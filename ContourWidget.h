@@ -65,13 +65,13 @@ class ContourWidget
     /** \brief The state of the widget
      *
      */
-    enum ContourWidgetState { Start = 0, Define, Manipulate };
+    enum State { Start = 0, Define, Manipulate };
 
     /** \brief Convenient methods to change/get what state the widget is in.
      *
      */
-    vtkSetMacro(WidgetState,ContourWidgetState);
-    vtkGetMacro(WidgetState,ContourWidgetState);
+    vtkSetMacro(WidgetState,int);
+    vtkGetMacro(WidgetState,int);
 
     /** \brief Set / Get the AllowNodePicking value. This ivar indicates whether the nodes
      * and points between nodes can be picked/un-picked by Ctrl+Click on the node.
@@ -140,7 +140,7 @@ class ContourWidget
      */
     virtual ~ContourWidget();
 
-    ContourWidgetState WidgetState;      /** current widget state. */
+    int WidgetState;      /** current widget state. */
 
     int CurrentHandle;    /** current node handle. */
     int AllowNodePicking; /** node picking enabled state. */
@@ -158,7 +158,6 @@ class ContourWidget
     static void EndSelectAction(vtkAbstractWidget *widget);
     static void DeleteAction(vtkAbstractWidget *widget);
     static void TranslateContourAction(vtkAbstractWidget *widget);
-    static void ScaleContourAction(vtkAbstractWidget *widget);
     static void ResetAction(vtkAbstractWidget *widget);
     static void KeyPressAction(vtkAbstractWidget *widget);
 
