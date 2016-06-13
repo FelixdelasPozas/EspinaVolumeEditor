@@ -283,13 +283,10 @@ void ContourWidget::AddFinalPointAction(vtkAbstractWidget *widget)
 	if (rep->CheckNodesForDuplicates(numnodes-1, numnodes-2))
 	{
 	  rep->DeleteNthNode(numnodes-2);
-		numnodes--;
+		--numnodes;
 	}
 
-	if (numnodes < 3)
-	{
-	  return;
-	}
+	if (numnodes < 3) return;
 
 	if ((self->WidgetState != Manipulate) && (rep->GetNumberOfNodes() >= 1))
 	{
@@ -353,7 +350,7 @@ void ContourWidget::AddNode()
 		auto pixelTolerance = rep->GetPixelTolerance();
 		auto pixelTolerance2 = pixelTolerance * pixelTolerance;
 
-		double displayPos[2];
+		int displayPos[2];
 		if (!rep->GetNthNodeDisplayPosition(0, displayPos))
 		{
 			vtkErrorMacro("Can't get first node display position!");
@@ -500,7 +497,7 @@ void ContourWidget::MoveAction(vtkAbstractWidget *widget)
 			// First check if the last node is near the first node, if so, we intend closing the loop.
 			if (numNodes > 1)
 			{
-				double displayPos[2];
+				int displayPos[2];
 				auto pixelTolerance = rep->GetPixelTolerance();
 				auto pixelTolerance2 = pixelTolerance * pixelTolerance;
 
@@ -520,7 +517,7 @@ void ContourWidget::MoveAction(vtkAbstractWidget *widget)
 						{
 							double closedLoopPoint[3];
 							rep->GetNthNodeWorldPosition(0, closedLoopPoint);
-							rep->AddNodeAtDisplayPosition(closedLoopPoint);
+							rep->AddNodeAtWorldPosition(closedLoopPoint);
 						}
 						rep->ClosedLoopOff();
 					}
@@ -539,7 +536,6 @@ void ContourWidget::MoveAction(vtkAbstractWidget *widget)
 						if (self->ContinuousDraw && self->ContinuousActive)
 						{
 							rep->AddNodeAtDisplayPosition(X, Y);
-							self->InvokeEvent(vtkCommand::InteractionEvent, nullptr);
 
 							// check the contour detect if it intersects with itself
 							if (rep->CheckAndCutContourIntersection())
@@ -588,7 +584,7 @@ void ContourWidget::MoveAction(vtkAbstractWidget *widget)
 	}
 	else
 	{
-		double pos[2]{ static_cast<double>(X), static_cast<double>(Y) };
+		double pos[2]{static_cast<double>(X), static_cast<double>(Y)};
 		self->WidgetRep->WidgetInteraction(pos);
 		self->InvokeEvent(vtkCommand::InteractionEvent, nullptr);
 	}
@@ -616,12 +612,6 @@ void ContourWidget::EndSelectAction(vtkAbstractWidget *widget)
 	if (rep->GetCurrentOperation() == ContourRepresentation::Inactive)
 	{
 		return;
-	}
-
-	// place points in it's final destination if we're shifting the contour
-	if (rep->GetCurrentOperation() == ContourRepresentation::Shift)
-	{
-		rep->PlaceFinalPoints();
 	}
 
 	rep->SetCurrentOperationToInactive();

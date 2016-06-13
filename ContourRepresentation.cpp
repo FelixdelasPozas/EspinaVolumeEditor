@@ -14,22 +14,15 @@
 #include <cmath>
 
 // vtk includes
-#include <vtkBezierContourLineInterpolator.h>
-#include <vtkBox.h>
 #include <vtkCamera.h>
-#include <vtkCellArray.h>
-#include <vtkContourLineInterpolator.h>
 #include <vtkCoordinate.h>
-#include <vtkFocalPlanePointPlacer.h>
 #include <vtkHandleRepresentation.h>
-#include <vtkIncrementalOctreePointLocator.h>
 #include <vtkIntArray.h>
 #include <vtkInteractorObserver.h>
 #include <vtkLine.h>
 #include <vtkMath.h>
 #include <vtkMatrix4x4.h>
 #include <vtkObjectFactory.h>
-#include <vtkPointPlacer.h>
 #include <vtkPolyData.h>
 #include <vtkRenderer.h>
 #include <vtkSmartPointer.h>
@@ -47,8 +40,6 @@ ContourRepresentation::ContourRepresentation()
 : vtkWidgetRepresentation()
 , PixelTolerance   {15}
 , WorldTolerance   {0.004}
-, PointPlacer      {vtkFocalPlanePointPlacer::New()}
-, LineInterpolator {vtkBezierContourLineInterpolator::New()}
 , ActiveNode       {-1}
 , CurrentOperation {ContourRepresentation::Inactive}
 , ClosedLoop       {0}
@@ -60,8 +51,6 @@ ContourRepresentation::ContourRepresentation()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ContourRepresentation::~ContourRepresentation()
 {
-  this->SetPointPlacer(nullptr);
-  this->SetLineInterpolator(nullptr);
   this->Internal->ClearNodes();
 }
 
@@ -76,7 +65,7 @@ void ContourRepresentation::ClearAllNodes()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-void ContourRepresentation::AddNodeAtPositionInternal(double worldPos[3], double worldOrient[9], double displayPos[2])
+void ContourRepresentation::AddNodeAtPositionInternal(double worldPos[3])
 {
   // Add a new point at this position
   auto node = new ContourRepresentationNode();
@@ -84,14 +73,6 @@ void ContourRepresentation::AddNodeAtPositionInternal(double worldPos[3], double
   node->WorldPosition[1] = worldPos[1];
   node->WorldPosition[2] = 0;
   node->Selected = 0;
-
-  auto p1 = displayPos[0];
-  auto p2 = displayPos[1];
-  this->Renderer->DisplayToNormalizedDisplay(p1, p2);
-  node->NormalizedDisplayPosition[0] = p1;
-  node->NormalizedDisplayPosition[1] = p2;
-
-  memcpy(node->WorldOrientation, worldOrient, 9 * sizeof(double));
 
   this->Internal->Nodes.push_back(node);
 
@@ -111,61 +92,18 @@ void ContourRepresentation::AddNodeAtPositionInternal(double worldPos[3], double
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-void ContourRepresentation::GetNodePolyData(vtkPolyData* polydata)
+void ContourRepresentation::AddNodeAtPositionInternal(int displayPos[2])
 {
-  polydata->Initialize();
-  auto count = this->GetNumberOfNodes();
+  double worldPos[3];
+  this->GetWorldFromDisplay(displayPos, worldPos);
 
-  if (count == 0) return;
-
-  auto points = vtkSmartPointer<vtkPoints>::New();
-  auto lines = vtkSmartPointer<vtkCellArray>::New();
-
-  points->SetNumberOfPoints(count);
-  vtkIdType numLines = count;
-
-  if (this->ClosedLoop) numLines++;
-
-  auto lineIndices = new vtkIdType[numLines];
-
-  int i;
-  vtkIdType index = 0;
-  double pos[3];
-
-  for (i = 0; i < this->GetNumberOfNodes(); ++i)
-  {
-    // Add the node
-    this->GetNthNodeWorldPosition(i, pos);
-    points->InsertPoint(index, pos);
-    lineIndices[index] = index;
-    index++;
-  }
-
-  if (this->ClosedLoop) lineIndices[index] = 0;
-
-  lines->InsertNextCell(numLines, lineIndices);
-  delete[] lineIndices;
-
-  polydata->SetPoints(points);
-  polydata->SetLines(lines);
+  this->AddNodeAtPositionInternal(worldPos);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-void ContourRepresentation::AddNodeAtPositionInternal(double worldPos[3], double worldOrient[9], int displayPos[2])
+int ContourRepresentation::AddNodeAtWorldPosition(double worldPos[3])
 {
-  double dispPos[2];
-  dispPos[0] = static_cast<double>(displayPos[0]);
-  dispPos[1] = static_cast<double>(displayPos[1]);
-
-  this->AddNodeAtPositionInternal(worldPos, worldOrient, dispPos);
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-int ContourRepresentation::AddNodeAtWorldPosition(double worldPos[3], double worldOrient[9])
-{
-  double displayPos[2];
-  this->GetRendererComputedDisplayPositionFromWorldPosition(worldPos, worldOrient, displayPos);
-  this->AddNodeAtPositionInternal(worldPos, worldOrient, displayPos);
+  this->AddNodeAtPositionInternal(worldPos);
 
   return 1;
 }
@@ -178,57 +116,35 @@ int ContourRepresentation::AddNodeAtWorldPosition(double x, double y, double z)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-int ContourRepresentation::AddNodeAtWorldPosition(double worldPos[3])
-{
-  // Check if this is a valid location
-  if (!this->PointPlacer->ValidateWorldPosition(worldPos)) return 0;
-
-  double worldOrient[9]{ 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 };
-
-  double displayPos[2];
-  this->GetRendererComputedDisplayPositionFromWorldPosition(worldPos, worldOrient, displayPos);
-  this->AddNodeAtPositionInternal(worldPos, worldOrient, displayPos);
-
-  return 1;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-int ContourRepresentation::AddNodeAtDisplayPosition(double displayPos[2])
-{
-  double worldPos[3];
-  double worldOrient[9]{ 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 };
-  this->GetRendererComputedWorldPositionFromDisplayPosition(displayPos, worldOrient, worldPos);
-
-  this->AddNodeAtPositionInternal(worldPos, worldOrient, displayPos);
-  return 1;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 int ContourRepresentation::AddNodeAtDisplayPosition(int displayPos[2])
 {
-  return this->AddNodeAtDisplayPosition(displayPos[0], displayPos[1]);
+  double worldPos[3];
+  this->GetWorldFromDisplay(displayPos, worldPos);
+
+  this->AddNodeAtPositionInternal(worldPos);
+
+  return 1;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 int ContourRepresentation::AddNodeAtDisplayPosition(int X, int Y)
 {
-  double displayPos[2]{ static_cast<double>(X), static_cast<double>(Y) };
+  int displayPos[2]{X,Y};
 
   return this->AddNodeAtDisplayPosition(displayPos);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-int ContourRepresentation::ActivateNode(double displayPos[2])
+int ContourRepresentation::ActivateNode(int displayPos[2])
 {
   // Find closest node to this display pos that
   // is within PixelTolerance
-  double dPos[3]{ displayPos[0], displayPos[1], 0 };
   auto closestDistance2 = VTK_DOUBLE_MAX;
 
   int selected = VTK_INT_MAX;
   for(int i = 0; i < GetNumberOfNodes(); ++i)
   {
-    double pointPos[2];
+    int pointPos[2];
     GetNthNodeDisplayPosition(i, pointPos);
 
     auto distance = ((displayPos[0] - pointPos[0]) * (displayPos[0] - pointPos[0])) +
@@ -259,30 +175,11 @@ int ContourRepresentation::ActivateNode(double displayPos[2])
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-int ContourRepresentation::ActivateNode(int displayPos[2])
-{
-  return this->ActivateNode(displayPos[0], displayPos[1]);
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 int ContourRepresentation::ActivateNode(int X, int Y)
 {
-  double doubleDisplayPos[2]{ static_cast<double>(X), static_cast<double>(Y) };
+  int displayPos[2]{X,Y};
 
-  return this->ActivateNode(doubleDisplayPos);
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-int ContourRepresentation::SetActiveNodeToWorldPosition(double worldPos[3], double worldOrient[9])
-{
-  if (this->ActiveNode < 0 || static_cast<unsigned int>(this->ActiveNode) >= this->Internal->Nodes.size()) return 0;
-
-  // Check if this is a valid location
-  if (!this->PointPlacer->ValidateWorldPosition(worldPos, worldOrient)) return 0;
-
-  this->SetNthNodeWorldPositionInternal(this->ActiveNode, worldPos, worldOrient);
-
-  return 1;
+  return this->ActivateNode(displayPos);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -290,30 +187,7 @@ int ContourRepresentation::SetActiveNodeToWorldPosition(double worldPos[3])
 {
   if (this->ActiveNode < 0 || static_cast<unsigned int>(this->ActiveNode) >= this->Internal->Nodes.size()) return 0;
 
-  // Check if this is a valid location
-  if (!this->PointPlacer->ValidateWorldPosition(worldPos)) return 0;
-
-  double worldOrient[9]{ 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 };
-
-  this->SetNthNodeWorldPositionInternal(this->ActiveNode, worldPos, worldOrient);
-
-  return 1;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-int ContourRepresentation::SetActiveNodeToDisplayPosition(double displayPos[2])
-{
-  if (this->ActiveNode < 0 || static_cast<unsigned int>(this->ActiveNode) >= this->Internal->Nodes.size()) return 0;
-
-  double worldPos[3];
-  double worldOrient[9]{ 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 };
-
-  // Compute the world position from the display position
-  // based on the concrete representation's constraints
-  // If this is not a valid display location return 0
-  if (!this->PointPlacer->ComputeWorldPosition(this->Renderer, displayPos, worldPos, worldOrient)) return 0;
-
-  this->SetNthNodeWorldPositionInternal(this->ActiveNode, worldPos, worldOrient);
+  this->SetNthNodeWorldPositionInternal(this->ActiveNode, worldPos);
 
   return 1;
 }
@@ -321,15 +195,14 @@ int ContourRepresentation::SetActiveNodeToDisplayPosition(double displayPos[2])
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 int ContourRepresentation::SetActiveNodeToDisplayPosition(int displayPos[2])
 {
-  return this->SetActiveNodeToDisplayPosition(displayPos[0], displayPos[1]);
-}
+  if (this->ActiveNode < 0 || static_cast<unsigned int>(this->ActiveNode) >= this->Internal->Nodes.size()) return 0;
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-int ContourRepresentation::SetActiveNodeToDisplayPosition(int X, int Y)
-{
-  double doubleDisplayPos[2]{ static_cast<double>(X), static_cast<double>(Y) };
+  double worldPos[3];
+  this->GetWorldFromDisplay(displayPos, worldPos);
 
-  return this->SetActiveNodeToDisplayPosition(doubleDisplayPos);
+  this->SetNthNodeWorldPositionInternal(this->ActiveNode, worldPos);
+
+  return 1;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -393,13 +266,7 @@ int ContourRepresentation::GetActiveNodeWorldPosition(double pos[3])
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-int ContourRepresentation::GetActiveNodeWorldOrientation(double orient[9])
-{
-  return this->GetNthNodeWorldOrientation(this->ActiveNode, orient);
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-int ContourRepresentation::GetActiveNodeDisplayPosition(double pos[2])
+int ContourRepresentation::GetActiveNodeDisplayPosition(int pos[2])
 {
   return this->GetNthNodeDisplayPosition(this->ActiveNode, pos);
 }
@@ -411,21 +278,13 @@ int ContourRepresentation::GetNumberOfNodes()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-int ContourRepresentation::GetNthNodeDisplayPosition(int n, double displayPos[2])
+int ContourRepresentation::GetNthNodeDisplayPosition(int n, int displayPos[2])
 {
   if (n < 0 || static_cast<unsigned int>(n) >= this->Internal->Nodes.size()) return 0;
 
-  double pos[4]{ this->Internal->Nodes[n]->WorldPosition[0],
-                 this->Internal->Nodes[n]->WorldPosition[1],
-                 this->Internal->Nodes[n]->WorldPosition[2],
-                 1.0 };
-
-  this->Renderer->SetWorldPoint(pos);
-  this->Renderer->WorldToDisplay();
-  this->Renderer->GetDisplayPoint(pos);
-
-  displayPos[0] = pos[0];
-  displayPos[1] = pos[1];
+  double worldPos[3];
+  this->GetNthNodeWorldPosition(n, worldPos);
+  this->GetDisplayFromWorld(worldPos, displayPos);
 
   return 1;
 }
@@ -435,48 +294,17 @@ int ContourRepresentation::GetNthNodeWorldPosition(int n, double worldPos[3])
 {
   if (n < 0 || static_cast<unsigned int>(n) >= this->Internal->Nodes.size()) return 0;
 
-  worldPos[0] = this->Internal->Nodes[n]->WorldPosition[0];
-  worldPos[1] = this->Internal->Nodes[n]->WorldPosition[1];
-  worldPos[2] = this->Internal->Nodes[n]->WorldPosition[2];
+  memcpy(worldPos, this->Internal->Nodes[n]->WorldPosition, 3* sizeof(double));
 
   return 1;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-int ContourRepresentation::GetNthNodeWorldOrientation(int n, double worldOrient[9])
+void ContourRepresentation::SetNthNodeWorldPositionInternal(int n, double worldPos[3])
 {
-  if (n < 0 || static_cast<unsigned int>(n) >= this->Internal->Nodes.size()) return 0;
-
-  memcpy(worldOrient, this->Internal->Nodes[n]->WorldOrientation, 9 * sizeof(double));
-
-  return 1;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-void ContourRepresentation::SetNthNodeWorldPositionInternal(int n, double worldPos[3], double worldOrient[9])
-{
-  this->Internal->Nodes[n]->WorldPosition[0] = worldPos[0];
-  this->Internal->Nodes[n]->WorldPosition[1] = worldPos[1];
-  this->Internal->Nodes[n]->WorldPosition[2] = worldPos[2];
-
-  this->GetRendererComputedDisplayPositionFromWorldPosition(worldPos, worldOrient, this->Internal->Nodes[n]->NormalizedDisplayPosition);
-  this->Renderer->DisplayToNormalizedDisplay(this->Internal->Nodes[n]->NormalizedDisplayPosition[0], this->Internal->Nodes[n]->NormalizedDisplayPosition[1]);
-
-  memcpy(this->Internal->Nodes[n]->WorldOrientation, worldOrient, 9 * sizeof(double));
+  memcpy(this->Internal->Nodes[n]->WorldPosition, worldPos, 3*sizeof(double));
 
   this->NeedToRender = 1;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-int ContourRepresentation::SetNthNodeWorldPosition(int n, double worldPos[3], double worldOrient[9])
-{
-  if (n < 0 || static_cast<unsigned int>(n) >= this->Internal->Nodes.size()) return 0;
-
-  // Check if this is a valid location
-  if (!this->PointPlacer->ValidateWorldPosition(worldPos, worldOrient)) return 0;
-
-  this->SetNthNodeWorldPositionInternal(n, worldPos, worldOrient);
-  return 1;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -484,39 +312,29 @@ int ContourRepresentation::SetNthNodeWorldPosition(int n, double worldPos[3])
 {
   if (n < 0 || static_cast<unsigned int>(n) >= this->Internal->Nodes.size()) return 0;
 
-  // Check if this is a valid location
-  if (!this->PointPlacer->ValidateWorldPosition(worldPos)) return 0;
+  this->SetNthNodeWorldPositionInternal(n, worldPos);
 
-  double worldOrient[9]{ 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 };
-
-  this->SetNthNodeWorldPositionInternal(n, worldPos, worldOrient);
   return 1;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-int ContourRepresentation::SetNthNodeDisplayPosition(int n, double displayPos[2])
-{
-  double worldPos[3];
-  double worldOrient[9]{ 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 };
-
-  this->GetRendererComputedWorldPositionFromDisplayPosition(displayPos, worldOrient, worldPos);
-  return this->SetNthNodeWorldPosition(n, worldPos, worldOrient);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 int ContourRepresentation::SetNthNodeDisplayPosition(int n, int displayPos[2])
 {
-  double doubleDisplayPos[2]{ static_cast<double>(displayPos[0]), static_cast<double>(displayPos[1]) };
+  if (n < 0 || static_cast<unsigned int>(n) >= this->Internal->Nodes.size()) return 0;
 
-  return this->SetNthNodeDisplayPosition(n, doubleDisplayPos);
+  double worldPos[3];
+  this->GetWorldFromDisplay(displayPos, worldPos);
+  this->SetNthNodeWorldPosition(n, worldPos);
+
+  return 1;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 int ContourRepresentation::SetNthNodeDisplayPosition(int n, int X, int Y)
 {
-  double doubleDisplayPos[2]{ static_cast<double>(X), static_cast<double>(Y) };
+  int displayPos[2]{X,Y};
 
-  return this->SetNthNodeDisplayPosition(n, doubleDisplayPos);
+  return this->SetNthNodeDisplayPosition(n, displayPos);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -649,32 +467,22 @@ int ContourRepresentation::AddNodeOnContour(int X, int Y)
 {
   int idx;
   double worldPos[3];
-  double worldOrient[9]{ 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 };
 
   // Compute the world position from the display position based on the concrete representation's constraints
   // If this is not a valid display location return 0
   double displayPos[2]{ static_cast<double>(X), static_cast<double>(Y) };
 
-  if (!this->PointPlacer->ComputeWorldPosition(this->Renderer, displayPos, worldPos, worldOrient)) return 0;
-
-  double pos[3];
-  if (!this->FindClosestPointOnContour(X, Y, pos, &idx)) return 0;
-
-  if (!this->PointPlacer->ComputeWorldPosition(this->Renderer, displayPos, pos, worldPos, worldOrient)) return 0;
+  if (!this->FindClosestPointOnContour(X, Y, worldPos, &idx)) return 0;
 
   // Add a new point at this position
   auto node = new ContourRepresentationNode;
   node->WorldPosition[0] = worldPos[0];
   node->WorldPosition[1] = worldPos[1];
-  node->WorldPosition[2] = worldPos[2];
+  node->WorldPosition[2] = 0;
   node->Selected = 0;
 
-  this->GetRendererComputedDisplayPositionFromWorldPosition(worldPos, worldOrient, node->NormalizedDisplayPosition);
-  this->Renderer->DisplayToNormalizedDisplay(node->NormalizedDisplayPosition[0], node->NormalizedDisplayPosition[1]);
-
-  memcpy(node->WorldOrientation, worldOrient, 9 * sizeof(double));
-
   this->Internal->Nodes.insert(this->Internal->Nodes.begin() + idx, node);
+
   this->NeedToRender = 1;
 
   return 1;
@@ -710,6 +518,7 @@ void ContourRepresentation::SetClosedLoop(int val)
   if (this->ClosedLoop != val)
   {
     this->ClosedLoop = val;
+
     this->NeedToRender = 1;
     this->Modified();
   }
@@ -767,72 +576,29 @@ int ContourRepresentation::ComputeInteractionState(int vtkNotUsed(X), int vtkNot
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-int ContourRepresentation::UpdateContour()
+void ContourRepresentation::GetDisplayFromWorld(double worldPos[3], int displayPos[2])
 {
-  this->PointPlacer->UpdateInternalState();
-
-  for (unsigned int i = 0; i < this->Internal->Nodes.size(); i++)
-  {
-    this->PointPlacer->UpdateWorldPosition(this->Renderer, this->Internal->Nodes[i]->WorldPosition, this->Internal->Nodes[i]->WorldOrientation);
-  }
-
-  this->BuildLines();
-
-  this->ContourBuildTime.Modified();
-
-  return 1;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-void ContourRepresentation::GetRendererComputedDisplayPositionFromWorldPosition(double worldPos[3], double worldOrient[9], int displayPos[2])
-{
-  double pos[2]{ static_cast<double>(displayPos[0]), static_cast<double>(displayPos[1]) };
-
-  this->GetRendererComputedDisplayPositionFromWorldPosition(worldPos, worldOrient, pos);
-
-  displayPos[0] = static_cast<int>(pos[0]);
-  displayPos[1] = static_cast<int>(pos[1]);
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-void ContourRepresentation::GetRendererComputedDisplayPositionFromWorldPosition(double worldPos[3], double * vtkNotUsed(worldOrient[9]), double displayPos[2])
-{
-  double pos1[4]{ worldPos[0], worldPos[1], worldPos[2], 1.0 };
-  double pos2[3];
-
-  this->Renderer->SetWorldPoint(pos1);
+  double dPos[3];
+  this->Renderer->SetWorldPoint(worldPos[0], worldPos[1], 0, 0);
   this->Renderer->WorldToDisplay();
-  this->Renderer->GetDisplayPoint(pos2);
+  this->Renderer->GetDisplayPoint(dPos);
 
-  displayPos[0] = pos2[0];
-  displayPos[1] = pos2[1];
+  displayPos[0] = dPos[0];
+  displayPos[1] = dPos[1];
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-void ContourRepresentation::GetRendererComputedWorldPositionFromDisplayPosition(double displayPos[2], double worldOrient[9], double worldPos[3])
+void ContourRepresentation::GetWorldFromDisplay(int displayPos[2], double worldPos[3])
 {
-  double pos[4];
-
+  double wPos[4];
   this->Renderer->SetDisplayPoint(displayPos[0], displayPos[1], 0.0);
   this->Renderer->DisplayToWorld();
-  this->Renderer->GetWorldPoint(pos);
+  this->Renderer->GetWorldPoint(wPos);
 
-  worldPos[0] = pos[0];
-  worldPos[1] = pos[1];
-  worldPos[2] = pos[2];
+  worldPos[0] = wPos[0];
+  worldPos[1] = wPos[1];
+  worldPos[2] = 0;
 }
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-void ContourRepresentation::GetRendererComputedWorldPositionFromDisplayPosition(int displayPos[2], double worldOrient[9], double worldPos[3])
-{
-  double pos[2]{ static_cast<double>(displayPos[0]), static_cast<double>(displayPos[1])};
-
-  GetRendererComputedWorldPositionFromDisplayPosition(pos, worldOrient, worldPos);
-
-  displayPos[0] = static_cast<int>(pos[0]);
-  displayPos[1] = static_cast<int>(pos[1]);
-}
-
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void ContourRepresentation::Initialize(vtkPolyData *polydata)
@@ -853,35 +619,16 @@ void ContourRepresentation::Initialize(vtkPolyData *polydata)
 
   auto pointIds = polydata->GetCell(0)->GetPointIds();
 
-  // Get the worldOrient from the point placer
-  double ref[3]{0,0,0};
-  double displayPos[2]{0,0};
-  double worldPos[3];
-  double worldOrient[9]{ 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 };
-
-  if (!this->PointPlacer->ComputeWorldPosition(this->Renderer, displayPos, ref, worldPos, worldOrient)) return;
-
   // Add nodes without calling rebuild lines
   // to improve performance dramatically(~15x) on large datasets
-  double *pos;
   for (vtkIdType i = 0; i < nPoints; i++)
   {
-    pos = points->GetPoint(i);
-    this->GetRendererComputedDisplayPositionFromWorldPosition(pos, worldOrient, displayPos);
+    auto pos = points->GetPoint(i);
 
     // Add a new point at this position
     auto node = new ContourRepresentationNode;
-    node->WorldPosition[0] = pos[0];
-    node->WorldPosition[1] = pos[1];
-    node->WorldPosition[2] = pos[2];
+    memcpy(node->WorldPosition, pos, 3*sizeof(double));
     node->Selected = 0;
-
-    node->NormalizedDisplayPosition[0] = displayPos[0];
-    node->NormalizedDisplayPosition[1] = displayPos[1];
-
-    this->Renderer->DisplayToNormalizedDisplay(node->NormalizedDisplayPosition[0], node->NormalizedDisplayPosition[1]);
-
-    memcpy(node->WorldOrientation, worldOrient, 9 * sizeof(double));
 
     this->Internal->Nodes.push_back(node);
   }
@@ -921,9 +668,6 @@ void ContourRepresentation::PrintSelf(ostream& os, vtkIndent indent)
     os << "Inactive\n";
   else
     os << "Translate\n";
-
-  os << indent << "Line Interpolator: " << this->LineInterpolator << "\n";
-  os << indent << "Point Placer: " << this->PointPlacer << "\n";
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -980,24 +724,14 @@ bool ContourRepresentation::CheckAndCutContourIntersectionInFinalPoint(void)
 
     this->DeleteLastNode();
 
-    double displayPos[2];
-    double worldOrient[9]{ 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 };
-
-    this->GetRendererComputedDisplayPositionFromWorldPosition(intersection, worldOrient, displayPos);
-    this->PointPlacer->ComputeWorldPosition(this->Renderer, displayPos, intersection, worldOrient);
-    this->Renderer->DisplayToNormalizedDisplay(displayPos[0], displayPos[1]);
+    intersection[2] = 0;
 
     auto node = new ContourRepresentationNode();
-    node->WorldPosition[0] = intersection[0];
-    node->WorldPosition[1] = intersection[1];
-    node->WorldPosition[2] = intersection[2];
+    memcpy(node->WorldPosition, intersection, 3*sizeof(double));
     node->Selected = 0;
 
-    node->NormalizedDisplayPosition[0] = displayPos[0];
-    node->NormalizedDisplayPosition[1] = displayPos[1];
-
     this->Internal->Nodes.insert(this->Internal->Nodes.begin(), node);
-    this->UpdateContour();
+
     this->NeedToRender = 1;
     return true;
   }
@@ -1023,24 +757,14 @@ bool ContourRepresentation::CheckAndCutContourIntersectionInFinalPoint(void)
       lastNode = (this->CheckNodesForDuplicates(this->GetNumberOfNodes() - 1, this->GetNumberOfNodes() - 2) ? this->GetNumberOfNodes() - 2 : this->GetNumberOfNodes() - 1);
     }
 
-    double displayPos[2];
-    double worldOrient[9]{ 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 };
-
-    this->GetRendererComputedDisplayPositionFromWorldPosition(intersection, worldOrient, displayPos);
-    this->PointPlacer->ComputeWorldPosition(this->Renderer, displayPos, intersection, worldOrient);
-    this->Renderer->DisplayToNormalizedDisplay(displayPos[0], displayPos[1]);
+    intersection[2] = 0;
 
     auto node = new ContourRepresentationNode();
-    node->WorldPosition[0] = intersection[0];
-    node->WorldPosition[1] = intersection[1];
-    node->WorldPosition[2] = intersection[2];
+    memcpy(node->WorldPosition, intersection, 3*sizeof(double));
     node->Selected = 0;
 
-    node->NormalizedDisplayPosition[0] = displayPos[0];
-    node->NormalizedDisplayPosition[1] = displayPos[1];
-
     this->Internal->Nodes.insert(this->Internal->Nodes.end(), node);
-    this->UpdateContour();
+
     this->NeedToRender = 1;
 
     // some special cases make two nodes in the same world position, erase one of them
@@ -1087,28 +811,17 @@ bool ContourRepresentation::CheckAndCutContourIntersection(void)
 
     this->DeleteLastNode();
 
-    double displayPos[2];
-    double worldOrient[9]{ 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 };
-
-    this->GetRendererComputedDisplayPositionFromWorldPosition(intersection, worldOrient, displayPos);
-    this->PointPlacer->ComputeWorldPosition(this->Renderer, displayPos, intersection, worldOrient);
-    this->Renderer->DisplayToNormalizedDisplay(displayPos[0], displayPos[1]);
+    intersection[2] = 0;
 
     auto node = new ContourRepresentationNode();
-    node->WorldPosition[0] = intersection[0];
-    node->WorldPosition[1] = intersection[1];
-    node->WorldPosition[2] = intersection[2];
+    memcpy(node->WorldPosition, intersection, 3*sizeof(double));
     node->Selected = 0;
 
-    node->NormalizedDisplayPosition[0] = displayPos[0];
-    node->NormalizedDisplayPosition[1] = displayPos[1];
-
     this->Internal->Nodes.insert(this->Internal->Nodes.begin(), node);
-    this->UpdateContour();
-    this->NeedToRender = 1;
-
     // some special cases make two nodes in the same world position, erase one of them
     RemoveDuplicatedNodes();
+
+    this->NeedToRender = 1;
     return true;
   }
 
@@ -1257,29 +970,6 @@ bool ContourRepresentation::ShootingAlgorithm(int X, int Y)
   if ((right % 2) == 1) return true;
 
   return false;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-void ContourRepresentation::PlaceFinalPoints(void)
-{
-  for (int i = 0; i < this->GetNumberOfNodes(); i++)
-  {
-    double worldPos[3], displayPos[3];
-    if (!this->GetNthNodeWorldPosition(i, worldPos)) return;
-
-    this->Renderer->SetWorldPoint(worldPos);
-    this->Renderer->WorldToDisplay();
-    this->Renderer->GetDisplayPoint(displayPos);
-
-    double worldOrient[9]{ 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 };
-
-    if (!this->PointPlacer->ComputeWorldPosition(this->Renderer, displayPos, worldPos, worldOrient)) return;
-
-    this->SetNthNodeWorldPosition(i, worldPos, worldOrient);
-  }
-
-  this->NeedToRenderOn();
-  this->UpdateContour();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1462,20 +1152,20 @@ bool ContourRepresentation::NodesIntersection(int nodeA, int nodeC)
 void ContourRepresentation::TranslatePoints(double *vector)
 {
   double worldPos[3];
-  double worldOrient[9]{ 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 };
   for (int i = 0; i < this->GetNumberOfNodes(); i++)
   {
     this->GetNthNodeWorldPosition(i, worldPos);
     worldPos[0] += vector[0];
     worldPos[1] += vector[1];
-    this->SetNthNodeWorldPosition(i, worldPos, worldOrient);
+    worldPos[2] = 0;
+    this->SetNthNodeWorldPosition(i, worldPos);
   }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 double ContourRepresentation::FindClosestDistanceToContour(int x, int y)
 {
-  double displayPos_i[3], displayPos_j[3];
+  int displayPos_i[3], displayPos_j[3];
   auto result = VTK_DOUBLE_MAX;
   double tempN, tempD;
 
@@ -1526,36 +1216,4 @@ double ContourRepresentation::FindClosestDistanceToContour(int x, int y)
   }
 
   return result;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-void ContourRepresentation::SetPointPlacer(vtkPointPlacer *placer)
-{
-  if(this->PointPlacer)
-  {
-    this->PointPlacer->Delete();
-  }
-  this->PointPlacer = placer;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-vtkPointPlacer* ContourRepresentation::GetPointPlacer()
-{
-  return this->PointPlacer;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-void ContourRepresentation::SetLineInterpolator(vtkContourLineInterpolator *interpolator)
-{
-  if(this->LineInterpolator)
-  {
-    this->LineInterpolator->Delete();
-  }
-  this->LineInterpolator = interpolator;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-vtkContourLineInterpolator *ContourRepresentation::GetLineInterpolator()
-{
-  return this->LineInterpolator;
 }

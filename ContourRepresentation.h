@@ -12,32 +12,22 @@
 
 // vtk includes
 #include <vtkContourRepresentation.h>
+#include <vtkSmartPointer.h>
 
 // C++
 #include <memory>
 
 // forward declarations
-class vtkContourLineInterpolator;
-class vtkPointPlacer;
 class vtkPolyData;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // ContourRepresentation class
 //
-class ContourRepresentationPoint
-{
-	public:
-		double WorldPosition[3];             /** point's position in world coordinates. */
-		double NormalizedDisplayPosition[2]; /** point's position in normalized display coordinates. */
-};
-
 class ContourRepresentationNode
 {
 	public:
-		double WorldPosition[3];                         /** node's position in world coordinates. */
-		double WorldOrientation[9];                      /** orientation of the world coordinates. */
-		double NormalizedDisplayPosition[2];             /** node's position in normalized display coordinates. */
-		int Selected;                                    /** 0 to select, other value otherwise. */
+		double WorldPosition[3];   /** node's position in world coordinates.              */
+		int    Selected;           /** 0 to select, other value otherwise.                */
 };
 
 class ContourRepresentationInternals
@@ -70,22 +60,15 @@ class ContourRepresentation
 
 		virtual int AddNodeAtWorldPosition(double x, double y, double z);
 		virtual int AddNodeAtWorldPosition(double worldPos[3]);
-		virtual int AddNodeAtWorldPosition(double worldPos[3], double worldOrient[9]);
 
-		virtual int AddNodeAtDisplayPosition(double displayPos[2]);
-		virtual int AddNodeAtDisplayPosition(int displayPos[2]);
 		virtual int AddNodeAtDisplayPosition(int X, int Y);
+		virtual int AddNodeAtDisplayPosition(int displayPos[2]);
 
-		virtual int ActivateNode(double displayPos[2]);
 		virtual int ActivateNode(int displayPos[2]);
 		virtual int ActivateNode(int X, int Y);
 
 		virtual int SetActiveNodeToWorldPosition(double pos[3]);
-		virtual int SetActiveNodeToWorldPosition(double pos[3], double orient[9]);
-
-		virtual int SetActiveNodeToDisplayPosition(double pos[2]);
 		virtual int SetActiveNodeToDisplayPosition(int pos[2]);
-		virtual int SetActiveNodeToDisplayPosition(int X, int Y);
 
 		virtual int ToggleActiveNodeSelected();
 		virtual int GetActiveNodeSelected();
@@ -93,21 +76,17 @@ class ContourRepresentation
 		virtual int SetNthNodeSelected(int);
 
 		virtual int GetActiveNodeWorldPosition(double pos[3]);
-		virtual int GetActiveNodeWorldOrientation(double orient[9]);
-		virtual int GetActiveNodeDisplayPosition(double pos[2]);
+		virtual int GetActiveNodeDisplayPosition(int pos[2]);
 
 		virtual int GetNumberOfNodes();
 
-		virtual int GetNthNodeDisplayPosition(int n, double pos[2]);
+		virtual int GetNthNodeDisplayPosition(int n, int pos[2]);
 		virtual int GetNthNodeWorldPosition(int n, double pos[3]);
-		virtual int GetNthNodeWorldOrientation(int n, double orient[9]);
 
 		virtual int SetNthNodeDisplayPosition(int n, int X, int Y);
 		virtual int SetNthNodeDisplayPosition(int n, int pos[2]);
-		virtual int SetNthNodeDisplayPosition(int n, double pos[2]);
 
 		virtual int SetNthNodeWorldPosition(int n, double pos[3]);
-		virtual int SetNthNodeWorldPosition(int n, double pos[3], double orient[9]);
 
 		virtual int GetNthNodeSlope(int idx, double slope[3]);
 
@@ -149,17 +128,11 @@ class ContourRepresentation
 			this->SetCurrentOperation(Scale);
 		}
 
-		void SetPointPlacer(vtkPointPlacer *);
-		vtkPointPlacer *GetPointPlacer();
-
-		void SetLineInterpolator(vtkContourLineInterpolator *);
-		vtkContourLineInterpolator *GetLineInterpolator();
-
 		/** \brief These are methods that satisfy vtkWidgetRepresentation's API.
 		 *
 		 */
 		virtual void BuildRepresentation() = 0;
-		virtual int ComputeInteractionState(int X, int Y, int modified = 0) = 0;
+		virtual int  ComputeInteractionState(int X, int Y, int modified = 0) = 0;
 		virtual void StartWidgetInteraction(double e[2]) = 0;
 		virtual void WidgetInteraction(double e[2]) = 0;
 
@@ -167,10 +140,10 @@ class ContourRepresentation
 		 *
 		 */
 		virtual void ReleaseGraphicsResources(vtkWindow *w) = 0;
-		virtual int RenderOverlay(vtkViewport *viewport) = 0;
-		virtual int RenderOpaqueGeometry(vtkViewport *viewport) = 0;
-		virtual int RenderTranslucentPolygonalGeometry(vtkViewport *viewport) = 0;
-		virtual int HasTranslucentPolygonalGeometry()=0;
+		virtual int  RenderOverlay(vtkViewport *viewport) = 0;
+		virtual int  RenderOpaqueGeometry(vtkViewport *viewport) = 0;
+		virtual int  RenderTranslucentPolygonalGeometry(vtkViewport *viewport) = 0;
+		virtual int  HasTranslucentPolygonalGeometry()=0;
 
 		void SetClosedLoop(int val);
 		vtkGetMacro(ClosedLoop, int);
@@ -182,15 +155,10 @@ class ContourRepresentation
 		/** \brief Get the points in this contour as a vtkPolyData.
 		 *
 		 */
-		virtual vtkPolyData *GetContourRepresentationAsPolyData() = 0;
+		virtual vtkSmartPointer<vtkPolyData> GetContourPolyData() = 0;
 
-		void GetNodePolyData(vtkPolyData* poly);
-
-		/** \brief Put all points to the correct places after a shift operations
-		 * (shift is done in continuous coords, but final coords depend on voxel centers).
-		 *
-		 */
-		void PlaceFinalPoints(void);
+    void GetWorldFromDisplay(int displayPos[2], double worldPos[3]);
+    void GetDisplayFromWorld(double worldPos[3], int displayPos[2]);
 
 	protected:
 		/** \brief ContourRepresentation class constructor.
@@ -206,9 +174,6 @@ class ContourRepresentation
 		int PixelTolerance;    /** pixel tolerance for the handles. */
 		double WorldTolerance; /** world tolerance for the handles. */
 
-		vtkPointPlacer *PointPlacer;                  /** point placer. */
-		vtkContourLineInterpolator *LineInterpolator; /** line interpolator. */
-
 		int ActiveNode; /** index of the current active node. */
 
 		int CurrentOperation;  /** current operation of the widget. */
@@ -217,14 +182,9 @@ class ContourRepresentation
 
 		std::shared_ptr<ContourRepresentationInternals> Internal; /** internal representation of the contour. */
 
-		void AddNodeAtPositionInternal(double worldPos[3], double worldOrient[9], int displayPos[2]);
-		void AddNodeAtPositionInternal(double worldPos[3], double worldOrient[9], double displayPos[2]);
-		void SetNthNodeWorldPositionInternal(int n, double worldPos[3], double worldOrient[9]);
-
-		void GetRendererComputedDisplayPositionFromWorldPosition(double worldPos[3], double worldOrient[9],	int displayPos[2]);
-		void GetRendererComputedDisplayPositionFromWorldPosition(double worldPos[3], double worldOrient[9],	double displayPos[2]);
-		void GetRendererComputedWorldPositionFromDisplayPosition(double displayPos[2], double worldOrient[9], double worldPos[3]);
-		void GetRendererComputedWorldPositionFromDisplayPosition(int displayPos[2], double worldOrient[9], double worldPos[3]);
+		void AddNodeAtPositionInternal(double worldPos[3]);
+		void AddNodeAtPositionInternal(int displayPos[2]);
+		void SetNthNodeWorldPositionInternal(int n, double worldPos[3]);
 
 		virtual int FindClosestPointOnContour(int X, int Y, double worldPos[3], int *idx);
 
@@ -233,8 +193,6 @@ class ContourRepresentation
 		 */
 		virtual void BuildLines() = 0;
 
-		virtual int UpdateContour();
-
 		vtkTimeStamp ContourBuildTime; /** contour build time stamp to check modifications. */
 
 		/** \brief Compute the middle point between two points.
@@ -242,7 +200,7 @@ class ContourRepresentation
 		 * \param[in] p2 point 2 world coordinates.
 		 * \param[out] mid middle point world coordinates.
 		 */
-		void ComputeMidpoint(double p1[3], double p2[3], double mid[3])
+		void Midpoint(double p1[3], double p2[3], double mid[3])
 		{
 			mid[0] = (p1[0] + p2[0]) / 2;
 			mid[1] = (p1[1] + p2[1]) / 2;

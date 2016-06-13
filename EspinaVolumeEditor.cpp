@@ -1990,63 +1990,7 @@ void EspinaVolumeEditor::sliceXYPick(const unsigned long event, std::shared_ptr<
   {
     if ((paintbutton->isChecked() || erasebutton->isChecked()) && (SliceVisualization::PickType::Slice == actualPick))
     {
-      int x, y, z;
-      switch (view->orientationType())
-      {
-        case SliceVisualization::Orientation::Axial:
-          x = X + 1;
-          y = Y + 1;
-          switch (event)
-          {
-            case vtkCommand::MouseWheelForwardEvent:
-              z = axialslider->value();
-              break;
-            case vtkCommand::MouseWheelBackwardEvent:
-              z = axialslider->value() - 2;
-              break;
-            default:
-              z = axialslider->value() - 1;
-              break;
-          }
-          break;
-        case SliceVisualization::Orientation::Coronal:
-          x = X + 1;
-          z = Y + 1;
-          switch (event)
-          {
-            case vtkCommand::MouseWheelForwardEvent:
-              y = coronalslider->value();
-              break;
-            case vtkCommand::MouseWheelBackwardEvent:
-              y = coronalslider->value() - 2;
-              break;
-            default:
-              y = coronalslider->value() - 1;
-              break;
-          }
-          break;
-        case SliceVisualization::Orientation::Sagittal:
-          y = X + 1;
-          z = Y + 1;
-          switch (event)
-          {
-            case vtkCommand::MouseWheelForwardEvent:
-              x = sagittalslider->value();
-              break;
-            case vtkCommand::MouseWheelBackwardEvent:
-              x = sagittalslider->value() - 2;
-              break;
-            default:
-              x = sagittalslider->value() - 1;
-              break;
-          }
-          break;
-        default:
-          x = y = z = 0;
-          break;
-      }
-
-      m_editorOperations->UpdatePaintEraseActors(Vector3i{x, y, z}, m_brushRadius, view);
+      updateBrushActors(view);
     }
 
     // once the actors have been moved, then move the slice and update the view
@@ -3200,14 +3144,6 @@ bool EspinaVolumeEditor::eventFilter(QObject *object, QEvent *event)
     case QEvent::Leave:
       window()->setFocus();
       break;
-    case QEvent::MouseMove:
-      if(paintbutton->isChecked() || erasebutton->isChecked())
-      {
-        if (object == axialview)    updateBrushActors(m_axialView);
-        if (object == coronalview)  updateBrushActors(m_coronalView);
-        if (object == sagittalview) updateBrushActors(m_sagittalView);
-      }
-      break;
     default:
       break;
   }
@@ -3428,7 +3364,6 @@ void EspinaVolumeEditor::updateBrushActors(std::shared_ptr<SliceVisualization> v
 
   m_editorOperations->UpdatePaintEraseActors(Vector3i{iPoint[0], iPoint[1], iPoint[2]}, m_brushRadius, view);
   view->updateActors();
-  updateViewports(ViewPorts::Slices);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

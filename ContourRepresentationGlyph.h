@@ -102,7 +102,7 @@ class ContourRepresentationGlyph
 		/** \brief Returns the contour as a polydata.
 		 *
 		 */
-		virtual vtkPolyData *GetContourRepresentationAsPolyData();
+		virtual vtkSmartPointer<vtkPolyData> GetContourPolyData();
 
 		/** \brief Controls whether the contour widget should always appear on top
 		 * of other actors in the scene. (In effect, this will disable OpenGL

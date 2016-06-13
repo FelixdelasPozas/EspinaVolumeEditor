@@ -30,6 +30,7 @@
 #include <vtkImageDataGeometryFilter.h>
 #include <vtkMath.h>
 #include <vtkImageMapper3D.h>
+#include <vtkProperty2D.h>
 
 // project includes
 #include "SliceVisualization.h"
@@ -162,6 +163,7 @@ void SliceVisualization::initialize(std::shared_ptr<DataManager>    data,
   m_point = m_size + Vector3ui(1);
 
   generateThumbnail();
+  generateBorder();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -550,6 +552,62 @@ void SliceVisualization::generateThumbnail()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+void SliceVisualization::generateBorder()
+{
+  QColor color;
+  switch(this->m_orientation)
+  {
+    case Orientation::Axial: color = Qt::blue; break;
+    case Orientation::Coronal: color = Qt::green; break;
+    case Orientation::Sagittal: color = Qt::red; break;
+    default:
+    case Orientation::None: color = Qt::white; break;
+  }
+
+  auto points = vtkSmartPointer<vtkPoints>::New();
+  points->SetNumberOfPoints(4);
+  points->Allocate(4);
+  points->InsertPoint(0, 0, 0, 0);
+  points->InsertPoint(1, 0, 1, 0);
+  points->InsertPoint(2, 1, 1, 0);
+  points->InsertPoint(3, 1, 0, 0);
+  points->InsertPoint(4, 0, 0, 0);
+
+  auto cells = vtkSmartPointer<vtkCellArray>::New();
+  cells->Initialize();
+
+  auto lines = vtkSmartPointer<vtkCellArray>::New();
+  for (unsigned int i = 0; i < 4; i++)
+  {
+    auto line = vtkSmartPointer<vtkLine>::New();
+    line->GetPointIds()->SetId(0, i);
+    line->GetPointIds()->SetId(1, i + 1);
+    lines->InsertNextCell(line);
+  }
+
+  auto poly = vtkSmartPointer<vtkPolyData>::New();
+  poly->Initialize();
+  poly->SetPoints(points);
+  poly->SetLines(lines);
+  poly->Modified();
+
+  auto coordinate = vtkSmartPointer<vtkCoordinate>::New();
+  coordinate->SetCoordinateSystemToNormalizedDisplay();
+
+  auto mapper = vtkSmartPointer<vtkPolyDataMapper2D>::New();
+  mapper->SetInputData(poly);
+  mapper->SetTransformCoordinate(coordinate);
+  mapper->Update();
+
+  auto actor = vtkSmartPointer<vtkActor2D>::New();
+  actor->SetMapper(mapper);
+  actor->GetProperty()->SetLineWidth(5.0); // Line Width
+  actor->GetProperty()->SetColor(color.redF(), color.greenF(), color.blueF());
+
+  this->renderer()->AddViewProp(actor);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 void SliceVisualization::zoomEvent()
 {
   double xy[3];
@@ -754,14 +812,15 @@ void SliceVisualization::updateActorVisibility(std::shared_ptr<struct ActorData>
     if (m_widget)
     {
       // correct the fact that selection volumes has a minSlice-1 and maxSlice+1 for correct marching cubes
-      minSlice++;
-      maxSlice--;
+      ++minSlice;
+      --maxSlice;
 
       enabled = (minSlice <= slice) && (maxSlice >= slice);
       m_widget->GetRepresentation()->SetVisibility(enabled);
       m_widget->SetEnabled(enabled);
     }
   }
+  this->renderer()->GetRenderWindow()->Render();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -831,7 +890,7 @@ void SliceVisualization::setSelectionVolume(const vtkSmartPointer<vtkImageData> 
 
   double pos[3];
   m_selectionActor->GetPosition(pos);
-  pos[2] += 1;
+  pos[2] += 0.25;
   m_selectionActor->SetPosition(pos);
 
   m_renderer->AddActor(m_selectionActor);

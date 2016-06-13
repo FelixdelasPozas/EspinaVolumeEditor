@@ -22,6 +22,9 @@
 #include <vtkCommand.h>
 #include <vtkLinearContourLineInterpolator.h>
 #include <vtkImageActorPointPlacer.h>
+#include <vtkPolyData.h>
+#include <vtkPoints.h>
+#include <vtkCellArray.h>
 
 // itk includes
 #include <itkSmartPointer.h>
@@ -748,8 +751,7 @@ void Selection::setSelectionDisc(const Vector3i &point, const unsigned int radiu
     image->SetSpacing(m_spacing[0], m_spacing[1], m_spacing[2]);
     image->SetOrigin(0.0, 0.0, 0.0);
 
-    int extent[6] =
-    { 0, 0, 0, 0, 0, 0 };
+    int extent[6] = {0, 0, 0, 0, 0, 0};
 
     switch (view->orientationType())
     {
@@ -1104,8 +1106,6 @@ void Selection::addContourInitialPoint(const Vector3ui &point, std::shared_ptr<S
   double worldPos[3] = { 0.0, 0.0, 0.0 };
 
   // interpolate points with lines
-  auto interpolator = vtkLinearContourLineInterpolator::New();
-  auto pointPlacer = FocalPlanePointPlacer::New();
   auto representation = ContourRepresentationGlyph::New();
 
   // create widget and representation
@@ -1118,21 +1118,18 @@ void Selection::addContourInitialPoint(const Vector3ui &point, std::shared_ptr<S
   {
     case SliceVisualization::Orientation::Axial:
       m_contourWidget->SetOrientation(0);
-      pointPlacer->SetSpacing(m_spacing[0], m_spacing[1]);
       representation->SetSpacing(m_spacing[0], m_spacing[1]);
       worldPos[0] = point[0] * m_spacing[0];
       worldPos[1] = point[1] * m_spacing[1];
       break;
     case SliceVisualization::Orientation::Coronal:
       m_contourWidget->SetOrientation(1);
-      pointPlacer->SetSpacing(m_spacing[0], m_spacing[2]);
       representation->SetSpacing(m_spacing[0], m_spacing[2]);
       worldPos[0] = point[0] * m_spacing[0];
       worldPos[1] = point[2] * m_spacing[2];
       break;
     case SliceVisualization::Orientation::Sagittal:
       m_contourWidget->SetOrientation(2);
-      pointPlacer->SetSpacing(m_spacing[1], m_spacing[2]);
       representation->SetSpacing(m_spacing[1], m_spacing[2]);
       worldPos[0] = point[1] * m_spacing[1];
       worldPos[1] = point[2] * m_spacing[2];
@@ -1140,11 +1137,6 @@ void Selection::addContourInitialPoint(const Vector3ui &point, std::shared_ptr<S
     default:
       break;
   }
-
-  pointPlacer->UpdateInternalState();
-
-  representation->SetPointPlacer(pointPlacer);
-  representation->SetLineInterpolator(interpolator);
 
   m_contourWidget->SetRepresentation(representation);
   m_contourWidget->SetEnabled(true);
@@ -1168,10 +1160,12 @@ void Selection::addContourInitialPoint(const Vector3ui &point, std::shared_ptr<S
   // create the volume that will represent user selected points. the spacing is 1 because we will not
   // use it's output directly, we will create our own volume instead with ComputeContourSelectionVolume()
   m_polyDataToStencil = vtkSmartPointer<vtkPolyDataToImageStencil>::New();
-  m_polyDataToStencil->SetInputData(representation->GetContourRepresentationAsPolyData());
   m_polyDataToStencil->SetOutputOrigin(0, 0, 0);
+  m_polyDataToStencil->DebugOn();
+  m_polyDataToStencil->GlobalWarningDisplayOn();
 
-  // change stencil properties according to slice orientation
+  // change stencil properties according to slice orientation, vtkPolyDataToImageStencil doesn't support
+  // other orientations than axial.
   switch (callerSlice->orientationType())
   {
     case SliceVisualization::Orientation::Axial:
@@ -1219,13 +1213,12 @@ void Selection::contourSelectionWidgetCallback(vtkObject *caller, unsigned long 
   self->m_min = Vector3ui(iBounds[0], iBounds[2], iBounds[4]);
   self->m_max = Vector3ui(iBounds[1], iBounds[3], iBounds[5]);
 
-  auto repre = rep->GetContourRepresentationAsPolyData();
-  if(!repre || repre->GetNumberOfPoints() < 3) return;
+  auto contour = rep->GetContourPolyData();
+  if(!contour || contour->GetNumberOfPoints() < 3) return;
 
-  if (vtkCommand::EndInteractionEvent == event) rep->PlaceFinalPoints();
-
-  // update the representation volume (update the pipeline)
-  self->m_polyDataToStencil->Modified();
+  self->m_polyDataToStencil->SetInputData(contour);
+  self->m_polyDataToStencil->Update();
+  self->m_stencilToImage->Update();
 
   // adquire new rotated and clipped image
   self->computeContourSelectionVolume(iBounds);
@@ -1272,7 +1265,7 @@ void Selection::computeContourSelectionVolume(const int *bounds)
   }
 
   // create the volume and properties according to the slice orientation and use contour representation bounds to make it smaller.
-  m_rotatedImage = vtkImageData::New();
+  m_rotatedImage = vtkSmartPointer<vtkImageData>::New();
   m_rotatedImage->SetSpacing(m_spacing[0], m_spacing[1], m_spacing[2]);
   m_rotatedImage->SetOrigin((static_cast<int>(bounds[0]) - 1) * m_spacing[0], (static_cast<int>(bounds[2]) - 1) * m_spacing[1], (static_cast<int>(bounds[4]) - 1) * m_spacing[2]);
   m_rotatedImage->SetDimensions(bounds[1] - bounds[0] + 3, bounds[3] - bounds[2] + 3, bounds[5] - bounds[4] + 3);

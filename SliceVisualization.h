@@ -187,6 +187,11 @@ class SliceVisualization
      */
     void generateThumbnail();
 
+    /** \brief Generates the view colored border.
+     *
+     */
+    void generateBorder();
+
     /** actor's data. */
     struct ActorData
     {

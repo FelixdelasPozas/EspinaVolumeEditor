@@ -11,7 +11,6 @@
 #include "ContourRepresentationGlyph.h"
 
 // vtk includes
-#include <vtkCleanPolyData.h>
 #include <vtkPolyDataMapper.h>
 #include <vtkActor.h>
 #include <vtkRenderer.h>
@@ -32,14 +31,10 @@
 #include <vtkTransformPolyDataFilter.h>
 #include <vtkTransform.h>
 #include <vtkCamera.h>
-#include <vtkPoints.h>
 #include <vtkCellArray.h>
-#include <vtkFocalPlanePointPlacer.h>
-#include <vtkBezierContourLineInterpolator.h>
 #include <vtkOpenGL.h>
 #include <vtkSphereSource.h>
-#include <vtkIncrementalOctreePointLocator.h>
-#include <vtkPolygon.h>
+#include <vtkCleanPolyData.h>
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // ContourRepresentation class
@@ -330,11 +325,13 @@ void ContourRepresentationGlyph::StartWidgetInteraction(double startEventPos[2])
 	// force center of widget to snap to mouse position)
 
 	// convert position to display coordinates
-	double pos[2];
-	this->GetNthNodeDisplayPosition(this->ActiveNode, pos);
+	double wPos[3];
+	int dPos[2];
+	this->GetNthNodeWorldPosition(this->ActiveNode, wPos);
+	this->GetDisplayFromWorld(wPos, dPos);
 
-	this->InteractionOffset[0] = pos[0] - startEventPos[0];
-	this->InteractionOffset[1] = pos[1] - startEventPos[1];
+	this->InteractionOffset[0] = dPos[0] - startEventPos[0];
+	this->InteractionOffset[1] = dPos[1] - startEventPos[1];
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -363,57 +360,34 @@ void ContourRepresentationGlyph::WidgetInteraction(double eventPos[2])
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void ContourRepresentationGlyph::Translate(double eventPos[2])
 {
-	double ref[3];
+	double activePos[3];
 
-	if (!this->GetActiveNodeWorldPosition(ref))	return;
+	if (!this->GetActiveNodeWorldPosition(activePos))	return;
 
-	double displayPos[2]{ eventPos[0] + this->InteractionOffset[0], eventPos[1] + this->InteractionOffset[1] };
-	double worldPos[3];
-	double worldOrient[9]{ 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 };
+	int newPos[2]{static_cast<int>(eventPos[0] + this->InteractionOffset[0]), static_cast<int>(eventPos[1] + this->InteractionOffset[1])};
 
-	if (this->PointPlacer->ComputeWorldPosition(this->Renderer, displayPos, ref, worldPos, worldOrient))
+  this->SetActiveNodeToDisplayPosition(newPos);
+
+  // take back movement if it breaks the contour
+	if (this->CheckContourIntersection(this->ActiveNode))
 	{
-		this->GetActiveNodeWorldPosition(ref);
-		this->SetActiveNodeToWorldPosition(worldPos, worldOrient);
-
-		// take back movement if it breaks the contour
-		if (this->CheckContourIntersection(this->ActiveNode))
-		{
-			this->SetActiveNodeToWorldPosition(ref, worldOrient);
-		}
+		this->SetActiveNodeToWorldPosition(activePos);
 	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void ContourRepresentationGlyph::ShiftContour(double eventPos[2])
 {
-	double vector[3]{ eventPos[0], eventPos[1], 0.0 };
-	double worldPos[3], worldPos2[3];
-	double worldOrient[9]{ 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 };
-
-	this->Renderer->SetDisplayPoint(vector);
-	this->Renderer->DisplayToWorld();
-	this->Renderer->GetWorldPoint(worldPos);
-
-	vector[0] = this->LastEventPosition[0];
-	vector[1] = this->LastEventPosition[1];
-	vector[2] = 0.0;
-
-	this->Renderer->SetDisplayPoint(vector);
-	this->Renderer->DisplayToWorld();
-	this->Renderer->GetWorldPoint(worldPos2);
-
-	vector[0] = worldPos[0] - worldPos2[0];
-	vector[1] = worldPos[1] - worldPos2[1];
-	vector[2] = worldPos[2] - worldPos2[2];
+	int vector[2]{static_cast<int>(eventPos[0] - this->LastEventPosition[0]), static_cast<int>(eventPos[1] - this->LastEventPosition[1])};
 
 	for (int i = 0; i < this->GetNumberOfNodes(); i++)
 	{
-		this->GetNthNodeWorldPosition(i, worldPos);
-		worldPos[0] += vector[0];
-		worldPos[1] += vector[1];
-		worldPos[2] += vector[2];
-		this->SetNthNodeWorldPosition(i, worldPos, worldOrient);
+	  int displayPos[2];
+		this->GetNthNodeDisplayPosition(i, displayPos);
+		displayPos[0] += vector[0];
+		displayPos[1] += vector[1];
+
+		this->SetNthNodeDisplayPosition(i, displayPos);
 	}
 
 	this->NeedToRenderOn();
@@ -422,34 +396,33 @@ void ContourRepresentationGlyph::ShiftContour(double eventPos[2])
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void ContourRepresentationGlyph::ScaleContour(double eventPos[2])
 {
-	double ref[3];
+	double activePos[3];
 
-	if (!this->GetActiveNodeWorldPosition(ref)) return;
+	if (!this->GetActiveNodeWorldPosition(activePos)) return;
 
 	double centroid[3];
 	ComputeCentroid(centroid);
 
-	auto r2 = vtkMath::Distance2BetweenPoints(ref, centroid);
+	auto r2 = vtkMath::Distance2BetweenPoints(activePos, centroid);
 
-	double displayPos[2]{ eventPos[0] + this->InteractionOffset[0], eventPos[1] + this->InteractionOffset[1]};
-	double worldPos[3];
-	double worldOrient[9] = { 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 };
+	double displayPos[3]{eventPos[0] + this->InteractionOffset[0], eventPos[1] + this->InteractionOffset[1], 0};
+  double worldPos[4];
+  this->Renderer->SetDisplayPoint(displayPos);
+  this->Renderer->DisplayToWorld();
+  this->Renderer->GetWorldPoint(worldPos);
 
-	if (this->PointPlacer->ComputeWorldPosition(this->Renderer, displayPos, ref, worldPos, worldOrient))
+	auto d2 = vtkMath::Distance2BetweenPoints(worldPos, centroid);
+	if (d2 != 0.)
 	{
-		auto d2 = vtkMath::Distance2BetweenPoints(worldPos, centroid);
-		if (d2 != 0.)
-		{
-			double ratio = sqrt(d2 / r2);
+		double ratio = sqrt(d2 / r2);
 
-			for (int i = 0; i < this->GetNumberOfNodes(); i++)
-			{
-				this->GetNthNodeWorldPosition(i, ref);
-				worldPos[0] = centroid[0] + ratio * (ref[0] - centroid[0]);
-				worldPos[1] = centroid[0] + ratio * (ref[1] - centroid[1]);
-				worldPos[2] = centroid[0] + ratio * (ref[2] - centroid[2]);
-				this->SetNthNodeWorldPosition(i, worldPos, worldOrient);
-			}
+		for (int i = 0; i < this->GetNumberOfNodes(); i++)
+		{
+			this->GetNthNodeWorldPosition(i, activePos);
+			worldPos[0] = centroid[0] + ratio * (activePos[0] - centroid[0]);
+			worldPos[1] = centroid[0] + ratio * (activePos[1] - centroid[1]);
+			worldPos[2] = centroid[0] + ratio * (activePos[2] - centroid[2]);
+			this->SetNthNodeWorldPosition(i, worldPos);
 		}
 	}
 }
@@ -457,13 +430,13 @@ void ContourRepresentationGlyph::ScaleContour(double eventPos[2])
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void ContourRepresentationGlyph::ComputeCentroid(double* centroid)
 {
-	double p[3];
 	centroid[0] = 0.;
 	centroid[1] = 0.;
 	centroid[2] = 0.;
 
 	for (int i = 0; i < this->GetNumberOfNodes(); i++)
 	{
+	  double p[3];
 		this->GetNthNodeWorldPosition(i, p);
 		centroid[0] += p[0];
 		centroid[1] += p[1];
@@ -522,27 +495,23 @@ void ContourRepresentationGlyph::SetDefaultProperties()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void ContourRepresentationGlyph::BuildLines()
 {
-	auto nodesNum = this->GetNumberOfNodes();
+	auto numNodes = this->GetNumberOfNodes();
 
 	auto points = vtkSmartPointer<vtkPoints>::New();
-	points->SetNumberOfPoints(nodesNum);
-	auto lines = vtkSmartPointer<vtkCellArray>::New();
-	lines->SetNumberOfCells(1);
+	points->SetNumberOfPoints(numNodes);
 
-  auto lineIndices = new vtkIdType[nodesNum + 1];
+  auto lines = vtkSmartPointer<vtkCellArray>::New();
+  lines->InsertNextCell(numNodes+1);
 
-	for(int i = 0; i < nodesNum; ++i)
+	for(int i = 0; i < numNodes; ++i)
 	{
 	  double pos[3];
 	  this->GetNthNodeWorldPosition(i, pos);
+	  points->InsertPoint(i,pos);
 
-	  points->InsertPoint(i, pos);
-	  lineIndices[i] = i;
+    lines->InsertCellPoint(i);
 	}
-	lineIndices[nodesNum] = 0;
-
-  lines->InsertNextCell(nodesNum + 1, lineIndices);
-  delete[] lineIndices;
+  lines->InsertCellPoint(0);
 
 	points->Modified();
 	lines->Modified();
@@ -552,17 +521,17 @@ void ContourRepresentationGlyph::BuildLines()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-vtkPolyData *ContourRepresentationGlyph::GetContourRepresentationAsPolyData()
+vtkSmartPointer<vtkPolyData> ContourRepresentationGlyph::GetContourPolyData()
 {
-	// Get the points in this contour as a vtkPolyData.
+  this->BuildLines();
+
 	return this->Lines;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void ContourRepresentationGlyph::BuildRepresentation()
 {
-	// Make sure we are up to date with any changes made in the placer
-	this->UpdateContour();
+	this->BuildLines();
 
 	double p1[4], p2[4];
 	this->Renderer->GetActiveCamera()->GetFocalPoint(p1);
@@ -608,6 +577,7 @@ void ContourRepresentationGlyph::BuildRepresentation()
 	this->Glypher->SetScaleFactor(distance * this->HandleSize);
 	this->ActiveGlypher->SetScaleFactor(distance * this->HandleSize);
 	auto numPoints = this->GetNumberOfNodes();
+  double worldOrient[3]{0,0,1};
 
 	if (this->ShowSelectedNodes && this->SelectedNodesGlypher)
 	{
@@ -618,23 +588,23 @@ void ContourRepresentationGlyph::BuildRepresentation()
 		this->SelectedNodesPoints->Reset();
 		this->SelectedNodesPoints->SetNumberOfPoints(0);
 		this->SelectedNodesData->GetPointData()->GetNormals()->SetNumberOfTuples(0);
+
 		for (int i = 0; i < numPoints; i++)
 		{
 			if (i != this->ActiveNode)
 			{
 				double worldPos[3];
-				double worldOrient[9];
 				this->GetNthNodeWorldPosition(i, worldPos);
-				this->GetNthNodeWorldOrientation(i, worldOrient);
+
 				if (this->GetNthNodeSelected(i))
 				{
 					this->SelectedNodesPoints->InsertNextPoint(worldPos);
-					this->SelectedNodesData->GetPointData()->GetNormals()->InsertNextTuple(worldOrient + 6);
+					this->SelectedNodesData->GetPointData()->GetNormals()->InsertNextTuple(worldOrient);
 				}
 				else
 				{
 					this->FocalPoint->InsertNextPoint(worldPos);
-					this->FocalData->GetPointData()->GetNormals()->InsertNextTuple(worldOrient + 6);
+					this->FocalData->GetPointData()->GetNormals()->InsertNextTuple(worldOrient);
 				}
 			}
 		}
@@ -660,11 +630,10 @@ void ContourRepresentationGlyph::BuildRepresentation()
 			if (i != this->ActiveNode)
 			{
 				double worldPos[3];
-				double worldOrient[9];
 				this->GetNthNodeWorldPosition(i, worldPos);
-				this->GetNthNodeWorldOrientation(i, worldOrient);
+
 				this->FocalPoint->SetPoint(idx, worldPos);
-				this->FocalData->GetPointData()->GetNormals()->SetTuple(idx, worldOrient + 6);
+				this->FocalData->GetPointData()->GetNormals()->SetTuple(idx, worldOrient);
 				idx++;
 			}
 		}
@@ -677,11 +646,10 @@ void ContourRepresentationGlyph::BuildRepresentation()
 	if (this->ActiveNode >= 0 && this->ActiveNode < this->GetNumberOfNodes())
 	{
 		double worldPos[3];
-		double worldOrient[9];
 		this->GetNthNodeWorldPosition(this->ActiveNode, worldPos);
-		this->GetNthNodeWorldOrientation(this->ActiveNode, worldOrient);
+
 		this->ActiveFocalPoint->SetPoint(0, worldPos);
-		this->ActiveFocalData->GetPointData()->GetNormals()->SetTuple(0, worldOrient + 6);
+		this->ActiveFocalData->GetPointData()->GetNormals()->SetTuple(0, worldOrient);
 
 		this->ActiveFocalPoint->Modified();
 		this->ActiveFocalData->GetPointData()->GetNormals()->Modified();

@@ -133,7 +133,7 @@ void AxesRender::GenerateSlicePlanes(vtkSmartPointer<vtkRenderer> renderer)
     auto planeactor = vtkSmartPointer<vtkActor>::New();
     planeactor->GetProperty()->SetColor(color.redF(), color.greenF(), color.blueF());
     planeactor->GetProperty()->SetSpecular(0);
-    planeactor->GetProperty()->SetOpacity(0.35);
+    planeactor->GetProperty()->SetOpacity(0.25);
     planeactor->GetProperty()->ShadingOff();
     planeactor->GetProperty()->EdgeVisibilityOff();
     planeactor->GetProperty()->LightingOn();
