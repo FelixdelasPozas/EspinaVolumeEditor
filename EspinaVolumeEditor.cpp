@@ -456,6 +456,7 @@ void EspinaVolumeEditor::open()
     auto size = m_dataManager->GetUndoRedoBufferSize();
     m_dataManager = std::make_shared<DataManager>();
     m_dataManager->SetUndoRedoBufferSize(size);
+    updateUndoRedoMenu();
   }
 
   if (m_editorOperations)
