@@ -19,7 +19,7 @@ The application provides several tools to modify the segmentations:
 The area of application of the tools can be selected using:
 * Box selection.
 * Lasso selection (contour that can be modified after it's definition translating, adding and removing nodes, and translating the whole contour).
-* Magic want (to select contiguous voxels using a thresholding algorithm).
+* Magic wand (to select contiguous voxels using a thresholding algorithm).
 
 The repository includes an example image in the 'images' directory. 
 
