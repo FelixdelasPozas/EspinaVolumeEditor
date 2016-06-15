@@ -5,7 +5,7 @@
 // File: VoxelVolumeRender.h
 // Purpose: renders a vtkStructuredPoints volume (raycasting volume or colored meshes)
 // Notes: An implementation with vtkMultiBlockDataSet that allow mesh representation with just one
-//        actor and mapper is disabled but the code is still present because it's and objective
+//        actor and mapper is disabled but the code is still present because it's an objective
 //        worth pursuing in the future
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -97,6 +97,9 @@ class VoxelVolumeRender
     void updateColorTable();
 
   public slots:
+    /** \brief Updates the actor when the data changes.
+     *
+     */
     void onDataModified();
 
   private:
@@ -112,35 +115,34 @@ class VoxelVolumeRender
     void computeMesh(const unsigned short label);
 
 
-    vtkSmartPointer<vtkRenderer> m_renderer;
-    std::shared_ptr<ProgressAccumulator> m_progress;
-    std::shared_ptr<DataManager> m_dataManager;
+    vtkSmartPointer<vtkRenderer>              m_renderer;          /** view's renderer.                             */
+    std::shared_ptr<ProgressAccumulator>      m_progress;          /** progress accumlator to report progress.      */
+    std::shared_ptr<DataManager>              m_dataManager;       /** application data manager.                    */
 
-    vtkSmartPointer<vtkPiecewiseFunction> m_opacityfunction;
-    vtkSmartPointer<vtkColorTransferFunction> m_colorfunction;
+    vtkSmartPointer<vtkPiecewiseFunction>     m_opacityfunction;   /** voxel opacity function.                      */
+    vtkSmartPointer<vtkColorTransferFunction> m_colorfunction;     /** voxel coloring function.                     */
+    vtkSmartPointer<vtkVolumeRayCastMapper>   m_volumeMapper;      /** voxel volume mapper.                         */
 
-    vtkSmartPointer<vtkVolume> m_volume; /** volumetric actor. */
-    vtkSmartPointer<vtkActor> m_mesh; /** mesh actor. */
+    vtkSmartPointer<vtkVolume>                m_volume;            /** volumetric actor.                            */
+    vtkSmartPointer<vtkActor>                 m_mesh;              /** mesh actor.                                  */
 
-    vtkSmartPointer<vtkVolumeRayCastMapper> m_volumeMapper; /** volume mapper. */
+    std::set<unsigned short>                  m_highlightedLabels; /** set of highlighted labels (selected labels). */
 
-    std::set<unsigned short> m_highlightedLabels; /** set of highlighted labels (selected labels). */
-
-    Vector3ui m_min; /** bounding box minimum point. */
-    Vector3ui m_max; /** bounding box maximum point. */
+    Vector3ui                                 m_min;               /** bounding box minimum point.                  */
+    Vector3ui                                 m_max;               /** bounding box maximum point.                  */
 
     struct Pipeline
     {
-        vtkSmartPointer<vtkActor> mesh; /** actor */
-        Vector3ui min; /** bounding box minimum point. */
-        Vector3ui max; /** bounding box maximum point. */
+        vtkSmartPointer<vtkActor> mesh; /** actor                       */
+        Vector3ui                 min;  /** bounding box minimum point. */
+        Vector3ui                 max;  /** bounding box maximum point. */
 
         Pipeline(): min{Vector3ui{0,0,0}}, max{Vector3ui{0,0,0}}, mesh{nullptr} {};
     };
 
-    std::map<const unsigned short, std::shared_ptr<Pipeline>> m_actors;
+    std::map<const unsigned short, std::shared_ptr<Pipeline>> m_actors; /** list of actors in the view. */
 
-    bool m_renderingIsVolume;
+    bool m_renderingIsVolume; /** true if rendering the volume as voxel and false if rendering the mesh. */
 };
 
 #endif

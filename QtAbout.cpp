@@ -13,12 +13,12 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // QtAbout class
 //
-QtAbout::QtAbout(QWidget *parent_Widget, Qt::WindowFlags f)
-: QDialog(parent_Widget, f)
+QtAbout::QtAbout(QWidget *parent, Qt::WindowFlags f)
+: QDialog{parent, f}
 {
   setupUi(this);
 
-  this->move(parent_Widget->geometry().center() - this->rect().center());
+  this->move(parent->geometry().center() - this->rect().center());
   this->resize(this->minimumSizeHint());
   this->layout()->setSizeConstraint(QLayout::SetFixedSize);
 }

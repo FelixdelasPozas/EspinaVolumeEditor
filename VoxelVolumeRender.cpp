@@ -9,6 +9,10 @@
 //        worth pursuing in the future
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+// project includes
+#include "DataManager.h"
+#include "VoxelVolumeRender.h"
+
 // vtk includes
 #include <vtkDiscreteMarchingCubes.h>
 #include <vtkDecimatePro.h>
@@ -31,10 +35,7 @@
 #include <vtkTexture.h>
 #include <vtkTextureMapToPlane.h>
 #include <vtkTransformTextureCoords.h>
-
-// project includes
-#include "DataManager.h"
-#include "VoxelVolumeRender.h"
+#include <vtkImageConstantPad.h>
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // VoxelVolumeRender class
@@ -152,16 +153,8 @@ void VoxelVolumeRender::computeMesh(const unsigned short label)
   // first crop the region and then use the vtk-itk pipeline to get a itk::Image of the region
   auto objectMin = m_dataManager->GetBoundingBoxMin(label);
   auto objectMax = m_dataManager->GetBoundingBoxMax(label);
-  auto size = m_dataManager->GetOrientationData()->GetTransformedSize();
-  auto weight = 1.0 / 4.0;
-
-  // the object bounds collide with the object, we must add one not to clip the mesh at the borders
-  if (objectMin[0] > 0) objectMin[0]--;
-  if (objectMin[1] > 0) objectMin[1]--;
-  if (objectMin[2] > 0) objectMin[2]--;
-  if (objectMax[0] < size[0]) objectMax[0]++;
-  if (objectMax[1] < size[1]) objectMax[1]++;
-  if (objectMax[2] < size[2]) objectMax[2]++;
+  auto size      = m_dataManager->GetOrientationData()->GetTransformedSize();
+  auto weight    = 1.0 / 5.0;
 
   // image clipping
   auto imageClip = vtkSmartPointer<vtkImageClip>::New();
@@ -172,9 +165,26 @@ void VoxelVolumeRender::computeMesh(const unsigned short label)
   imageClip->Update();
   m_progress->Ignore(imageClip);
 
+  // the object bounds collide with the object, we must add one not to clip the mesh at the borders
+  objectMin[0]--;
+  objectMin[1]--;
+  objectMin[2]--;
+  objectMax[0]++;
+  objectMax[1]++;
+  objectMax[2]++;
+
+  auto pad = vtkSmartPointer<vtkImageConstantPad>::New();
+  pad->SetInputData(imageClip->GetOutput());
+  pad->SetConstant(0);
+  pad->SetNumberOfThreads(1);
+  pad->SetOutputWholeExtent(objectMin[0], objectMax[0], objectMin[1], objectMax[1], objectMin[2], objectMax[2]);
+  m_progress->Observe(pad, "Padding", weight);
+  pad->Update();
+  m_progress->Ignore(pad);
+
   // generate iso surface
   auto marcher = vtkSmartPointer<vtkDiscreteMarchingCubes>::New();
-  marcher->SetInputData(imageClip->GetOutput());
+  marcher->SetInputData(pad->GetOutput());
   marcher->ReleaseDataFlagOn();
   marcher->SetNumberOfContours(1);
   marcher->GenerateValues(1, label, label);
@@ -250,7 +260,7 @@ void VoxelVolumeRender::updateFocusExtent(void)
   }
 
   // calculate combined centroid for the group of segmentations
-  // NOTE: this is not really necesary and it's not the right thing to do, what we should be doing
+  // NOTE: this is not really necessary and it's not the right thing to do, what we should be doing
   // is (_min/2, _max/2) coords to center the view, but doing this avoids "jumps" in
   // the view while operating with multiple labels, as all individual labels are centered in
   // their centroid.

@@ -21,7 +21,7 @@
 // QtRelabel class
 //
 QtRelabel::QtRelabel(QWidget *parent, Qt::WindowFlags f)
-: QDialog(parent, f)
+: QDialog    {parent, f}
 , m_modified {false}
 , m_newlabel {false}
 , m_maxcolors{0}

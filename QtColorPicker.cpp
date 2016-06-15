@@ -14,10 +14,10 @@
 // QtColorPicker class
 //
 QtColorPicker::QtColorPicker(QWidget *parent, Qt::WindowFlags f)
-: QDialog(parent, f)
+: QDialog   {parent, f}
 , m_modified{false}
-, m_data{nullptr}
-, m_color{QColor::fromRgbF(0.5,0.5,0.5)}
+, m_data    {nullptr}
+, m_color   {QColor::fromRgbF(0.5,0.5,0.5)}
 {
   setupUi(this); // this sets up GUI
 

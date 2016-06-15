@@ -22,8 +22,6 @@
 #include <vector>
 #include <list>
 
-// DataManager forward declaration
-
 class UndoRedoSystem
 {
   public:

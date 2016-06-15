@@ -96,11 +96,12 @@ class ProgressAccumulator
      */
     void Ignore(vtkObject *filter);
 
-    // ignore all registered processes
+    /** \brief Ignore all registered processes.
+     *
+     */
     void IgnoreAll();
 
     /** \brief Set accumulated progress to 0.
-     *
      *
      */
     void Reset();

@@ -30,6 +30,7 @@ using WriterType = itk::ImageFileWriter<ImageType>;
 // SaveSessionThread class
 //
 SaveSessionThread::SaveSessionThread(EspinaVolumeEditor* editor)
+: QThread{}
 {
 	moveToThread(this);
 	m_editor = editor;

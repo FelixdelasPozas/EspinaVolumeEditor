@@ -36,7 +36,7 @@ UndoRedoSystem::~UndoRedoSystem()
 {
   // NOTE: for this and the rest of UndoRedoSystem operations: the pointers to objects allocated
   // in the undo buffer are never freed because are in use by DataManager and it will free them
-  // on destruction. On the other hand clearing the redo buffer deletes dinamically allocated
+  // on destruction. On the other hand clearing the redo buffer deletes dynamically allocated
   // objects created by DataManager, stored in UndoRedoSystem and NOT in use by DataManager.
   clear(Type::ALL);
 }

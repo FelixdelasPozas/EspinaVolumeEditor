@@ -39,10 +39,10 @@ class SaveSessionThread
 
 		void run(void);
 	signals:
-
 		void progress(int value);
 
 		void startedSaving();
+
 	private:
 		/** \brief Helper method to write to a stream.
 		 *

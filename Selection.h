@@ -38,7 +38,7 @@
 #include <vector>
 
 // image typedefs
-using ImageType = itk::Image<unsigned short, 3>;
+using ImageType   = itk::Image<unsigned short, 3>;
 using ImageTypeUC = itk::Image<unsigned char, 3>;
 
 // forward declarations
@@ -224,31 +224,31 @@ class Selection
     vtkSmartPointer<vtkTexture> m_texture; /**  selection actor texture for render view. */
 
 
-    std::shared_ptr<SliceVisualization> m_axial;     /** axial view. */
-    std::shared_ptr<SliceVisualization> m_coronal;   /** coronal view. */
+    std::shared_ptr<SliceVisualization> m_axial;     /** axial view.    */
+    std::shared_ptr<SliceVisualization> m_coronal;   /** coronal view.  */
     std::shared_ptr<SliceVisualization> m_sagittal;  /** sagittal view. */
 
-    std::vector<vtkSmartPointer<vtkActor> > m_selectionActorsList; /** list of selection actor for render view. */
+    std::vector<vtkSmartPointer<vtkActor>> m_selectionActorsList;   /** list of selection actor for render view. */
 
-    std::vector<vtkSmartPointer<vtkImageData> > m_selectionVolumesList; /** list of selection volumes (unsigned char scalar size). */
+    std::vector<vtkSmartPointer<vtkImageData>> m_selectionVolumesList; /** list of selection volumes (unsigned char scalar size). */
 
     vtkSmartPointer<vtkImageChangeInformation> m_changer; /** to change origin for erase/paint volume on the fly. */
-    vtkSmartPointer<vtkImageClip> m_clipper;
+    vtkSmartPointer<vtkImageClip>              m_clipper; /** selection image clip.                               */
 
-    vtkSmartPointer<BoxSelectionWidget> m_axialBoxWidget;    /** axial view selection box widget. */
-    vtkSmartPointer<BoxSelectionWidget> m_coronalBoxWidget;  /** coronal view selection box widget. */
-    vtkSmartPointer<BoxSelectionWidget> m_sagittalBoxWidget; /** sagittal view selection box widget. */
+    vtkSmartPointer<BoxSelectionWidget>        m_axialBoxWidget;    /** axial view selection box widget.    */
+    vtkSmartPointer<BoxSelectionWidget>        m_coronalBoxWidget;  /** coronal view selection box widget.  */
+    vtkSmartPointer<BoxSelectionWidget>        m_sagittalBoxWidget; /** sagittal view selection box widget. */
 
-    std::shared_ptr<BoxSelectionRepresentation3D> m_boxRender; /** box selection representation for 3d render. */
+    std::shared_ptr<BoxSelectionRepresentation3D> m_boxRender;      /** box selection representation for 3d render.       */
 
-    vtkSmartPointer<vtkCallbackCommand> m_widgetsCallbackCommand; /** callback for box selection interaction. */
+    vtkSmartPointer<vtkCallbackCommand>   m_widgetsCallbackCommand; /** callback for box selection interaction.           */
 
-    vtkSmartPointer<ContourWidget> m_contourWidget; /** contour selection widget. */
+    vtkSmartPointer<ContourWidget>             m_contourWidget;     /** contour selection widget.                         */
 
     vtkSmartPointer<vtkPolyDataToImageStencil> m_polyDataToStencil; /** converts VtkPolyData from a contour to a stencil. */
-    vtkSmartPointer<vtkImageStencilToImage> m_stencilToImage;       /** converts a stencil to a itk image. */
-    vtkSmartPointer<vtkImageData> m_rotatedImage; /** rotated contour image. */
-    bool m_selectionIsValid; /** true if selection is valid, false otherwise. */
+    vtkSmartPointer<vtkImageStencilToImage>    m_stencilToImage;    /** converts a stencil to a itk image.                */
+    vtkSmartPointer<vtkImageData>              m_rotatedImage;      /** rotated contour image.                            */
+    bool                                       m_selectionIsValid;  /** true if selection is valid, false otherwise.      */
 };
 
 #endif // _SELECTION_H_

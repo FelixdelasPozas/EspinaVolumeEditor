@@ -61,12 +61,15 @@ class QtRelabel
      */
     bool isModified() const;
   public slots:
+    /** \brief Helper method to update internal information when the user accepts the dialog.
+     *
+     */
     virtual void AcceptedData();
 
   private:
-    bool           m_modified;
-    bool           m_newlabel;
-    unsigned int   m_maxcolors;
+    bool           m_modified;  /** true if the dialog information has been modified and false otherwise. */
+    bool           m_newlabel;  /** true if it's a new label and false otherwise.                         */
+    unsigned int   m_maxcolors; /** maximum number of colors.                                             */
 };
 
 #endif // _QTRELABEL_H_

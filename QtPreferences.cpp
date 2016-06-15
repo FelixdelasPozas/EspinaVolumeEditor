@@ -13,21 +13,21 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // QtPreferences class
 //
-QtPreferences::QtPreferences(QWidget *parent_Widget, Qt::WindowFlags f)
-: QDialog(parent_Widget, f)
-, m_undoSize{0}
-, m_undoCapacity{0}
-, m_filtersRadius{1}
-, m_brushRadius{1}
+QtPreferences::QtPreferences(QWidget *parent, Qt::WindowFlags f)
+: QDialog         {parent, f}
+, m_undoSize      {0}
+, m_undoCapacity  {0}
+, m_filtersRadius {1}
+, m_brushRadius   {1}
 , m_watershedLevel{0.5}
-, m_opacity{100}
-, m_saveTime{0}
-, m_modified{false}
+, m_opacity       {100}
+, m_saveTime      {0}
+, m_modified      {false}
 {
   setupUi(this); // this sets up GUI
 
   // want to make the dialog appear centered
-  move(parent_Widget->geometry().center() - rect().center());
+  move(parent->geometry().center() - rect().center());
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

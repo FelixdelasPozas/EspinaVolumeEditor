@@ -18,7 +18,7 @@
 // QtSessionInfo class
 //
 QtSessionInfo::QtSessionInfo(QWidget *parent, Qt::WindowFlags f)
-: QDialog(parent, f)
+: QDialog{parent, f}
 {
   setupUi(this);
 
