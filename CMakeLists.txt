@@ -122,4 +122,4 @@ SET(Libraries
 
 ADD_EXECUTABLE(EspinaEditor ${CurrentFiles} ${MOCSrcs} ${QtResources_cpp} ${RC_FILE})
 TARGET_LINK_LIBRARIES(EspinaEditor ${Libraries})
-qt5_use_modules(EspinaEditor Widgets Multimedia)
+qt5_use_modules(EspinaEditor Widgets)
