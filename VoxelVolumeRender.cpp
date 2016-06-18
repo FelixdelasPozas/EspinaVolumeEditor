@@ -77,20 +77,19 @@ VoxelVolumeRender::~VoxelVolumeRender()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void VoxelVolumeRender::computeVolumes()
 {
+  // NOTE: the use of setGlobalWarningDisplay to false is to avoid vtk opening a window to tell
+  // that the class used for rendering the volume is going to be deprecated.
   double rgba[4];
   auto lookupTable = m_dataManager->GetLookupTable();
 
-  m_volumeMapper = vtkSmartPointer<vtkVolumeRayCastMapper>::New();
+  m_volumeMapper = vtkSmartPointer<vtkSmartVolumeMapper>::New();
+  m_volumeMapper->SetGlobalWarningDisplay(false);
+  m_volumeMapper->SetDebug(false);
   m_volumeMapper->SetInputData(m_dataManager->GetStructuredPoints());
   m_volumeMapper->SetScalarModeToUsePointData();
   m_volumeMapper->SetAutoAdjustSampleDistances(false);
-  m_volumeMapper->SetMaximumImageSampleDistance(1.0);
-  m_volumeMapper->IntermixIntersectingGeometryOn();
-  m_volumeMapper->SetVolumeRayCastFunction(vtkSmartPointer<vtkVolumeRayCastCompositeFunction>::New());
-
-  // at this point if the volume has been reduced (see m_GPUmapper->GetReductionRatio(double *) ) it's because the volume is bigger
-  // than the memory of the card and doesn't fit, there is no workaround for this except get a better graphic card or use the software
-  // solution (not really a solution after all, too slow)
+  m_volumeMapper->SetInterpolationModeToNearestNeighbor();
+  m_volumeMapper->SetBlendModeToComposite();
 
   // assign label colors
   m_colorfunction = vtkSmartPointer<vtkColorTransferFunction>::New();
@@ -119,6 +118,7 @@ void VoxelVolumeRender::computeVolumes()
   volumeproperty->SetInterpolationTypeToNearest();
 
   m_volume = vtkSmartPointer<vtkVolume>::New();
+  m_volume->SetGlobalWarningDisplay(false);
   m_volume->SetMapper(m_volumeMapper);
   m_volume->SetProperty(volumeproperty);
 

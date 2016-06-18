@@ -19,7 +19,7 @@
 #include <vtkRenderer.h>
 #include <vtkPiecewiseFunction.h>
 #include <vtkColorTransferFunction.h>
-#include <vtkVolumeRayCastMapper.h>
+#include <vtkSmartVolumeMapper.h>
 
 // c++ includes
 #include <set>
@@ -121,7 +121,7 @@ class VoxelVolumeRender
 
     vtkSmartPointer<vtkPiecewiseFunction>     m_opacityfunction;   /** voxel opacity function.                      */
     vtkSmartPointer<vtkColorTransferFunction> m_colorfunction;     /** voxel coloring function.                     */
-    vtkSmartPointer<vtkVolumeRayCastMapper>   m_volumeMapper;      /** voxel volume mapper.                         */
+    vtkSmartPointer<vtkSmartVolumeMapper>     m_volumeMapper;      /** voxel volume mapper.                         */
 
     vtkSmartPointer<vtkVolume>                m_volume;            /** volumetric actor.                            */
     vtkSmartPointer<vtkActor>                 m_mesh;              /** mesh actor.                                  */

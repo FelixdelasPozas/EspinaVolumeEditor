@@ -12,6 +12,7 @@
 #include <QString>
 #include <QDir>
 #include <QSettings>
+#include <QMessageBox>
 
 // itk includes
 #include <itkSmartPointer.h>
@@ -57,7 +58,7 @@ void SaveSessionThread::run()
   if(file.exists() && !file.remove())
   {
     QMessageBox msgBox;
-    msgBox.setCaption("Error saving session");
+    msgBox.setWindowTitle("Error saving session");
     msgBox.setIcon(QMessageBox::Critical);
     msgBox.setText("An error occurred saving the editor session file.\nThe operation has been aborted.");
     msgBox.setDetailedText("Previous session file exists but couldn't be removed.");
@@ -69,7 +70,7 @@ void SaveSessionThread::run()
   if(fileMHA.exists() && !fileMHA.remove())
   {
     QMessageBox msgBox;
-    msgBox.setCaption("Error saving session");
+    msgBox.setWindowTitle("Error saving session");
     msgBox.setIcon(QMessageBox::Critical);
     msgBox.setText("An error occurred saving the editor session file.\nThe operation has been aborted.");
     msgBox.setDetailedText("Previous MHA session file exists but couldn't be removed.");
@@ -97,7 +98,7 @@ void SaveSessionThread::run()
   catch (itk::ExceptionObject &excp)
   {
     QMessageBox msgBox;
-    msgBox.setCaption("Error saving session");
+    msgBox.setWindowTitle("Error saving session");
     msgBox.setIcon(QMessageBox::Critical);
     msgBox.setText("An error occurred saving the editor MHA session file.\nThe operation has been aborted.");
     msgBox.setDetailedText(excp.what());
@@ -113,7 +114,7 @@ void SaveSessionThread::run()
   if (!outfile.is_open())
   {
     QMessageBox msgBox;
-    msgBox.setCaption("Error saving session");
+    msgBox.setWindowTitle("Error saving session");
     msgBox.setIcon(QMessageBox::Critical);
     msgBox.setText("An error occurred saving the editor session file.\nThe operation has been aborted.");
     msgBox.setDetailedText("Couldn't open session file for writing.");

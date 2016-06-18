@@ -679,7 +679,7 @@ void EditorOperations::EditorError(itk::ExceptionObject &excp) const
   auto text = std::string("An error occurred.\nThe ");
   text += m_dataManager->GetActualActionString();
   text += std::string(" operation has been aborted.");
-  msgBox.setCaption("Error");
+  msgBox.setWindowTitle("Error");
   msgBox.setText(text.c_str());
   msgBox.setDetailedText(excp.what());
   msgBox.exec();
@@ -724,7 +724,7 @@ void EditorOperations::SaveImage(const std::string &filename) const
   if (0 == converter->GetOutput()->GetNumberOfLabelObjects())
   {
     QMessageBox msgBox;
-    msgBox.setCaption("Error trying to save image");
+    msgBox.setWindowTitle("Error trying to save image");
     msgBox.setIcon(QMessageBox::Warning);
     msgBox.setText("There are no segmentations in the image. Not saving an empty image.");
     msgBox.exec();
@@ -777,7 +777,7 @@ void EditorOperations::SaveImage(const std::string &filename) const
   catch (itk::ExceptionObject &excp)
   {
     QMessageBox msgBox;
-    msgBox.setCaption("Error trying to save image");
+    msgBox.setWindowTitle("Error trying to save image");
     msgBox.setIcon(QMessageBox::Critical);
     auto text = std::string("An error occurred saving the segmentation file.\nThe operation has been aborted.");
     msgBox.setText(text.c_str());
@@ -791,7 +791,7 @@ void EditorOperations::SaveImage(const std::string &filename) const
   if (0 != (rename(tempfilename.c_str(), filename.c_str())))
   {
     QMessageBox msgBox;
-    msgBox.setCaption("Error trying to rename a file");
+    msgBox.setWindowTitle("Error trying to rename a file");
     msgBox.setIcon(QMessageBox::Critical);
     msgBox.setText("An error occurred saving the segmentation file.\nThe operation has been aborted.");
     msgBox.setDetailedText(QString("The temporal file couldn't be renamed."));
@@ -800,7 +800,7 @@ void EditorOperations::SaveImage(const std::string &filename) const
     if (0 != (remove(tempfilename.c_str())))
     {
       QMessageBox msgBox;
-      msgBox.setCaption("Error trying to delete a file");
+      msgBox.setWindowTitle("Error trying to delete a file");
       msgBox.setIcon(QMessageBox::Critical);
       auto text = std::string("The temporal file \"");
       text += tempfilename;

@@ -275,7 +275,7 @@ void Metadata::compact()
   {
     for(auto object: toDelete)
     {
-      ObjectVector.remove(object);
+      ObjectVector.removeOne(object);
     }
   }
 }

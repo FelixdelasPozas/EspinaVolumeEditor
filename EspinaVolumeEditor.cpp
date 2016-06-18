@@ -13,6 +13,8 @@
 #include <QtGui>
 #include <QMetaType>
 #include <QFile>
+#include <QMessageBox>
+#include <QFileDialog>
 
 // itk
 #include <itkImage.h>
@@ -279,7 +281,7 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *parent)
 		QMessageBox msgBox(this);
 		msgBox.setWindowIcon(QIcon(":/newPrefix/icons/brain.png"));
 		msgBox.setIcon(QMessageBox::Information);
-		msgBox.setCaption("Previous session data detected");
+		msgBox.setWindowTitle("Previous session data detected");
 		msgBox.setText("Data from a previous Editor session exists (maybe the editor crashed or didn't exit cleanly).");
 		msgBox.setInformativeText("Do you want to restore that session?");
 		msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
@@ -326,11 +328,9 @@ void EspinaVolumeEditor::open()
 
   if(!dialog.exec()) return;
 
-  filename = dialog.selectedFile();
+  filename = dialog.selectedFiles().first();
 
   if (filename.isNull()) return;
-
-  filename.toAscii();
 
   renderview  ->setEnabled(true);
   axialview   ->setEnabled(true);
@@ -361,7 +361,7 @@ void EspinaVolumeEditor::open()
 
     QMessageBox msgBox(this);
     msgBox.setWindowIcon(QIcon(":/newPrefix/icons/brain.png"));
-    msgBox.setCaption("Error loading segmentation file");
+    msgBox.setWindowTitle("Error loading segmentation file");
     msgBox.setIcon(QMessageBox::Critical);
 
     std::string text = std::string("An error occurred loading the segmentation file.\nThe operation has been aborted.");
@@ -383,7 +383,7 @@ void EspinaVolumeEditor::open()
 
     QMessageBox msgBox(this);
     msgBox.setWindowIcon(QIcon(":/newPrefix/icons/brain.png"));
-    msgBox.setCaption("Error loading segmentation file");
+    msgBox.setWindowTitle("Error loading segmentation file");
     msgBox.setIcon(QMessageBox::Critical);
 
     std::string text = std::string("An error occurred parsing the espina segmentation data from file \"");
@@ -510,7 +510,7 @@ void EspinaVolumeEditor::open()
   {
     QMessageBox msgBox(this);
     msgBox.setWindowIcon(QIcon(":/newPrefix/icons/brain.png"));
-    msgBox.setCaption("Unused objects detected");
+    msgBox.setWindowTitle("Unused objects detected");
     msgBox.setIcon(QMessageBox::Warning);
 
     QApplication::restoreOverrideCursor();
@@ -574,12 +574,13 @@ void EspinaVolumeEditor::open()
   // start session timer
   if (m_saveSessionEnabled)
   {
-    m_sessionTimer.start(m_saveSessionTime, true);
+    m_sessionTimer.setSingleShot(true);
+    m_sessionTimer.start(m_saveSessionTime);
   }
 
   // put the name of the opened file in the window title
   auto caption = QString("Espina Volume Editor - ") + filename;
-  setCaption(QString(caption));
+  setWindowTitle(QString(caption));
 
   // get the working set of labels for this file, if exists.
   // change the disallowed chars first in the filename, hope it doesn't collide with another file
@@ -633,11 +634,10 @@ void EspinaVolumeEditor::referenceOpen()
 
   if(!dialog.exec()) return;
 
-  filename = dialog.selectedFile();
+  filename = dialog.selectedFiles().first();
 
   if (filename.isNull()) return;
 
-  filename.toAscii();
   loadReferenceFile(filename);
 }
 
@@ -658,7 +658,7 @@ void EspinaVolumeEditor::loadReferenceFile(const QString &filename)
   {
     QMessageBox msgBox(this);
     msgBox.setWindowIcon(QIcon(":/newPrefix/icons/brain.png"));
-    msgBox.setCaption("Error loading reference file");
+    msgBox.setWindowTitle("Error loading reference file");
     msgBox.setIcon(QMessageBox::Critical);
 
     auto text = QString("An error occurred loading the segmentation reference file.\nThe operation has been aborted.");
@@ -705,7 +705,7 @@ void EspinaVolumeEditor::loadReferenceFile(const QString &filename)
     m_progress->ManualReset();
     QMessageBox msgBox(this);
     msgBox.setWindowIcon(QIcon(":/newPrefix/icons/brain.png"));
-    msgBox.setCaption("Segmentation size mismatch");
+    msgBox.setWindowTitle("Segmentation size mismatch");
     msgBox.setIcon(QMessageBox::Critical);
 
     auto text = QString("Reference and segmentation images have different dimensions.\n");
@@ -731,7 +731,7 @@ void EspinaVolumeEditor::loadReferenceFile(const QString &filename)
 
     QMessageBox msgBox(this);
     msgBox.setWindowIcon(QIcon(":/newPrefix/icons/brain.png"));
-    msgBox.setCaption("Segmentation origin mismatch");
+    msgBox.setWindowTitle("Segmentation origin mismatch");
     msgBox.setIcon(QMessageBox::Warning);
 
     auto text = QString("Reference and segmentation images have different origin of coordinates.\n");
@@ -758,7 +758,7 @@ void EspinaVolumeEditor::loadReferenceFile(const QString &filename)
 
     QMessageBox msgBox(this);
     msgBox.setWindowIcon(QIcon(":/newPrefix/icons/brain.png"));
-    msgBox.setCaption("Segmentation spacing mismatch");
+    msgBox.setWindowTitle("Segmentation spacing mismatch");
     msgBox.setIcon(QMessageBox::Warning);
 
     auto text = QString("Reference and segmentation images have different point spacing.\n");
@@ -853,11 +853,10 @@ void EspinaVolumeEditor::save()
 
   if(!dialog.exec()) return;
 
-  filename = dialog.selectedFile();
+  filename = dialog.selectedFiles().first();
 
   if (filename.isNull()) return;
 
-  filename.toAscii();
   auto filenameStd = filename.toStdString();
   std::size_t found;
 
@@ -876,7 +875,7 @@ void EspinaVolumeEditor::save()
     QMessageBox msgBox(this);
     msgBox.setWindowIcon(QIcon(":/newPrefix/icons/brain.png"));
     msgBox.setIcon(QMessageBox::Critical);
-    msgBox.setCaption("Error saving segmentation file");
+    msgBox.setWindowTitle("Error saving segmentation file");
 
     auto text = QString("An error occurred saving the segmentation metadata to file \"");
     text += QString(filenameStd.c_str());
@@ -919,7 +918,7 @@ void EspinaVolumeEditor::save()
 
   // put the name of the opened file in the window title
   auto caption = QString("Espina Volume Editor - ") + m_segmentationFileName;
-  setCaption(QString(caption));
+  setWindowTitle(QString(caption));
 
   // after saving the segmentation file we don't need the (actually) stored session files, remove them
   // and reset the timer
@@ -927,7 +926,8 @@ void EspinaVolumeEditor::save()
   {
     removeSessionFiles();
     m_sessionTimer.stop();
-    m_sessionTimer.start(m_saveSessionTime, true);
+    m_sessionTimer.setSingleShot(true);
+    m_sessionTimer.start(m_saveSessionTime);
   }
 }
 
@@ -1360,7 +1360,7 @@ void EspinaVolumeEditor::preferences()
   {
     // time for saving session data changed, just update the timer
     m_saveSessionTime = configdialog.autoSaveInterval() * 60 * 1000;
-    m_sessionTimer.changeInterval(m_saveSessionTime);
+    m_sessionTimer.setInterval(m_saveSessionTime);
   }
 
   if (!configdialog.isAutoSaveEnabled())
@@ -1373,7 +1373,8 @@ void EspinaVolumeEditor::preferences()
     m_saveSessionEnabled = true;
     if (!m_sessionTimer.isActive() && (!m_segmentationFileName.isEmpty()))
     {
-      m_sessionTimer.start(m_saveSessionTime, true);
+      m_sessionTimer.setSingleShot(true);
+      m_sessionTimer.start(m_saveSessionTime);
     }
   }
 
@@ -2382,7 +2383,8 @@ void EspinaVolumeEditor::saveSessionEnd(void)
   m_progress->ManualReset(true);
 
   // we use singleshot timers so until the save session operation has ended we don't restart it
-  m_sessionTimer.start(m_saveSessionTime, true);
+  m_sessionTimer.setSingleShot(true);
+  m_sessionTimer.start(m_saveSessionTime);
 
   m_saveSessionThread = nullptr;
 }
@@ -2491,7 +2493,7 @@ void EspinaVolumeEditor::restoreSavedSession(void)
     m_progress->ManualReset();
     QMessageBox msgBox(this);
     msgBox.setIcon(QMessageBox::Critical);
-    msgBox.setCaption("Error loading segmentation file");
+    msgBox.setWindowTitle("Error loading segmentation file");
     msgBox.setText("An error occurred loading the segmentation file.\nThe operation has been aborted.");
     msgBox.setDetailedText(excp.what());
 
@@ -2665,12 +2667,13 @@ void EspinaVolumeEditor::restoreSavedSession(void)
 
   // put the name of the opened file in the window title
   auto caption = QString("Espina Volume Editor - ") + m_segmentationFileName;
-  setCaption(caption);
+  setWindowTitle(caption);
 
   // start session timer
   if (m_saveSessionEnabled)
   {
-    m_sessionTimer.start(m_saveSessionTime, true);
+    m_sessionTimer.setSingleShot(true);
+    m_sessionTimer.start(m_saveSessionTime);
   }
 
   m_progress->ManualReset();
@@ -2691,7 +2694,7 @@ void EspinaVolumeEditor::removeSessionFiles(void)
   if (file.exists() && !file.remove())
   {
     QMessageBox msgBox(this);
-    msgBox.setCaption("Error trying to remove file");
+    msgBox.setWindowTitle("Error trying to remove file");
     msgBox.setIcon(QMessageBox::Critical);
     msgBox.setText("An error occurred exiting the editor.\n.Editor session file couldn't be removed.");
 
@@ -2706,7 +2709,7 @@ void EspinaVolumeEditor::removeSessionFiles(void)
   if (fileMHA.exists() && !fileMHA.remove())
   {
     QMessageBox msgBox(this);
-    msgBox.setCaption("Error trying to remove file");
+    msgBox.setWindowTitle("Error trying to remove file");
     msgBox.setIcon(QMessageBox::Critical);
     msgBox.setText("An error occurred exiting the editor.\n.Editor MHA session file couldn't be removed.");
 

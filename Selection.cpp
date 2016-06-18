@@ -44,6 +44,7 @@
 
 // qt includes
 #include <QtGui>
+#include <QMessageBox>
 
 using ConnectedThresholdFilterType = itk::ConnectedThresholdImageFilter<ImageType, ImageTypeUC>;
 using ITKExport = itk::VTKImageExport<ImageTypeUC>;
@@ -379,7 +380,7 @@ void Selection::addArea(const Vector3ui &point)
   catch (itk::ExceptionObject &excp)
   {
     QMessageBox msgBox;
-    msgBox.setCaption("Error while selecting");
+    msgBox.setWindowTitle("Error while selecting");
     msgBox.setIcon(QMessageBox::Critical);
     msgBox.setText("An error occurred in connected thresholding.\nThe operation has been aborted.");
     msgBox.setDetailedText(excp.what());
@@ -399,7 +400,7 @@ void Selection::addArea(const Vector3ui &point)
   catch (itk::ExceptionObject &excp)
   {
     QMessageBox msgBox;
-    msgBox.setCaption("Error while selecting");
+    msgBox.setWindowTitle("Error while selecting");
     msgBox.setIcon(QMessageBox::Critical);
     msgBox.setText("An error occurred converting an itk image to a vtk image.\nThe operation has been aborted.");
     msgBox.setDetailedText(excp.what());

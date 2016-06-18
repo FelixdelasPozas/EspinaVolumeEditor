@@ -8,34 +8,34 @@ set (ESPINAEDITOR_VERSION_MAJOR 2)
 set (ESPINAEDITOR_VERSION_MINOR 0)
 set (ESPINAEDITOR_VERSION_PATCH 0)
 
-add_definitions(
-  -std=c++11
-  -mwindows
-  )
-  
-# use what QVTK built with
-FIND_PACKAGE(Qt4 REQUIRED)
-INCLUDE(${QT_USE_FILE})
-ADD_DEFINITIONS(${QT_DEFINITIONS})
-IF(QT_USE_FILE)
-  INCLUDE(${QT_USE_FILE})
-ELSE(QT_USE_FILE)
-  SET(QT_LIBRARIES   ${QT_QT_LIBRARY})
-ENDIF(QT_USE_FILE)
+# Find includes in corresponding build directories
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+
+# Instruct CMake to run moc automatically when needed.
+set(CMAKE_AUTOMOC ON)
+
+# Find the QtWidgets library
+find_package(Qt5 COMPONENTS Widgets)
 
 # Use the include path and library for Qt that is used by VTK.
 INCLUDE_DIRECTORIES(
-  ${QT_INCLUDE_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-if(DEFINED ESPINAEDITOR_VERSION_MAJOR)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${Qt5Widgets_EXECUTABLE_COMPILE_FLAGS}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -mwindows -m64")
+
+if (CMAKE_BUILD_TYPE MATCHES Debug)
+  set(CORE_EXTERNAL_LIBS ${CORE_EXTERNAL_LIBS} ${QT_QTTEST_LIBRARY})
+endif (CMAKE_BUILD_TYPE MATCHES Debug)
+
+if(DEFINED MINGW)
   configure_file("${PROJECT_SOURCE_DIR}/EspinaEditor.rc.in" "${PROJECT_BINARY_DIR}/EspinaEditor.rc")
   set(RC_FILE ${CMAKE_CURRENT_BINARY_DIR}/ESPINAEDITOR.rc)
   set(CMAKE_RC_COMPILE_OBJECT "<CMAKE_RC_COMPILER> -O coff -o <OBJECT> -i <SOURCE>")
   enable_language(RC)
-endif(DEFINED ESPINAEDITOR_VERSION_MAJOR)
+endif(DEFINED MINGW)
 
 SET(UIS 
   QtPreferences.ui 
@@ -99,14 +99,11 @@ SET(CurrentFiles
   AxesRender.cpp
 )
 
-QT4_WRAP_UI(UIHeaders ${UIS})
-QT4_WRAP_CPP(MOCSrcs ${MOCS} )
-QT4_ADD_RESOURCES(QtResources_cpp ${QtResources})
-ADD_DEFINITIONS(-DQT_GUI_LIBS -DQT_CORE_LIB -DQT3_SUPPORT)
+qt5_wrap_ui(UIHeaders ${UIS})
+qt5_add_resources(QtResources_cpp ${QtResources})
 SET_SOURCE_FILES_PROPERTIES(${CurrentFiles} PROPERTIES OBJECT_DEPENDS "${UIHeaders}")
 
 #Declare any external dependencies that your project may have here.
-SET(VTK_DIR "D:/Desarrollo/Bibliotecas/vtk-build")
 FIND_PACKAGE(VTK REQUIRED)
 INCLUDE(${VTK_USE_FILE})
 
@@ -118,23 +115,11 @@ SET(Libraries
   ${ITK_LIBRARIES}
   ${VTK_LIBRARIES}
   ${QT_LIBRARIES}
+  Qt5::Widgets
+  opengl32
+  glu32
 )
 
-ADD_EXECUTABLE(Editor ${CurrentFiles} ${MOCSrcs} ${QtResources_cpp} ${RC_FILE})
-TARGET_LINK_LIBRARIES(Editor ${Libraries})
-SET_TARGET_PROPERTIES(Editor PROPERTIES OUTPUT_NAME EspinaEditor)
-
-INSTALL(TARGETS Editor DESTINATION bin)
-SET(CPACK_GENERATOR "DEB")
-SET(CPACK_DEBIAN_PACKAGE_MAINTAINER "Felix de las Pozas <fpozas@alumnos.upm.es>")
-SET(CPACK_DEBIAN_PACKAGE_NAME "EspinaVolumeEditor")
-SET(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
-SET(CPACK_PACKAGE_VERSION_MAJOR "1")
-SET(CPACK_PACKAGE_VERSION_MINOR "0")
-SET(CPACK_PACKAGE_VERSION_PATCH "8")
-SET(CPACK_DEBIAN_ARCHITECTURE ${CMAKE_SYSTEM_PROCESSOR})
-SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Volume editor for Espina segmentation tool")
-SET(CPACK_PACKAGE_DESCRIPTION "Volume editor for Espina segmentation tool")
-
-INCLUDE(CPack)
-
+ADD_EXECUTABLE(EspinaEditor ${CurrentFiles} ${MOCSrcs} ${QtResources_cpp} ${RC_FILE})
+TARGET_LINK_LIBRARIES(EspinaEditor ${Libraries})
+qt5_use_modules(EspinaEditor Widgets Multimedia)

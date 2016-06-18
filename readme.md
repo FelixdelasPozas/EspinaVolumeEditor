@@ -36,7 +36,7 @@ Several options can be configured:
 The application reads old EspINA segmha files that contains the segmentations and MHD (Metaimage format) files of the microscopy images. 
 
 # Compilation requirements
-## To build the tool:
+## To build the application:
 * cross-platform build system: [CMake](http://www.cmake.org/cmake/resources/software.html).
 * compiler: [Mingw64](http://sourceforge.net/projects/mingw-w64/) on Windows.
 
@@ -44,7 +44,7 @@ The application reads old EspINA segmha files that contains the segmentations an
 The following libraries are required:
 * [ITK](https://itk.org/) - Insight Segmentation and Registration Toolkit.
 * [VTK](http://www.vtk.org/) - The Visualization Toolkit.
-* [Qt 4 opensource framework](http://www.qt.io/).
+* [Qt 5 opensource framework](http://www.qt.io/).
 
 # Install
 The only current option is build from source as binaries are not provided. 

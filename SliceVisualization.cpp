@@ -253,7 +253,9 @@ void SliceVisualization::generateCrosshair()
   m_verticalCrosshairActor->GetProperty()->SetLineStippleRepeatFactor(1);
   m_verticalCrosshairActor->GetProperty()->SetPointSize(1);
   m_verticalCrosshairActor->GetProperty()->SetLineWidth(2);
+  m_verticalCrosshairActor->GetProperty()->Modified();
   m_verticalCrosshairActor->SetPickable(false);
+  m_verticalCrosshairActor->Modified();
 
   auto horizontaldata = vtkSmartPointer<vtkPolyData>::New();
   auto horizontalmapper = vtkSmartPointer<vtkDataSetMapper>::New();
@@ -265,7 +267,9 @@ void SliceVisualization::generateCrosshair()
   m_horizontalCrosshairActor->GetProperty()->SetLineStippleRepeatFactor(1);
   m_horizontalCrosshairActor->GetProperty()->SetPointSize(1);
   m_horizontalCrosshairActor->GetProperty()->SetLineWidth(2);
+  m_horizontalCrosshairActor->GetProperty()->Modified();
   m_horizontalCrosshairActor->SetPickable(false);
+  m_horizontalCrosshairActor->Modified();
 
   m_renderer->AddActor(m_verticalCrosshairActor);
   m_renderer->AddActor(m_horizontalCrosshairActor);
