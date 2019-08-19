@@ -51,7 +51,6 @@
 #include <vtkImageToImageStencil.h>
 #include <vtkDiscreteMarchingCubes.h>
 #include <vtkDecimatePro.h>
-#include <vtkVolumeTextureMapper3D.h>
 #include <vtkColorTransferFunction.h>
 #include <vtkPiecewiseFunction.h>
 #include <vtkVolumeProperty.h>
@@ -903,19 +902,21 @@ void EditorOperations::SetSliceViews(std::shared_ptr<SliceVisualization> axial,
                                      std::shared_ptr<SliceVisualization> coronal,
                                      std::shared_ptr<SliceVisualization> sagittal)
 {
-  m_selection->setSliceViews(axial, coronal, sagittal);
+  if(m_selection) m_selection->setSliceViews(axial, coronal, sagittal);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void EditorOperations::ClearSelection(void)
 {
-  m_selection->clear();
+  if(m_selection) m_selection->clear();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 Selection::Type EditorOperations::GetSelectionType(void) const
 {
-  return m_selection->type();
+  if(m_selection) return m_selection->type();
+
+  return Selection::Type::EMPTY;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -980,4 +981,13 @@ void EditorOperations::Erase(const std::set<unsigned short> labels)
 
     m_dataManager->SignalDataAsModified();
   }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+EditorOperations::~EditorOperations()
+{
+  m_orientation = nullptr;
+  m_dataManager = nullptr;
+  m_selection = nullptr;
+  m_progress = nullptr;
 }

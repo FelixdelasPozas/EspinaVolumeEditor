@@ -24,6 +24,7 @@
 #include <vtkImageActorPointPlacer.h>
 #include <vtkPolyData.h>
 #include <vtkPoints.h>
+#include <vtkTexture.h>
 #include <vtkCellArray.h>
 
 // itk includes
@@ -78,8 +79,10 @@ Selection::Selection()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 Selection::~Selection()
 {
-  deleteSelectionActors();
-  deleteSelectionVolumes();
+  m_widgetsCallbackCommand = nullptr;
+
+  if(!m_selectionActorsList.empty()) deleteSelectionActors();
+  if(!m_selectionVolumesList.empty()) deleteSelectionVolumes();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -305,11 +308,12 @@ void Selection::computeSelectionCube()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void Selection::clear()
 {
-  deleteSelectionActors();
-  deleteSelectionVolumes();
-  m_axial->clearSelections();
-  m_coronal->clearSelections();
-  m_sagittal->clearSelections();
+  if(!m_selectionActorsList.empty())  deleteSelectionActors();
+  if(!m_selectionVolumesList.empty()) deleteSelectionVolumes();
+
+  if(m_axial) m_axial->clearSelections();
+  if(m_coronal) m_coronal->clearSelections();
+  if(m_sagittal) m_sagittal->clearSelections();
 
   if (m_selectionType == Type::CUBE)
   {
@@ -780,7 +784,7 @@ void Selection::setSelectionDisc(const Vector3i &point, const unsigned int radiu
           for (int b = 0; b <= extent[3]; b++)
           {
             auto pointer = static_cast<int*>(image->GetScalarPointer(a, b, 0));
-            if (((pow(abs(radius - 1 - a), 2) + pow(abs(radius - 1 - b), 2))) <= pow(radius - 1, 2))
+            if (((pow(abs(static_cast<int>(radius) - 1 - a), 2) + pow(abs(static_cast<int>(radius) - 1 - b), 2))) <= pow(radius - 1, 2))
               *pointer = static_cast<int>(Selection::VOXEL_SELECTED);
             else
               *pointer = static_cast<int>(Selection::VOXEL_UNSELECTED);
@@ -793,7 +797,7 @@ void Selection::setSelectionDisc(const Vector3i &point, const unsigned int radiu
           for (int b = 0; b <= extent[5]; b++)
           {
             auto pointer = static_cast<int*>(image->GetScalarPointer(a, 0, b));
-            if (((pow(abs(radius - 1 - a), 2) + pow(abs(radius - 1 - b), 2))) <= pow(radius - 1, 2))
+            if (((pow(abs(static_cast<int>(radius) - 1 - a), 2) + pow(abs(static_cast<int>(radius) - 1 - b), 2))) <= pow(radius - 1, 2))
               *pointer = static_cast<int>(Selection::VOXEL_SELECTED);
             else
               *pointer = static_cast<int>(Selection::VOXEL_UNSELECTED);
@@ -806,7 +810,7 @@ void Selection::setSelectionDisc(const Vector3i &point, const unsigned int radiu
           for (int b = 0; b <= extent[5]; b++)
           {
             auto pointer = static_cast<int*>(image->GetScalarPointer(0, a, b));
-            if (((pow(abs(radius - 1 - a), 2) + pow(abs(radius - 1 - b), 2))) <= pow(radius - 1, 2))
+            if (((pow(abs(static_cast<int>(radius) - 1 - a), 2) + pow(abs(static_cast<int>(radius) - 1 - b), 2))) <= pow(radius - 1, 2))
               *pointer = static_cast<int>(Selection::VOXEL_SELECTED);
             else
               *pointer = static_cast<int>(Selection::VOXEL_UNSELECTED);
@@ -855,21 +859,21 @@ void Selection::setSelectionDisc(const Vector3i &point, const unsigned int radiu
   switch (view->orientationType())
   {
     case SliceVisualization::Orientation::Axial:
-      clipperExtent[0] = ((point[0] - radius) < 0) ? abs(point[0] - radius) : 0;
+      clipperExtent[0] = ((point[0] - radius) < 0) ? std::abs(point[0] - static_cast<int>(radius)) : 0;
       clipperExtent[1] = ((point[0] + radius) > m_size[0]) ? (radius - point[0] + m_size[0]) : (radius * 2) - 2;
-      clipperExtent[2] = ((point[1] - radius) < 0) ? abs(point[1] - radius) : 0;
+      clipperExtent[2] = ((point[1] - radius) < 0) ? std::abs(point[1] - static_cast<int>(radius)) : 0;
       clipperExtent[3] = ((point[1] + radius) > m_size[1]) ? (radius - point[1] + m_size[1]) : (radius * 2) - 2;
       break;
     case SliceVisualization::Orientation::Coronal:
-      clipperExtent[0] = ((point[0] - radius) < 0) ? abs(point[0] - radius) : 0;
+      clipperExtent[0] = ((point[0] - radius) < 0) ? std::abs(point[0] - static_cast<int>(radius)) : 0;
       clipperExtent[1] = ((point[0] + radius) > m_size[0]) ? (radius - point[0] + m_size[0]) : (radius * 2) - 2;
-      clipperExtent[4] = ((point[2] - radius) < 0) ? abs(point[2] - radius) : 0;
+      clipperExtent[4] = ((point[2] - radius) < 0) ? std::abs(point[2] - static_cast<int>(radius)) : 0;
       clipperExtent[5] = ((point[2] + radius) > m_size[2]) ? (radius - point[2] + m_size[2]) : (radius * 2) - 2;
       break;
     case SliceVisualization::Orientation::Sagittal:
-      clipperExtent[2] = ((point[1] - radius) < 0) ? abs(point[1] - radius) : 0;
+      clipperExtent[2] = ((point[1] - radius) < 0) ? std::abs(point[1] - static_cast<int>(radius)) : 0;
       clipperExtent[3] = ((point[1] + radius) > m_size[1]) ? (radius - point[1] + m_size[1]) : (radius * 2) - 2;
-      clipperExtent[4] = ((point[2] - radius) < 0) ? abs(point[2] - radius) : 0;
+      clipperExtent[4] = ((point[2] - radius) < 0) ? std::abs(point[2] - static_cast<int>(radius)) : 0;
       clipperExtent[5] = ((point[2] + radius) > m_size[2]) ? (radius - point[2] + m_size[2]) : (radius * 2) - 2;
       break;
     default:
@@ -909,7 +913,9 @@ void Selection::boxSelectionWidgetCallback(vtkObject *caller, unsigned long even
   auto max = self->maximumBouds();
 
   auto callerWidget = static_cast<BoxSelectionWidget*>(caller);
+  if(!callerWidget) return;
   auto callerRepresentation = static_cast<BoxSelectionRepresentation2D*>(callerWidget->GetRepresentation());
+  if(!callerRepresentation) return;
   double *spacing = callerRepresentation->Getm_spacing();
   double *pos1 = callerRepresentation->GetPosition();
   double *pos2 = callerRepresentation->GetPosition2();
@@ -992,7 +998,9 @@ void Selection::boxSelectionWidgetCallback(vtkObject *caller, unsigned long even
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void Selection::computeLassoBounds(int *iBounds)
 {
+  if(!m_contourWidget) return;
   auto rep = static_cast<ContourRepresentationGlyph *>(m_contourWidget->GetRepresentation());
+  if(!rep) return;
   auto bounds = rep->GetBounds();
 
   // this copy is needed because we want to change the values and we mustn't do it in the original pointer or we will mess
@@ -1112,6 +1120,7 @@ void Selection::addContourInitialPoint(const Vector3ui &point, std::shared_ptr<S
   // create widget and representation
   m_contourWidget = vtkSmartPointer<ContourWidget>::New();
   m_contourWidget->SetInteractor(callerSlice->renderer()->GetRenderWindow()->GetInteractor());
+  m_contourWidget->SetDefaultRenderer(callerSlice->renderer());
   m_contourWidget->SetContinuousDraw(true);
   m_contourWidget->SetFollowCursor(true);
 
@@ -1193,7 +1202,7 @@ void Selection::addContourInitialPoint(const Vector3ui &point, std::shared_ptr<S
   m_stencilToImage->SetOutsideValue(VOXEL_UNSELECTED);
 
   // bootstrap operations
-  m_contourWidget->SelectAction(m_contourWidget);
+  m_contourWidget->SelectAction(m_contourWidget.Get());
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1201,7 +1210,9 @@ void Selection::contourSelectionWidgetCallback(vtkObject *caller, unsigned long 
 {
   auto self = static_cast<Selection *>(clientdata);
   auto widget = static_cast<ContourWidget*>(caller);
+  if(!widget) return;
   auto rep = static_cast<ContourRepresentationGlyph *>(widget->GetRepresentation());
+  if(!rep) return;
 
   // if bounds are not defined or are invalid means that the rep is not valid
   auto bounds = rep->GetBounds();

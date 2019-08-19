@@ -135,6 +135,11 @@ DataManager::~DataManager()
     it.second = nullptr;
   }
   ActionInformationVector.clear();
+
+  m_labelMap = nullptr;
+  m_structuredPoints = nullptr;
+  m_lookupTable = nullptr;
+
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////

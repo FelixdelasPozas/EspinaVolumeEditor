@@ -48,6 +48,12 @@ AxesRender::~AxesRender()
       m_renderer->RemoveActor(m_planesActors[i]);
       m_renderer->RemoveActor(m_crossActors[i]);
     }
+
+    m_crossActors.clear();
+    m_planesActors.clear();
+    m_POILines.clear();
+    m_planes.clear();
+    m_renderer = nullptr;
   }
 }
 

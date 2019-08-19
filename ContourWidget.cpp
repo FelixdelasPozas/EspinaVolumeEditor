@@ -152,7 +152,7 @@ void ContourWidget::SelectAction(vtkAbstractWidget *widget)
 	auto Y = self->Interactor->GetEventPosition()[1];
 
 	self->WidgetRep->ComputeInteractionState(X, Y);
-	auto state = self->WidgetRep->GetInteractionState();
+	auto state = rep->GetInteractionState();
 	self->SetCursor(state);
 
 	double pos[2]{static_cast<double>(X), static_cast<double>(Y)};
@@ -218,12 +218,12 @@ void ContourWidget::SelectAction(vtkAbstractWidget *widget)
 			if (pressedKeys & Qt::ShiftModifier)
 			{
 				self->DeleteAction(widget);
-				state = self->WidgetRep->GetInteractionState();
+				state = rep->GetInteractionState();
 				self->SetCursor(state);
 				break;
 			}
 
-			if (self->WidgetRep->GetInteractionState() == ContourRepresentation::Inside)
+			if (rep->GetInteractionState() == ContourRepresentation::Inside)
 			{
 				self->TranslateContourAction(widget);
 				break;
@@ -252,6 +252,8 @@ void ContourWidget::SelectAction(vtkAbstractWidget *widget)
 			}
 			break;
 		}
+		default:
+		  break;
 	}
 
 	if (rep->GetNeedToRender())

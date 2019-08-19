@@ -137,7 +137,7 @@ class VoxelVolumeRender
         Vector3ui                 min;  /** bounding box minimum point. */
         Vector3ui                 max;  /** bounding box maximum point. */
 
-        Pipeline(): min{Vector3ui{0,0,0}}, max{Vector3ui{0,0,0}}, mesh{nullptr} {};
+        Pipeline(): min(Vector3ui{0,0,0}), max(Vector3ui{0,0,0}), mesh{nullptr} {};
     };
 
     std::map<const unsigned short, std::shared_ptr<Pipeline>> m_actors; /** list of actors in the view. */

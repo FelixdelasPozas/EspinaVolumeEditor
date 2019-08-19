@@ -53,7 +53,7 @@ void ProgressAccumulator::SetProgressBar(QProgressBar *bar)
   m_ITKCommand = ITKCommandType::New();
   m_ITKCommand->SetCallbackFunction(this, &ProgressAccumulator::ITKProcessEvent);
 
-  m_VTKCommand = VTKCommandType::New();
+  m_VTKCommand = vtkSmartPointer<VTKCommandType>::New();
   m_VTKCommand->SetCallback(&ProgressAccumulator::VTKProcessEvent);
   m_VTKCommand->SetClientData(this);
 
@@ -280,4 +280,11 @@ void ProgressAccumulator::ManualReset(bool calledFromThread)
     QApplication::restoreOverrideCursor();
     QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
   }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+ProgressAccumulator::~ProgressAccumulator()
+{
+  m_ITKCommand = nullptr;
+  m_VTKCommand = nullptr;
 }

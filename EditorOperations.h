@@ -48,6 +48,11 @@ class EditorOperations
      */
     explicit EditorOperations(std::shared_ptr<DataManager> dataManager);
 
+    /** \brief EditorOperations class destructor.
+     *
+     */
+    ~EditorOperations();
+
     /** \brief Initializes the class.
      * \param[in] renderer view's renderer.
      * \param[in] coordinates image orientation data.

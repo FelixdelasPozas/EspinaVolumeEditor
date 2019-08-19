@@ -1,0 +1,36 @@
+; Mingw64 Distribution Inno Setup File
+
+[Setup]
+AppName=EspinaEditor
+AppVersion=@ESPINAEDITOR_VERSION_MAJOR@.@ESPINAEDITOR_VERSION_MINOR@.@ESPINAEDITOR_VERSION_PATCH@
+DefaultDirName={pf64}\EspinaEditor
+DefaultGroupName=Espina Editor
+OutputDir=@PROJECT_BINARY_DIR@
+AppComments=Espina Editor
+AppContact=Felix de las Pozas Alvarez
+AppCopyright=(c)2019 Felix de las Pozas Alvarez
+AppPublisher=Felix de las Pozas Alvarez
+ArchitecturesAllowed=x64
+Compression=lzma2/ultra64
+CreateUninstallRegKey=yes
+Uninstallable=yes
+DisableFinishedPage=no
+DisableWelcomePage=no
+ChangesAssociations=no
+CloseApplications=yes
+UninstallDisplayIcon=@CMAKE_SOURCE_DIR@/icons/brain.ico
+UninstallDisplayName=EspinaEditor v@ESPINAEDITOR_VERSION_MAJOR@.@ESPINAEDITOR_VERSION_MINOR@.@ESPINAEDITOR_VERSION_PATCH@
+SourceDir=@PROJECT_BINARY_DIR@
+SetupIconFile=@CMAKE_SOURCE_DIR@/icons/brain.ico
+OutputBaseFilename=EspinaEditor_v@ESPINAEDITOR_VERSION_MAJOR@.@ESPINAEDITOR_VERSION_MINOR@.@ESPINAEDITOR_VERSION_PATCH@_Setup
+
+[Files]
+Source: "EspinaEditor.exe"; DestDir: "{app}";
+Source: "*.dll"; DestDir: "{app}";
+Source: "iconengines/*.*"; DestDir: "{app}/iconengines/";
+Source: "imageformats/*.*"; DestDir: "{app}/imageformats/";
+Source: "platforms/*.*"; DestDir: "{app}/platforms/";
+Source: "testImages/*.*"; DestDir: "{app}/testImages/";
+
+[Run]
+Filename: "{app}\EspinaEditor.exe"; Description: "Launch Espina Editor"; Flags: postinstall nowait skipifsilent unchecked

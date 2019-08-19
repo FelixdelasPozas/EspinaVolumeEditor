@@ -312,6 +312,31 @@ EspinaVolumeEditor::EspinaVolumeEditor(QApplication *app, QWidget *parent)
 EspinaVolumeEditor::~EspinaVolumeEditor()
 {
   removeSessionFiles();
+
+  m_dataManager = nullptr;
+  m_editorOperations = nullptr;
+  m_progress = nullptr;
+
+  for(auto view: {m_axialRenderer, m_coronalRenderer, m_sagittalRenderer, m_volumeRenderer})
+  {
+    vtkProp *actor = nullptr;
+    while(actor = view->GetViewProps()->GetNextProp())
+    {
+      view->RemoveViewProp(actor);
+    }
+  }
+
+  m_axesWidget = nullptr;
+  m_axialRenderer = nullptr;
+  m_coronalRenderer = nullptr;
+  m_sagittalRenderer = nullptr;
+  m_volumeRenderer = nullptr;
+  m_axesRender = nullptr;
+  m_axialView = nullptr;
+  m_coronalView = nullptr;
+  m_sagittalView = nullptr;
+  m_volumeView = nullptr;
+  m_connections = nullptr;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -934,6 +959,8 @@ void EspinaVolumeEditor::save()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void EspinaVolumeEditor::exit()
 {
+  if(m_editorOperations) m_editorOperations->ClearSelection();
+
   QApplication::exit();
 }
 

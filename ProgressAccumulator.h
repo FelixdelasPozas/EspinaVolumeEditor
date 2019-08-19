@@ -61,6 +61,11 @@ class ProgressAccumulator
      */
     ProgressAccumulator();
 
+    /** \brief ProgressAccumulator class destructor.
+     *
+     */
+    ~ProgressAccumulator();
+
     /** \brief Sets the progress bar that this class will use.
      * \param[in] bar progress bar used by accumulator.
      * \param[in] label label of the bar.

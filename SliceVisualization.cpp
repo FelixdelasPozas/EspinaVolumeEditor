@@ -187,6 +187,37 @@ SliceVisualization::~SliceVisualization()
     m_renderer->GetRenderWindow()->RemoveRenderer(m_thumbRenderer);
     m_renderer->RemoveAllViewProps();
   }
+
+  m_picker = nullptr;
+  m_renderer = nullptr;
+  m_thumbRenderer = nullptr;
+  m_texture = nullptr;
+  m_textActor = nullptr;
+  m_axesMatrix = nullptr;
+  m_horizontalCrosshair = nullptr;
+  m_horizontalCrosshairActor = nullptr;
+  m_verticalCrosshair = nullptr;
+  m_verticalCrosshairActor = nullptr;
+  m_focusData = nullptr;
+  m_focusActor = nullptr;
+  m_referenceImageMapper = nullptr;
+  m_referenceReslice = nullptr;
+  m_imageBlender = nullptr;
+  m_segmentationReslice = nullptr;
+  m_segmentationsMapper = nullptr;
+  m_segmentationsActor = nullptr;
+  m_selectionReslice = nullptr;
+  m_caster = nullptr;
+  m_geometryFilter = nullptr;
+  m_iconFilter = nullptr;
+  m_selectionMapper = nullptr;
+  m_selectionActor = nullptr;
+
+  for(auto data: m_actorList)
+  {
+    data->actor = nullptr;
+  }
+  m_actorList.clear();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -712,8 +743,7 @@ void SliceVisualization::setReferenceImage(vtkSmartPointer<vtkStructuredPoints> 
   m_referenceImageMapper->SetInputData(m_referenceReslice->GetOutput());
   m_referenceImageMapper->SetLookupTable(colorTable);
   m_referenceImageMapper->SetOutputFormatToRGBA();
-  m_referenceImageMapper->SetUpdateExtentToWholeExtent();
-  m_referenceImageMapper->Update();
+  m_referenceImageMapper->UpdateWholeExtent();
 
 	// remove actual actor and add the blended actor with both the segmentation and the stack
 	m_imageBlender = vtkSmartPointer<vtkImageBlend>::New();
@@ -722,8 +752,7 @@ void SliceVisualization::setReferenceImage(vtkSmartPointer<vtkStructuredPoints> 
 	m_imageBlender->SetOpacity(0, 1.0);
 	m_imageBlender->SetOpacity(1, m_segmentationOpacity);
 	m_imageBlender->SetBlendModeToNormal();
-	m_imageBlender->SetUpdateExtentToWholeExtent();
-	m_imageBlender->Update();
+	m_imageBlender->UpdateWholeExtent();
 
   m_segmentationsActor->SetInputData(m_imageBlender->GetOutput());
   m_segmentationsActor->PickableOn();

@@ -13,11 +13,9 @@
 
 int main(int argc, char * argv[])
 {
-    auto app = new QApplication(argc, argv);
-    auto editor = new EspinaVolumeEditor(app);
+  QApplication app(argc, argv);
+  EspinaVolumeEditor editor(&app);
+  editor.showMaximized();
 
-    editor->showMaximized();
-    app->exec();
-    
-    delete editor;
+  return app.exec();
 }

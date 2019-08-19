@@ -153,12 +153,10 @@ ContourRepresentationGlyph::ContourRepresentationGlyph()
 	this->Mapper->SetInputData(this->Glypher->GetOutput());
 	this->Mapper->SetResolveCoincidentTopologyToPolygonOffset();
 	this->Mapper->ScalarVisibilityOff();
-	this->Mapper->ImmediateModeRenderingOn();
 
 	this->ActiveMapper->SetInputData(this->ActiveGlypher->GetOutput());
 	this->ActiveMapper->SetResolveCoincidentTopologyToPolygonOffset();
 	this->ActiveMapper->ScalarVisibilityOff();
-	this->ActiveMapper->ImmediateModeRenderingOn();
 
   // Set up the initial properties
   this->SetDefaultProperties();
@@ -231,6 +229,12 @@ void ContourRepresentationGlyph::SetRenderer(vtkRenderer *ren)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 int ContourRepresentationGlyph::ComputeInteractionState(int X, int Y, int vtkNotUsed(modified))
 {
+  if(this->FocalPoint->GetNumberOfPoints() == 0)
+  {
+    this->InteractionState = ContourRepresentation::Outside;
+    return this->InteractionState;
+  }
+
 	double pos[4];
 	this->FocalPoint->GetPoint(0, pos);
 	pos[3] = 1.0;
@@ -921,7 +925,6 @@ void ContourRepresentationGlyph::CreateSelectedNodesRepresentation()
 	this->SelectedNodesMapper->SetInputData(this->SelectedNodesGlypher->GetOutput());
 	this->SelectedNodesMapper->SetResolveCoincidentTopologyToPolygonOffset();
 	this->SelectedNodesMapper->ScalarVisibilityOff();
-	this->SelectedNodesMapper->ImmediateModeRenderingOn();
 
 	auto selectionProperty = vtkSmartPointer<vtkProperty>::New();
 	selectionProperty->SetColor(0.0, 1.0, 0.0);

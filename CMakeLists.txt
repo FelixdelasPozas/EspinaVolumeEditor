@@ -6,7 +6,7 @@ PROJECT(EspinaVolumeEditor)
 # Version Number
 set (ESPINAEDITOR_VERSION_MAJOR 2)
 set (ESPINAEDITOR_VERSION_MINOR 0)
-set (ESPINAEDITOR_VERSION_PATCH 0)
+set (ESPINAEDITOR_VERSION_PATCH 1)
 
 # Find includes in corresponding build directories
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
@@ -32,6 +32,7 @@ endif (CMAKE_BUILD_TYPE MATCHES Debug)
 
 if(DEFINED MINGW)
   configure_file("${PROJECT_SOURCE_DIR}/EspinaEditor.rc.in" "${PROJECT_BINARY_DIR}/EspinaEditor.rc")
+  configure_file("${PROJECT_SOURCE_DIR}/installer/script.iss.in" "${PROJECT_BINARY_DIR}/script.iss")
   set(RC_FILE ${CMAKE_CURRENT_BINARY_DIR}/ESPINAEDITOR.rc)
   set(CMAKE_RC_COMPILE_OBJECT "<CMAKE_RC_COMPILER> -O coff -o <OBJECT> -i <SOURCE>")
   enable_language(RC)

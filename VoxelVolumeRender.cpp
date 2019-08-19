@@ -28,7 +28,6 @@
 #include <vtkColorTransferFunction.h>
 #include <vtkVolume.h>
 #include <vtkVolumeProperty.h>
-#include <vtkVolumeRayCastCompositeFunction.h>
 #include <vtkCamera.h>
 #include <vtkImageClip.h>
 #include <vtkImageCanvasSource2D.h>
@@ -71,6 +70,12 @@ VoxelVolumeRender::~VoxelVolumeRender()
     m_renderer->RemoveActor(it.second->mesh);
   }
 
+  m_renderer = nullptr;
+  m_opacityfunction = nullptr;
+  m_colorfunction = nullptr;
+  m_volumeMapper = nullptr;
+  m_volume = nullptr;
+  m_mesh = nullptr;
   m_actors.clear();
 }
 
@@ -230,7 +235,6 @@ void VoxelVolumeRender::computeMesh(const unsigned short label)
   m_progress->Observe(isoMapper, "Map", weight);
   isoMapper->SetInputConnection(normals->GetOutputPort());
   isoMapper->ReleaseDataFlagOn();
-  isoMapper->ImmediateModeRenderingOn();
   isoMapper->ScalarVisibilityOff();
   isoMapper->Update();
   m_progress->Ignore(isoMapper);
