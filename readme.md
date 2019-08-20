@@ -73,7 +73,7 @@ The lasso tool in action over the sagittal view, showing the selected voxels.
 
 # Repository information
 
-**Version**: 2.0.0
+**Version**: 2.0.1
 
 **Status**: finished
 
