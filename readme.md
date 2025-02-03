@@ -9,7 +9,7 @@ EspINA Volume Editor
 - [Repository information](#repository-information)
 
 # Description
-EspINA Volume Editor is an application to reconstruct and edit segmentations of electron microscopy or optic microscopy images generated with old versions of the application [EspINA](http://cajalbbp.es/espina/) (EspINA Interactive Neuron Analyzer). Originally written for Linux operative systems this is a Windows port of my final project to obtain my degree in Computer Science and it's capabilities have been integrated in the latest versions of EspINA. Because the file format used by the application it's no longer the one used by EspINA it's not really useful anymore and it's shown here as an exercise in building applications with the ITK and VTK libraries. 
+EspINA Volume Editor is an application to reconstruct and edit segmentations of electron microscopy or optic microscopy images generated with old versions of the application [EspINA](https://cajalbbp.csic.es/en/espina-2/) (EspINA Interactive Neuron Analyzer). Originally written for Linux operative systems this is a Windows port of my final project to obtain my degree in Computer Science and it's capabilities have been integrated in the latest versions of EspINA. Because the file format used by the application it's no longer the one used by EspINA it's not really useful anymore and it's shown here as an exercise in building applications with the ITK and VTK libraries. 
 
 The application provides several tools to modify the segmentations: 
 * Manual edition or creation of segmentations (paint or erase using a variable radius brush). 
